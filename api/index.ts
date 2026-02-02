@@ -11,7 +11,7 @@ try {
         // Connect to Supabase
         sql = postgres(process.env.DATABASE_URL, { 
             ssl: 'require', 
-            prepare: false // FIX: Supabase transaction poolers often need this
+            prepare: false 
         });
     }
 } catch (err) {
@@ -60,63 +60,48 @@ const app = new Elysia()
             } catch (e: any) { return { success: false, message: e.message }; }
         }, { body: t.Object({ name: t.String() }) })
 
-        // MODIFIED: Add Phone (Now requires type_id)
+        // FIX: Merged the two conflicting POST routes into one correct version
         .post('/phones', async ({ body, headers, set }) => {
+            if (!sql) {
+                set.status = 500;
+                return { success: false, message: "Database not connected" };
+            }
+
             const b = body as any;
             if (headers['admin-secret'] !== process.env.ADMIN_PASSWORD) {
-                set.status = 401; return { success: false };
+                set.status = 401; return { success: false, message: "Wrong Admin Password" };
             }
             try {
+                // Now includes type_id AND has error handling
                 await sql`
                     INSERT INTO phones (model, rrp, type_id) 
                     VALUES (${b.model}, ${b.rrp}, ${b.type_id})
                 `;
                 return { success: true };
-            } catch (e: any) { return { success: false, message: e.message }; }
-        }, { 
-        })
-
-        .post('/phones', async ({ body, headers, set }) => {
-            if (!sql) {
+            } catch (e: any) { 
+                console.error("Insert Error:", e);
                 set.status = 500;
-                return { success: false, message: "Database not connected (Check Vercel Logs)" };
+                return { success: false, message: e.message }; 
             }
-
-            try {
-                const adminPass = headers['admin-secret'];
-                if (adminPass !== process.env.ADMIN_PASSWORD) {
-                    set.status = 401; 
-                    return { success: false, message: "Wrong Admin Password" };
-                }
-
-                await sql`
-                    INSERT INTO phones (model, rrp) 
-                    VALUES (${(body as any).model}, ${(body as any).rrp})
-                `;
-                return { success: true };
-            } catch (error: any) {
-                console.error("Insert Error:", error);
-                set.status = 500; // FIX: Tell frontend this failed
-                return { success: false, message: "DB Error: " + error.message };
-            }
-        }, {
-            body: t.Object({ model: t.String(), rrp: t.Number() })
+        }, { 
+            // Removed strict validation to allow type_id flexibility
         })
         
+        // FIX: Added type_id to UPDATE route so edits don't lose the category
         .put('/phones/:id', async ({ params, body, headers, set }) => {
             if (!sql) return { success: false, message: "DB not connected" };
             
-            // Check Admin Password
             if (headers['admin-secret'] !== process.env.ADMIN_PASSWORD) {
                 set.status = 401; 
                 return { success: false, message: "Wrong Password" };
             }
 
             try {
-                // Update specific phone by ID
+                const b = body as any;
+                // Added type_id to the update query
                 await sql`
                     UPDATE phones 
-                    SET model = ${(body as any).model}, rrp = ${(body as any).rrp}
+                    SET model = ${b.model}, rrp = ${b.rrp}, type_id = ${b.type_id}
                     WHERE id = ${params.id}
                 `;
                 return { success: true };
@@ -124,7 +109,7 @@ const app = new Elysia()
                 return { success: false, message: error.message };
             }
         }, {
-            body: t.Object({ model: t.String(), rrp: t.Number() })
+             // relaxed validation for body
         })
 
         .delete('/phones/:id', async ({ params, headers, set }) => {
@@ -182,7 +167,7 @@ const app = new Elysia()
 
             const mailOptions = {
                 from: process.env.GMAIL_USER,
-                to: process.env.GMAIL_BOSS,
+                to: process.env.GMAIL_BOSS, // Ensure this ENV var exists or hardcode email
                 replyTo: body.email_user,
                 subject: `PERMOHONAN BARU - ${body.nama}`,
                 text: emailBody,

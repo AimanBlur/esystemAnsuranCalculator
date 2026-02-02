@@ -3,156 +3,98 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin - Phone Management</title>
+    <title>Admin - Secure Login</title>
     <style>
-        :root {
-            --primary: #0056b3;
-            --light-blue: #e3f2fd;
-            --white: #ffffff;
-            --text: #333;
-            --border: #ddd;
-        }
-        
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            background-color: #f0f2f5;
-            margin: 0;
-            padding: 0;
-            color: var(--text);
-        }
-
-        header {
-            background-color: #333; /* Darker header for Admin to distinguish it */
-            color: white;
-            padding: 15px;
-            text-align: center;
-            font-size: 1.25rem;
-            font-weight: 600;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .container {
-            max-width: 500px;
-            margin: 40px auto;
-            padding: 0 15px;
-        }
-
-        .card {
-            background: white;
-            padding: 30px;
-            border-radius: 12px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-        }
-
-        h2 { margin-top: 0; color: var(--primary); }
-
-        input {
-            width: 100%;
-            padding: 12px;
-            margin: 8px 0 20px;
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            box-sizing: border-box;
-            font-size: 16px;
-        }
-
-        input:focus {
-            outline: none;
-            border-color: var(--primary);
-            box-shadow: 0 0 0 2px rgba(0, 86, 179, 0.1);
-        }
-
-        button {
-            width: 100%;
-            padding: 14px;
-            border: none;
-            border-radius: 8px;
-            cursor: pointer;
-            font-size: 1rem;
-            font-weight: 600;
-            background-color: var(--primary);
-            color: white;
-            transition: opacity 0.2s;
-        }
-
-        button:active { opacity: 0.8; }
-
-        .nav-link {
-            color: white;
-            text-decoration: none;
-            font-size: 0.9rem;
-            background: rgba(255,255,255,0.2);
-            padding: 5px 10px;
-            border-radius: 4px;
-        }
+        /* (Keep your Blue Theme CSS here) */
+        :root { --primary: #0056b3; --text: #333; }
+        body { font-family: sans-serif; background: #f0f2f5; padding: 20px; }
+        .container { max-width: 500px; margin: 40px auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+        input { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; }
+        button { width: 100%; padding: 12px; background: var(--primary); color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; }
+        .hidden { display: none; }
     </style>
 </head>
 <body>
 
-    <header>
-        <span>Admin Panel</span>
-        <a href="index.html" class="nav-link">Go to Sales Portal &rarr;</a>
-    </header>
+    <div id="loginScreen" class="container">
+        <h2 style="text-align:center;">Admin Login</h2>
+        <p>Please enter the secret password to access the panel.</p>
+        <input type="password" id="adminPassInput" placeholder="Enter Password">
+        <button onclick="attemptLogin()">Login</button>
+    </div>
 
-    <div class="container">
-        <div class="card">
-            <h2>➕ Add New Phone</h2>
-            <p style="color: #666; margin-bottom: 20px;">Enter details to add a device to the calculator.</p>
-
-            <label>Model Name</label>
-            <input type="text" id="modelName" placeholder="e.g. Vivo V30">
-            
-            <label>RRP Price (RM)</label>
-            <input type="number" id="rrpPrice" placeholder="e.g. 1999">
-            
-            <button onclick="addPhone()">Add to Database</button>
+    <div id="adminPanel" class="container hidden">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+            <h2>Add New Phone</h2>
+            <button onclick="logout()" style="width:auto; background:#666; font-size:0.8rem;">Logout</button>
         </div>
+        
+        <label>Model Name</label>
+        <input type="text" id="modelName" placeholder="e.g. Vivo V30">
+        
+        <label>RRP Price (RM)</label>
+        <input type="number" id="rrpPrice" placeholder="e.g. 1999">
+        
+        <button onclick="addPhone()">Add to Database</button>
+        <br><br>
+        <a href="index.html" style="text-align:center; display:block; color: #0056b3;">&larr; Back to Sales Portal</a>
     </div>
 
     <script>
-        // Update this URL once you deploy the backend!
         const API_URL = "/api";
+        let secretKey = "";
+
+        // Check if user is already logged in
+        if (localStorage.getItem("adminKey")) {
+            secretKey = localStorage.getItem("adminKey");
+            showPanel();
+        }
+
+        function attemptLogin() {
+            const input = document.getElementById('adminPassInput').value;
+            if (!input) return alert("Please enter password");
+            
+            secretKey = input;
+            localStorage.setItem("adminKey", input); // Save for next time
+            showPanel();
+        }
+
+        function showPanel() {
+            document.getElementById('loginScreen').classList.add('hidden');
+            document.getElementById('adminPanel').classList.remove('hidden');
+        }
+
+        function logout() {
+            localStorage.removeItem("adminKey");
+            location.reload();
+        }
 
         async function addPhone() {
-            const modelInput = document.getElementById('modelName');
-            const rrpInput = document.getElementById('rrpPrice');
-            const btn = document.querySelector('button');
+            const model = document.getElementById('modelName').value;
+            const rrp = parseFloat(document.getElementById('rrpPrice').value);
 
-            const model = modelInput.value;
-            const rrp = parseFloat(rrpInput.value);
+            if (!model || !rrp) return alert("Fill all fields");
 
-            if (!model || !rrp) return alert("Please fill in all fields");
+            const response = await fetch(`${API_URL}/phones`, {
+                method: 'POST',
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'admin-secret': secretKey // Send password to backend
+                },
+                body: JSON.stringify({ model, rrp })
+            });
 
-            // UI Feedback
-            const originalText = btn.innerText;
-            btn.innerText = "Adding...";
-            btn.disabled = true;
+            const result = await response.json();
 
-            try {
-                const response = await fetch(API_URL, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ model, rrp })
-                });
-                
-                if (response.ok) {
-                    alert(`✅ Successfully added: ${model}`);
-                    modelInput.value = "";
-                    rrpInput.value = "";
-                } else {
-                    alert("❌ Error adding phone. Server might be down.");
-                }
-            } catch (error) {
-                console.error(error);
-                alert("❌ Connection Error. Is the backend running?");
+            if (response.ok) {
+                alert(`✅ Successfully added ${model}`);
+                document.getElementById('modelName').value = "";
+                document.getElementById('rrpPrice').value = "";
+            } else {
+                // If backend rejects password
+                alert("❌ Error: " + (result.message || "Failed"));
+                if (response.status === 401) logout(); // Wrong password, kick user out
             }
-
-            // Restore button
-            btn.innerText = originalText;
-            btn.disabled = false;
         }
     </script>
 </body>

@@ -31,7 +31,8 @@
         </div>
 
         <div style="background: #f9f9f9; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
-            <h3 style="margin-top:0;" id="formTitle">Add New Phone</h3>
+            <h3 style="margin-top:0;" id="formTitle">Add New Item</h3>
+            <select id="typeSelect"><option>Loading types...</option></select>
             <input type="hidden" id="editId"> <input type="text" id="modelName" placeholder="Model Name (e.g. iPhone 15)">
             <input type="number" id="rrpPrice" placeholder="RRP Price (e.g. 3499)">
             
@@ -78,6 +79,30 @@
         }
 
         // --- CRUD LOGIC ---
+
+        async function loadTypes() {
+            const res = await fetch(`${API_URL}/types`);
+            const types = await res.json();
+            const sel = document.getElementById('typeSelect');
+            sel.innerHTML = "";
+            types.forEach(t => {
+                sel.innerHTML += `<option value="${t.id}">${t.name}</option>`;
+            });
+        }
+
+        async function addType() {
+            const name = document.getElementById('newTypeName').value;
+            if(!name) return;
+            await fetch(`${API_URL}/types`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'admin-secret': secretKey },
+                body: JSON.stringify({ name })
+            });
+            document.getElementById('newTypeName').value = "";
+            loadTypes();
+            alert("Category Added!");
+        }
+        
         async function loadPhones() {
             try {
                 const res = await fetch(`${API_URL}/phones`);
@@ -92,7 +117,9 @@
                     const div = document.createElement('div');
                     div.className = "phone-item";
                     div.innerHTML = `
-                        <span><b>${p.model}</b> (RM ${p.rrp})</span>
+                        <span><div style="padding:10px; border-bottom:1px solid #eee;">
+                            <b>[${p.type_name || 'Phone'}]</b> ${p.model} (RM ${p.rrp})
+                        </div></span>
                         <div>
                             <button class="btn-edit" onclick="startEdit(${p.id}, '${p.model}', ${p.rrp})">Edit</button>
                             <button class="btn-delete" onclick="deletePhone(${p.id})">Delete</button>
@@ -105,6 +132,7 @@
 
         async function savePhone() {
             const id = document.getElementById('editId').value;
+            const type_id = document.getElementById('typeSelect').value;
             const model = document.getElementById('modelName').value;
             const rrp = parseFloat(document.getElementById('rrpPrice').value);
 
@@ -165,3 +193,4 @@
     </script>
 </body>
 </html>
+

@@ -181,8 +181,13 @@
     <div class="container">
         <div id="calc" class="tab-content active-content">
             <div class="card">
-                <input type="text" id="search" placeholder="Search phone model..." onkeyup="filterPhones()">
+                <label>🔍 Quick Search</label>
+                <input type="text" id="search" placeholder="Type model name (e.g. Samsung)..." onkeyup="handleSearch()">
                 
+                <div id="searchResults" style="margin-bottom: 20px; border: 1px solid #eee; display:none; max-height: 200px; overflow-y: auto;"></div>
+
+                <hr style="border: 0; border-top: 1px solid #eee; margin: 20px 0;">
+
                 <label>Phone Model 1</label>
                 <select id="phone1" onchange="calculate()"></select>
 
@@ -194,7 +199,7 @@
                     </div>
                 </div>
 
-                <button id="addBtn" class="btn-secondary" onclick="toggleSecondPhone(true)">+ Add Second Model</button>
+                <button id="addBtn" class="btn-secondary" onclick="toggleSecondPhone(true)">Add Second Model</button>
 
                 <div class="results-box">
                     <div class="result-item">
@@ -338,6 +343,61 @@
             }
         }
 
+        function handleSearch() {
+            const query = document.getElementById('search').value.toLowerCase();
+            const resultBox = document.getElementById('searchResults');
+            
+            if (!query) {
+                resultBox.style.display = 'none';
+                return;
+            }
+
+            // Filter phones
+            const matches = allPhones.filter(p => p.model.toLowerCase().includes(query));
+            
+            if (matches.length === 0) {
+                resultBox.style.display = 'block';
+                resultBox.innerHTML = '<div style="padding:10px; color:#999;">No models found</div>';
+                return;
+            }
+
+            // Render Results
+            resultBox.style.display = 'block';
+            resultBox.innerHTML = matches.map(p => `
+                <div style="padding: 10px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center;">
+                    <span style="font-weight:500;">${p.model} (RM${p.rrp})</span>
+                    <div>
+                        <button 
+                            onclick="selectSearchResult(1, '${p.rrp}')" 
+                            style="width: auto; padding: 5px 10px; font-size: 0.8rem; background: #e3f2fd; color: #0056b3; margin-right: 5px;">
+                            Set Phone 1
+                        </button>
+                        <button 
+                            onclick="selectSearchResult(2, '${p.rrp}')"
+                            style="width: auto; padding: 5px 10px; font-size: 0.8rem; background: #e3f2fd; color: #0056b3;">
+                            Set Phone 2
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function selectSearchResult(slot, rrpVal) {
+            // 1. If slot 2 is selected but hidden, show it
+            if (slot === 2) toggleSecondPhone(true);
+
+            // 2. Find the dropdown and set value
+            const dropdown = document.getElementById('phone' + slot);
+            dropdown.value = rrpVal;
+
+            // 3. Trigger calculation
+            calculate();
+
+            // 4. Optional: Clear search to keep it clean
+            document.getElementById('search').value = "";
+            document.getElementById('searchResults').style.display = 'none';
+        }
+
         function calculate() {
             const p1 = parseFloat(document.getElementById('phone1').value) || 0;
             const p2 = parseFloat(document.getElementById('phone2').value) || 0;
@@ -441,6 +501,7 @@
 </body>
 
 </html>
+
 
 
 

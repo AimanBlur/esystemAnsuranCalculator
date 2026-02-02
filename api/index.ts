@@ -35,8 +35,6 @@ const app = new Elysia()
             try {
                 const phones = await sql`SELECT * FROM phones ORDER BY id DESC`;
                 
-                // FIX: Convert the special SQL list into a normal JavaScript Array
-                // Using [...phones] forces it to be a plain list
                 return [...phones]; 
                 
             } catch (error: any) {
@@ -46,7 +44,6 @@ const app = new Elysia()
         })
 
         .post('/phones', async ({ body, headers, set }) => {
-            // FIX: Return 500 error if DB is missing
             if (!sql) {
                 set.status = 500;
                 return { success: false, message: "Database not connected (Check Vercel Logs)" };
@@ -72,6 +69,47 @@ const app = new Elysia()
         }, {
             body: t.Object({ model: t.String(), rrp: t.Number() })
         })
+        
+        .put('/phones/:id', async ({ params, body, headers, set }) => {
+            if (!sql) return { success: false, message: "DB not connected" };
+            
+            // Check Admin Password
+            if (headers['admin-secret'] !== process.env.ADMIN_PASSWORD) {
+                set.status = 401; 
+                return { success: false, message: "Wrong Password" };
+            }
+
+            try {
+                // Update specific phone by ID
+                await sql`
+                    UPDATE phones 
+                    SET model = ${(body as any).model}, rrp = ${(body as any).rrp}
+                    WHERE id = ${params.id}
+                `;
+                return { success: true };
+            } catch (error: any) {
+                return { success: false, message: error.message };
+            }
+        }, {
+            body: t.Object({ model: t.String(), rrp: t.Number() })
+        })
+
+        .delete('/phones/:id', async ({ params, headers, set }) => {
+            if (!sql) return { success: false, message: "DB not connected" };
+
+            if (headers['admin-secret'] !== process.env.ADMIN_PASSWORD) {
+                set.status = 401; 
+                return { success: false, message: "Wrong Password" };
+            }
+
+            try {
+                await sql`DELETE FROM phones WHERE id = ${params.id}`;
+                return { success: true };
+            } catch (error: any) {
+                return { success: false, message: error.message };
+            }
+        })
+        
         .post('/submit-application', async ({ body }: { body: any }) => {
             const emailBody = `
                 BORANG PERMOHONAN ANSURAN BARU

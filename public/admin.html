@@ -75,27 +75,41 @@
 
             if (!model || !rrp) return alert("Fill all fields");
 
-            const response = await fetch(`${API_URL}/phones`, {
-                method: 'POST',
-                headers: { 
-                    'Content-Type': 'application/json',
-                    'admin-secret': secretKey // Send password to backend
-                },
-                body: JSON.stringify({ model, rrp })
-            });
+            const btn = document.querySelector('button');
+            const originalText = btn.innerText;
+            btn.innerText = "Saving...";
+            btn.disabled = true;
 
-            const result = await response.json();
+            try {
+                const response = await fetch(`${API_URL}/phones`, {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'admin-secret': secretKey
+                    },
+                    body: JSON.stringify({ model, rrp })
+                });
 
-            if (response.ok) {
-                alert(`✅ Successfully added ${model}`);
-                document.getElementById('modelName').value = "";
-                document.getElementById('rrpPrice').value = "";
-            } else {
-                // If backend rejects password
-                alert("❌ Error: " + (result.message || "Failed"));
-                if (response.status === 401) logout(); // Wrong password, kick user out
+                const result = await response.json();
+
+                // FIX: Check result.success, NOT just response.ok
+                if (result.success) {
+                    alert(`✅ Successfully added ${model}`);
+                    document.getElementById('modelName').value = "";
+                    document.getElementById('rrpPrice').value = "";
+                } else {
+                    // Show the REAL error from the backend
+                    alert("❌ Failed: " + (result.message || "Unknown Error"));
+                }
+            } catch (error) {
+                console.error(error);
+                alert("❌ Network Error: Is the backend running?");
             }
+
+            btn.innerText = originalText;
+            btn.disabled = false;
         }
     </script>
 </body>
 </html>
+

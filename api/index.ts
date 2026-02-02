@@ -47,6 +47,7 @@ const app = new Elysia()
         .get('/types', async () => {
             if (!sql) return [];
             return await sql`SELECT * FROM types ORDER BY name ASC`;
+            return [...types];
         })
 
         // NEW: Add New Type (Protected)

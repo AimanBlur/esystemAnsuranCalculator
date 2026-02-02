@@ -2,7 +2,7 @@ import { Elysia, t } from 'elysia';
 import { cors } from '@elysiajs/cors';
 import nodemailer from 'nodemailer';
 
-// --- DATABASE (Resets on server restart/sleep) ---
+// --- DATABASE ---
 let phoneDatabase = [
     { id: 1, model: "iPhone 15", rrp: 3499 },
     { id: 2, model: "Samsung S24", rrp: 4099 }
@@ -16,14 +16,13 @@ const transporter = nodemailer.createTransport({
     }
 });
 
-// FIX: Initialize with empty constructor
 const app = new Elysia()
     .use(cors())
-    // FIX: Use .group to handle the '/api' prefix safely
     .group('/api', app => app
         .get('/phones', () => phoneDatabase)
         .post('/phones', ({ body }) => {
-            const newPhone = { id: phoneDatabase.length + 1, ...body };
+            // FIX: We cast body to 'any' so TypeScript allows the spread (...)
+            const newPhone = { id: phoneDatabase.length + 1, ...(body as any) };
             phoneDatabase.push(newPhone);
             return { success: true };
         }, {
@@ -68,7 +67,7 @@ const app = new Elysia()
 
             const mailOptions = {
                 from: process.env.GMAIL_USER,
-                to: 'amenohoshizora@gmail.com', // Your Boss's Email
+                to: 'amenohoshizora@gmail.com',
                 replyTo: body.email_user,
                 subject: `PERMOHONAN BARU - ${body.nama}`,
                 text: emailBody,

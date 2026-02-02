@@ -3,39 +3,53 @@ import { cors } from '@elysiajs/cors';
 import nodemailer from 'nodemailer';
 import postgres from 'postgres';
 
-const sql = postgres(process.env.DATABASE_URL!, { ssl: 'require' });
-
-const transporter = nodemailer.createTransport({
-    service: 'gmail',
-    auth: {
-        user: process.env.GMAIL_USER,
-        pass: process.env.GMAIL_PASS
+let sql: any;
+try {
+    if (!process.env.DATABASE_URL) {
+        console.error("❌ ERROR: DATABASE_URL is missing from Vercel Environment Variables!");
+    } else {
+        sql = postgres(process.env.DATABASE_URL, { ssl: 'require' });
     }
-});
+} catch (err) {
+    console.error("❌ Database Connection Failed:", err);
+}
 
 const app = new Elysia()
     .use(cors())
     .group('/api', app => app
         .get('/phones', async () => {
-            const phones = await sql`SELECT * FROM phones ORDER BY id DESC`;
-            return phones;
-        })
-        .post('/phones', async ({ body, headers, set }) => {
-            const adminPass = headers['admin-secret'];
-
-            // Security Check
-            if (adminPass !== process.env.ADMIN_PASSWORD) {
-                set.status = 401; // Unauthorized code
-                return { success: false, message: "Wrong Admin Password" };
-            }
-
-            // Insert into DB
-            await sql`
-                INSERT INTO phones (model, rrp) 
-                VALUES (${(body as any).model}, ${(body as any).rrp})
-            `;
+            if (!sql) return { error: "Database URL not configured in Vercel" };
             
-            return { success: true };
+            try {
+                const phones = await sql`SELECT * FROM phones ORDER BY id DESC`;
+                return phones;
+            } catch (error: any) {
+                console.error("SQL Error:", error);
+                // Return the actual error to the frontend so you can see it
+                return { error: error.message || "Database Query Failed" }; 
+            }
+        })
+
+        // --- ROUTE 2: ADD PHONE (With Error Handling) ---
+        .post('/phones', async ({ body, headers, set }) => {
+            if (!sql) return { success: false, message: "Database not connected" };
+
+            try {
+                const adminPass = headers['admin-secret'];
+                if (adminPass !== process.env.ADMIN_PASSWORD) {
+                    set.status = 401; 
+                    return { success: false, message: "Wrong Admin Password" };
+                }
+
+                await sql`
+                    INSERT INTO phones (model, rrp) 
+                    VALUES (${(body as any).model}, ${(body as any).rrp})
+                `;
+                return { success: true };
+            } catch (error: any) {
+                console.error("Insert Error:", error);
+                return { success: false, message: error.message };
+            }
         }, {
             body: t.Object({ model: t.String(), rrp: t.Number() })
         })

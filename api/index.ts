@@ -30,17 +30,50 @@ const app = new Elysia()
     .use(cors())
     .group('/api', app => app
         .get('/phones', async () => {
-            if (!sql) return { error: "Database not connected. Check Vercel Logs." };
-            
+            if (!sql) return { error: "DB Error" };
             try {
-                const phones = await sql`SELECT * FROM phones ORDER BY id DESC`;
-                
-                return [...phones]; 
-                
-            } catch (error: any) {
-                console.error("SQL Error:", error);
-                return { error: error.message || "Database Query Failed" }; 
+                // Join tables so we get the type name (e.g., "TV") along with the phone
+                const phones = await sql`
+                    SELECT phones.*, types.name as type_name 
+                    FROM phones 
+                    LEFT JOIN types ON phones.type_id = types.id 
+                    ORDER BY phones.id DESC
+                `;
+                return [...phones];
+            } catch (error: any) { return { error: error.message }; }
+        })
+
+        // NEW: Get All Types (for the dropdowns)
+        .get('/types', async () => {
+            if (!sql) return [];
+            return await sql`SELECT * FROM types ORDER BY name ASC`;
+        })
+
+        // NEW: Add New Type (Protected)
+        .post('/types', async ({ body, headers, set }) => {
+            if (headers['admin-secret'] !== process.env.ADMIN_PASSWORD) {
+                set.status = 401; return { success: false };
             }
+            try {
+                await sql`INSERT INTO types (name) VALUES (${(body as any).name})`;
+                return { success: true };
+            } catch (e: any) { return { success: false, message: e.message }; }
+        }, { body: t.Object({ name: t.String() }) })
+
+        // MODIFIED: Add Phone (Now requires type_id)
+        .post('/phones', async ({ body, headers, set }) => {
+            const b = body as any;
+            if (headers['admin-secret'] !== process.env.ADMIN_PASSWORD) {
+                set.status = 401; return { success: false };
+            }
+            try {
+                await sql`
+                    INSERT INTO phones (model, rrp, type_id) 
+                    VALUES (${b.model}, ${b.rrp}, ${b.type_id})
+                `;
+                return { success: true };
+            } catch (e: any) { return { success: false, message: e.message }; }
+        }, { 
         })
 
         .post('/phones', async ({ body, headers, set }) => {

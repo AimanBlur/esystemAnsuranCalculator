@@ -6,9 +6,13 @@ import postgres from 'postgres';
 let sql: any;
 try {
     if (!process.env.DATABASE_URL) {
-        console.error("❌ ERROR: DATABASE_URL is missing from Vercel Environment Variables!");
+        console.error("❌ ERROR: DATABASE_URL is missing!");
     } else {
-        sql = postgres(process.env.DATABASE_URL, { ssl: 'require' });
+        // Connect to Supabase
+        sql = postgres(process.env.DATABASE_URL, { 
+            ssl: 'require', 
+            prepare: false // FIX: Supabase transaction poolers often need this
+        });
     }
 } catch (err) {
     console.error("❌ Database Connection Failed:", err);

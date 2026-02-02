@@ -2,8 +2,8 @@
   "name": "ansuran-app",
   "version": "1.0.0",
   "scripts": {
-    "dev": "bun run --watch server.ts",
-    "start": "bun run server.ts"
+    "dev": "bun run --watch api/index.ts",
+    "build": "echo 'No build step necessary'"
   },
   "dependencies": {
     "elysia": "latest",
@@ -12,6 +12,7 @@
   },
   "devDependencies": {
     "bun-types": "latest",
-    "@types/nodemailer": "latest"
+    "@types/nodemailer": "latest",
+    "typescript": "latest" 
   }
 }

@@ -16,9 +16,7 @@
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
             background-color: #f0f2f5;
-            margin: 0;
-            padding: 0;
-            color: var(--text);
+            margin: 0; padding: 0; color: var(--text);
         }
 
         /* Mobile Header */
@@ -32,146 +30,63 @@
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
 
-        /* Navigation Tabs */
+        /* Tabs */
         .tabs {
             display: flex;
             background: white;
             box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-            position: sticky;
-            top: 0;
-            z-index: 100;
+            position: sticky; top: 0; z-index: 100;
         }
 
         .tab-btn {
-            flex: 1;
-            padding: 15px;
-            border: none;
-            background: none;
-            font-size: 1rem;
-            cursor: pointer;
-            border-bottom: 3px solid transparent;
-            color: #666;
-            transition: all 0.3s ease;
+            flex: 1; padding: 15px; border: none; background: none; font-size: 1rem; cursor: pointer;
+            border-bottom: 3px solid transparent; color: #666; transition: all 0.3s ease;
         }
 
         .tab-btn.active-tab {
             border-bottom: 3px solid var(--primary);
-            color: var(--primary);
-            font-weight: bold;
-            background-color: #f8fbff;
+            color: var(--primary); font-weight: bold; background-color: #f8fbff;
         }
 
-        /* Main Container */
-        .container {
-            max-width: 600px;
-            margin: 20px auto;
-            padding: 0 15px;
-        }
-
-        .card {
-            background: white;
-            padding: 20px;
-            border-radius: 12px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-            margin-bottom: 20px;
-        }
-
+        /* Container & Card */
+        .container { max-width: 600px; margin: 20px auto; padding: 0 15px; }
+        .card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); margin-bottom: 20px; }
         .tab-content { display: none; }
         .active-content { display: block; }
 
         /* Form Controls */
         input, select, textarea {
-            width: 100%;
-            padding: 12px;
-            margin: 8px 0 16px;
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            box-sizing: border-box;
-            font-size: 16px; /* Prevents iOS zoom */
+            width: 100%; padding: 12px; margin: 8px 0 16px;
+            border: 1px solid var(--border); border-radius: 8px; box-sizing: border-box; font-size: 16px;
         }
-
         input:focus, select:focus, textarea:focus {
-            outline: none;
-            border-color: var(--primary);
-            box-shadow: 0 0 0 2px rgba(0, 86, 179, 0.1);
+            outline: none; border-color: var(--primary); box-shadow: 0 0 0 2px rgba(0, 86, 179, 0.1);
         }
-
-        label {
-            font-size: 0.9rem;
-            font-weight: 600;
-            color: #555;
-            margin-bottom: 4px;
-            display: block;
-        }
+        label { font-size: 0.9rem; font-weight: 600; color: #555; margin-bottom: 4px; display: block; }
 
         /* Buttons */
         button {
-            width: 100%;
-            padding: 14px;
-            border: none;
-            border-radius: 8px;
-            cursor: pointer;
-            font-size: 1rem;
-            font-weight: 600;
-            transition: opacity 0.2s;
+            width: 100%; padding: 14px; border: none; border-radius: 8px; cursor: pointer;
+            font-size: 1rem; font-weight: 600; transition: opacity 0.2s;
         }
-
         button:active { opacity: 0.8; }
-
         .btn-primary { background-color: var(--primary); color: white; }
         .btn-secondary { background-color: var(--light-blue); color: var(--primary); margin-top: 10px; }
         .btn-danger { background-color: #ffebee; color: #c62828; width: auto; padding: 8px 12px; font-size: 0.9rem; }
-        
-        .btn-copy { 
-            background-color: #e0e0e0; 
-            color: #333; 
-            width: auto; 
-            padding: 6px 12px; 
-            font-size: 0.8rem; 
-            margin-left: 10px;
-            border-radius: 4px;
-        }
+        .btn-copy { background-color: #e0e0e0; color: #333; width: auto; padding: 6px 12px; font-size: 0.8rem; margin-left: 10px; border-radius: 4px; }
 
-        /* Results Section */
-        .results-box {
-            background-color: #f8f9fa;
-            border: 1px solid #e9ecef;
-            border-radius: 8px;
-            padding: 15px;
-            margin-top: 20px;
-        }
-
-        .result-item {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 10px 0;
-            border-bottom: 1px solid #eee;
-        }
-
+        /* Results & Utils */
+        .results-box { background-color: #f8f9fa; border: 1px solid #e9ecef; border-radius: 8px; padding: 15px; margin-top: 20px; }
+        .result-item { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid #eee; }
         .result-item:last-child { border-bottom: none; }
-
-        .section-title {
-            color: var(--primary);
-            border-bottom: 2px solid var(--light-blue);
-            padding-bottom: 8px;
-            margin: 30px 0 15px 0;
-            font-size: 1.1rem;
-        }
-
+        .section-title { color: var(--primary); border-bottom: 2px solid var(--light-blue); padding-bottom: 8px; margin: 30px 0 15px 0; font-size: 1.1rem; }
         .hidden { display: none !important; }
-
-        /* Phone 2 Wrapper */
-        .phone-2-wrapper {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
+        .phone-2-wrapper { display: flex; align-items: center; gap: 10px; }
     </style>
 </head>
 <body>
 
-    <header>Esystem Sales Portal</header>
+    <header>Company Sales Portal</header>
 
     <div class="tabs">
         <button class="tab-btn active-tab" onclick="openTab('calc', this)">Calculator</button>
@@ -181,7 +96,7 @@
     <div class="container">
         <div id="calc" class="tab-content active-content">
             <div class="card">
-                <label>Quick Search</label>
+                <label>🔍 Quick Search</label>
                 
                 <div style="display:flex; gap:10px; margin-bottom:10px;">
                     <select id="typeFilter" onchange="handleSearch()" style="width:130px; margin:0;">
@@ -194,7 +109,8 @@
 
                 <hr style="margin: 20px 0; border:0; border-top:1px solid #eee;">
 
-                <label>Item 1</label> <select id="phone1" onchange="calculate()"></select>
+                <label>Item 1</label> 
+                <select id="phone1" onchange="calculate()"></select>
 
                 <div id="secondPhoneWrapper" class="hidden">
                     <label>Item 2</label>
@@ -207,8 +123,9 @@
 
                 <div class="results-box">
                     <div class="result-item">
-                        <span>Total RRP: <b>RM <span id="totalRrp">0.00</span></b></span> </div>
-                    <div class="result-item">
+                        <span>Total RRP: <b>RM <span id="totalRrp">0.00</span></b></span> 
+                    </div>
+                     <div class="result-item">
                         <span>12 Months: <b>RM <span id="m12">0.00</span></b></span>
                         <button class="btn-copy" onclick="copyText('m12', '12 Months')">Copy</button>
                     </div>
@@ -221,6 +138,8 @@
                         <button class="btn-copy" onclick="copyText('m36', '36 Months')">Copy</button>
                     </div>
                 </div>
+                
+                <button class="btn-primary" style="margin-top: 15px;" onclick="copyAll()">📋 Copy Full Plan</button>
             </div>
         </div>
 
@@ -250,14 +169,13 @@
                 <input type="tel" id="no_pejabat" placeholder="Office Phone No.">
                 <input type="text" id="jawatan" placeholder="Position (Jawatan)">
 
-                <h3 class="section-title">Reference 1 (Parent)</h3>
-                <input type="text" id="ref1_nama" placeholder="Name">
-                <input type="text" id="ref1_hub" placeholder="Relationship (Hubungan)">
+                <h3 class="section-title">References</h3>
+                <input type="text" id="ref1_nama" placeholder="Ref 1 Name (Parent)">
+                <input type="text" id="ref1_hub" placeholder="Relationship">
                 <input type="tel" id="ref1_hp" placeholder="Phone No.">
-
-                <h3 class="section-title">Reference 2 (Relative)</h3>
-                <input type="text" id="ref2_nama" placeholder="Name">
-                <input type="text" id="ref2_hub" placeholder="Relationship (Hubungan)">
+                <br>
+                <input type="text" id="ref2_nama" placeholder="Ref 2 Name (Relative)">
+                <input type="text" id="ref2_hub" placeholder="Relationship">
                 <input type="tel" id="ref2_hp" placeholder="Phone No.">
 
                 <h3 class="section-title">Bank Details</h3>
@@ -265,10 +183,9 @@
                 <input type="text" id="bank_acc" placeholder="Account Number">
 
                 <h3 class="section-title">Documents</h3>
-                <label>IC Copy (Image/PDF):</label>
+                <label>IC Copy:</label>
                 <input type="file" id="icFile" accept="image/*,.pdf" required>
-                
-                <label style="margin-top:10px;">Salary Slip (Image/PDF):</label>
+                <label style="margin-top:10px;">Salary Slip:</label>
                 <input type="file" id="salarySlip" accept="image/*,.pdf" required>
 
                 <button type="submit" id="submitBtn" class="btn-primary" style="margin-top:25px;">Submit Application</button>
@@ -277,8 +194,7 @@
     </div>
 
     <script>
-        // --- IMPORTANT: CHANGE THIS URL AFTER DEPLOYING BACKEND ---
-        // For now, keep it localhost to test. When you deploy to Render, replace this string.
+        // CHANGE THIS URL IF DEPLOYED (e.g. "https://your-app.onrender.com/api")
         const API_URL = "/api";
         
         let allPhones = [];
@@ -292,24 +208,31 @@
             btnElement.classList.add('active-tab');
         }
 
-        // LOAD BOTH PHONES AND TYPES
+        // LOAD DATA
         async function loadData() {
-            const [phonesRes, typesRes] = await Promise.all([
-                fetch(`${API_URL}/phones`),
-                fetch(`${API_URL}/types`)
-            ]);
-            
-            allPhones = await phonesRes.json();
-            const types = await typesRes.json();
+            try {
+                const [phonesRes, typesRes] = await Promise.all([
+                    fetch(`${API_URL}/phones`),
+                    fetch(`${API_URL}/types`)
+                ]);
+                
+                allPhones = await phonesRes.json();
+                const types = await typesRes.json();
 
-            // Fill Filter Dropdown
-            const typeFilter = document.getElementById('typeFilter');
-            types.forEach(t => {
-                typeFilter.innerHTML += `<option value="${t.id}">${t.name}</option>`;
-            });
+                // Fill Filter Dropdown
+                const typeFilter = document.getElementById('typeFilter');
+                typeFilter.innerHTML = '<option value="all">All Types</option>';
+                types.forEach(t => {
+                    typeFilter.innerHTML += `<option value="${t.id}">${t.name}</option>`;
+                });
 
-            // Fill Main Dropdowns (Hide RRP in text)
-            updateDropdowns(allPhones);
+                // Fill Main Dropdowns (Hide RRP in text)
+                updateDropdowns(allPhones);
+
+            } catch (error) {
+                console.error("Error loading data:", error);
+                alert("Could not load inventory. Check console.");
+            }
         }
 
         function updateDropdowns(list) {
@@ -318,8 +241,7 @@
                 const currentVal = select.value;
                 select.innerHTML = '<option value="0">-- Select Item --</option>';
                 list.forEach(p => {
-                    // HIDDEN RRP: We use p.model only for the text
-                    // The value="${p.rrp}" keeps the price for calculation
+                    // HIDDEN RRP: Value has price, Text has Model Name only
                     select.innerHTML += `<option value="${p.rrp}">${p.model}</option>`;
                 });
                 select.value = currentVal;
@@ -349,7 +271,7 @@
                 return;
             }
 
-            // Render Results (Hide RRP Text here too)
+            // Render Results (RRP hidden in text)
             resultBox.innerHTML = matches.map(p => `
                 <div style="padding: 10px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center;">
                     <span style="font-weight:500;">${p.model}</span>
@@ -361,10 +283,13 @@
             `).join('');
         }
 
-        function filterPhones() {
-            const query = document.getElementById('search').value.toLowerCase();
-            const filtered = allPhones.filter(p => p.model.toLowerCase().includes(query));
-            updateDropdowns(filtered);
+        function selectSearchResult(slot, rrpVal) {
+            if (slot === 2) toggleSecondPhone(true);
+            const dropdown = document.getElementById('phone' + slot);
+            dropdown.value = rrpVal;
+            calculate();
+            document.getElementById('search').value = "";
+            document.getElementById('searchResults').style.display = 'none';
         }
 
         function toggleSecondPhone(show) {
@@ -383,66 +308,11 @@
             }
         }
 
-        function handleSearch() {
-            const query = document.getElementById('search').value.toLowerCase();
-            const resultBox = document.getElementById('searchResults');
-            
-            if (!query) {
-                resultBox.style.display = 'none';
-                return;
-            }
-
-            // Filter phones
-            const matches = allPhones.filter(p => p.model.toLowerCase().includes(query));
-            
-            if (matches.length === 0) {
-                resultBox.style.display = 'block';
-                resultBox.innerHTML = '<div style="padding:10px; color:#999;">No models found</div>';
-                return;
-            }
-
-            // Render Results
-            resultBox.style.display = 'block';
-            resultBox.innerHTML = matches.map(p => `
-                <div style="padding: 10px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center;">
-                    <span style="font-weight:500;">${p.model} (RM${p.rrp})</span>
-                    <div>
-                        <button 
-                            onclick="selectSearchResult(1, '${p.rrp}')" 
-                            style="width: auto; padding: 5px 10px; font-size: 0.8rem; background: #e3f2fd; color: #0056b3; margin-right: 5px;">
-                            Set Phone 1
-                        </button>
-                        <button 
-                            onclick="selectSearchResult(2, '${p.rrp}')"
-                            style="width: auto; padding: 5px 10px; font-size: 0.8rem; background: #e3f2fd; color: #0056b3;">
-                            Set Phone 2
-                        </button>
-                    </div>
-                </div>
-            `).join('');
-        }
-
-        function selectSearchResult(slot, rrpVal) {
-            // 1. If slot 2 is selected but hidden, show it
-            if (slot === 2) toggleSecondPhone(true);
-
-            // 2. Find the dropdown and set value
-            const dropdown = document.getElementById('phone' + slot);
-            dropdown.value = rrpVal;
-
-            // 3. Trigger calculation
-            calculate();
-
-            // 4. Optional: Clear search to keep it clean
-            document.getElementById('search').value = "";
-            document.getElementById('searchResults').style.display = 'none';
-        }
-
         function calculate() {
             const p1 = parseFloat(document.getElementById('phone1').value) || 0;
             const p2 = parseFloat(document.getElementById('phone2').value) || 0;
             const totalPrincipal = p1 + p2;
-            const interestRate = 0.015;
+            const interestRate = 0.015; // 1.5%
 
             document.getElementById('totalRrp').innerText = totalPrincipal.toFixed(2);
 
@@ -471,65 +341,42 @@
 
             const fullText = `Ansuran Plan (1.5% Interest):\nTotal RRP: RM ${rrp}\n- 12 Months: RM ${m12}/mo\n- 24 Months: RM ${m24}/mo\n- 36 Months: RM ${m36}/mo`;
             navigator.clipboard.writeText(fullText);
-            alert("All details copied!");
+            alert("Copied!");
         }
 
-        // --- FORM SUBMISSION LOGIC (UPDATED FOR DEBUGGING) ---
+        // --- FORM SUBMISSION ---
         document.getElementById('uploadForm').onsubmit = async (e) => {
             e.preventDefault();
             const btn = document.getElementById('submitBtn');
             const originalText = btn.innerText;
-            
-            // UI Feedback
-            btn.innerText = "Sending... Please Wait";
+            btn.innerText = "Sending...";
             btn.style.backgroundColor = "#999";
             btn.disabled = true;
 
             const formData = new FormData();
-            const fields = [
-                'nama', 'ic', 'alamat', 'tahun_tinggal', 'jenis_rumah', 'status', 
-                'anak', 'hp', 'email_user', 'tarikh_gaji', 'syarikat', 'alamat_kerja', 
-                'tahun_kerja', 'no_pejabat', 'jawatan', 'ref1_nama', 'ref1_alamat', 
-                'ref1_hub', 'ref1_hp', 'ref2_nama', 'ref2_alamat', 'ref2_hub', 
-                'ref2_hp', 'bank_nama', 'bank_acc'
-            ];
+            const fields = ['nama', 'ic', 'alamat', 'tahun_tinggal', 'jenis_rumah', 'status', 'anak', 'hp', 'email_user', 'tarikh_gaji', 'syarikat', 'alamat_kerja', 'tahun_kerja', 'no_pejabat', 'jawatan', 'ref1_nama', 'ref1_hub', 'ref1_hp', 'ref2_nama', 'ref2_hub', 'ref2_hp', 'bank_nama', 'bank_acc'];
 
             fields.forEach(field => {
                 const el = document.getElementById(field);
-                // Send empty string "" if field is empty, so backend doesn't complain
-                formData.append(field, el ? el.value : ""); 
+                formData.append(field, el ? el.value : "");
             });
 
             const icInput = document.getElementById('icFile');
             const salaryInput = document.getElementById('salarySlip');
-            
             if(icInput.files[0]) formData.append('icFile', icInput.files[0]);
             if(salaryInput.files[0]) formData.append('salarySlip', salaryInput.files[0]);
 
             try {
-                const response = await fetch(`${API_URL}/submit-application`, {
-                    method: 'POST',
-                    body: formData
-                });
-
+                const response = await fetch(`${API_URL}/submit-application`, { method: 'POST', body: formData });
                 if (response.ok) {
-                    alert("✅ Permohonan berjaya dihantar! Boss has received the email."); 
-                    fields.forEach(field => {
-                        const el = document.getElementById(field);
-                        if(el) el.value = "";
-                    });
-                    icInput.value = "";
-                    salaryInput.value = "";
+                    alert("✅ Application sent!"); 
+                    fields.forEach(f => { if(document.getElementById(f)) document.getElementById(f).value = ""; });
+                    icInput.value = ""; salaryInput.value = "";
                 } else {
-                    // --- NEW: Read the actual error message from backend ---
                     const errorText = await response.text(); 
-                    console.error("Server Error:", errorText);
-                    alert(`❌ Failed to send. Server said: \n${errorText}`);
+                    alert(`❌ Failed: \n${errorText}`);
                 }
-            } catch (err) {
-                console.error(err);
-                alert("❌ Error connecting to server. Is the backend running?");
-            }
+            } catch (err) { alert("❌ Network Error"); }
 
             btn.innerText = originalText;
             btn.style.backgroundColor = "var(--primary)";
@@ -540,12 +387,4 @@
         loadData(); 
     </script>
 </body>
-
 </html>
-
-
-
-
-
-
-

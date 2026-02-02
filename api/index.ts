@@ -14,6 +14,14 @@ try {
     console.error("❌ Database Connection Failed:", err);
 }
 
+const transporter = nodemailer.createTransport({
+    service: 'gmail',
+    auth: {
+        user: process.env.GMAIL_USER,
+        pass: process.env.GMAIL_PASS
+    }
+});
+
 const app = new Elysia()
     .use(cors())
     .group('/api', app => app

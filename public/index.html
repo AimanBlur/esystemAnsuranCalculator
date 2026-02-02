@@ -215,7 +215,7 @@
                     </div>
                 </div>
                 
-                <button class="btn-primary" style="margin-top: 15px;" onclick="copyAll()">📋 Copy Full Plan</button>
+                <button class="btn-primary" style="margin-top: 15px;" onclick="copyAll()">Copy Full Plan</button>
             </div>
         </div>
 
@@ -287,16 +287,22 @@
             btnElement.classList.add('active-tab');
         }
 
-        // --- CALCULATOR LOGIC ---
+        // DEBUG VERSION of loadPhones
         async function loadPhones() {
             try {
                 const response = await fetch(`${API_URL}/phones`);
-                if (!response.ok) throw new Error("Server error");
-                allPhones = await response.json();
-                updateDropdowns(allPhones);
+                const data = await response.json();
+
+                alert("DEBUG DATA: " + JSON.stringify(data));
+
+                if (Array.isArray(data)) {
+                    allPhones = data;
+                    updateDropdowns(allPhones);
+                } else {
+                    console.error("Backend returned non-array:", data);
+                }
             } catch (error) {
-                console.error("Backend not connected yet or offline");
-                // Optional: Alert user if backend is down
+                alert("Fetch Error: " + error.message);
             }
         }
 
@@ -437,6 +443,7 @@
 </body>
 
 </html>
+
 
 
 

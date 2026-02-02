@@ -67,7 +67,7 @@ const app = new Elysia()
 
             const mailOptions = {
                 from: process.env.GMAIL_USER,
-                to: 'amenohoshizora@gmail.com',
+                to: process.env.GMAIL_BOSS,
                 replyTo: body.email_user,
                 subject: `PERMOHONAN BARU - ${body.nama}`,
                 text: emailBody,

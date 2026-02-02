@@ -1,12 +1,9 @@
 import { Elysia, t } from 'elysia';
 import { cors } from '@elysiajs/cors';
 import nodemailer from 'nodemailer';
+import postgres from 'postgres';
 
-// --- DATABASE ---
-let phoneDatabase = [
-    { id: 1, model: "iPhone 15", rrp: 3499 },
-    { id: 2, model: "Samsung S24", rrp: 4099 }
-];
+const sql = postgres(process.env.DATABASE_URL!, { ssl: 'require' });
 
 const transporter = nodemailer.createTransport({
     service: 'gmail',
@@ -19,11 +16,25 @@ const transporter = nodemailer.createTransport({
 const app = new Elysia()
     .use(cors())
     .group('/api', app => app
-        .get('/phones', () => phoneDatabase)
-        .post('/phones', ({ body }) => {
-            // FIX: We cast body to 'any' so TypeScript allows the spread (...)
-            const newPhone = { id: phoneDatabase.length + 1, ...(body as any) };
-            phoneDatabase.push(newPhone);
+        .get('/phones', async () => {
+            const phones = await sql`SELECT * FROM phones ORDER BY id DESC`;
+            return phones;
+        })
+        .post('/phones', async ({ body, headers, set }) => {
+            const adminPass = headers['admin-secret'];
+
+            // Security Check
+            if (adminPass !== process.env.ADMIN_PASSWORD) {
+                set.status = 401; // Unauthorized code
+                return { success: false, message: "Wrong Admin Password" };
+            }
+
+            // Insert into DB
+            await sql`
+                INSERT INTO phones (model, rrp) 
+                VALUES (${(body as any).model}, ${(body as any).rrp})
+            `;
+            
             return { success: true };
         }, {
             body: t.Object({ model: t.String(), rrp: t.Number() })

@@ -42,9 +42,12 @@ const app = new Elysia()
             }
         })
 
-        // --- ROUTE 2: ADD PHONE (With Error Handling) ---
         .post('/phones', async ({ body, headers, set }) => {
-            if (!sql) return { success: false, message: "Database not connected" };
+            // FIX: Return 500 error if DB is missing
+            if (!sql) {
+                set.status = 500;
+                return { success: false, message: "Database not connected (Check Vercel Logs)" };
+            }
 
             try {
                 const adminPass = headers['admin-secret'];
@@ -60,7 +63,8 @@ const app = new Elysia()
                 return { success: true };
             } catch (error: any) {
                 console.error("Insert Error:", error);
-                return { success: false, message: error.message };
+                set.status = 500; // FIX: Tell frontend this failed
+                return { success: false, message: "DB Error: " + error.message };
             }
         }, {
             body: t.Object({ model: t.String(), rrp: t.Number() })

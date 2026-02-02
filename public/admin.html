@@ -8,11 +8,12 @@
         :root { --primary: #0056b3; --danger: #d32f2f; --text: #333; }
         body { font-family: sans-serif; background: #f0f2f5; padding: 20px; color: var(--text); }
         .container { max-width: 600px; margin: 20px auto; background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
-        input { width: 100%; padding: 12px; margin: 8px 0 15px; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; }
+        input, select { width: 100%; padding: 12px; margin: 8px 0 15px; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; }
         button { padding: 12px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; width: 100%; color: white; background: var(--primary); }
         .btn-delete { background: var(--danger); width: auto; padding: 5px 10px; font-size: 0.8rem; margin-left: 5px; }
         .btn-edit { background: #ff9800; width: auto; padding: 5px 10px; font-size: 0.8rem; }
-        .phone-item { display: flex; justify-content: space-between; align-items: center; padding: 10px; border-bottom: 1px solid #eee; }
+        .row { display: flex; gap: 10px; }
+        .phone-item { padding: 10px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; }
         .hidden { display: none; }
     </style>
 </head>
@@ -30,10 +31,25 @@
             <button onclick="logout()" style="width:auto; background:#666;">Logout</button>
         </div>
 
+        <div style="background:#e3f2fd; padding:15px; border-radius:8px; margin-bottom:20px;">
+            <h4 style="margin:0 0 10px 0;">Manage Categories</h4>
+            <div class="row">
+                <input type="text" id="newTypeName" placeholder="New Type (e.g. TV)" style="margin:0;">
+                <button onclick="addType()" style="width:auto;">Add Type</button>
+            </div>
+        </div>
+
         <div style="background: #f9f9f9; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
             <h3 style="margin-top:0;" id="formTitle">Add New Item</h3>
-            <select id="typeSelect"><option>Loading types...</option></select>
-            <input type="hidden" id="editId"> <input type="text" id="modelName" placeholder="Model Name (e.g. iPhone 15)">
+            <input type="hidden" id="editId">
+            
+            <label>Category</label>
+            <select id="typeSelect"><option value="">Loading types...</option></select>
+            
+            <label>Model Name</label>
+            <input type="text" id="modelName" placeholder="Model Name (e.g. iPhone 15)">
+            
+            <label>RRP Price (RM)</label>
             <input type="number" id="rrpPrice" placeholder="RRP Price (e.g. 3499)">
             
             <div style="display:flex; gap:10px;">
@@ -50,10 +66,11 @@
     </div>
 
     <script>
-        const API_URL = "/api";
+        // CHANGE THIS URL IF DEPLOYED (e.g. "https://your-app.onrender.com/api")
+        const API_URL = "/api"; 
         let secretKey = "";
 
-        // --- AUTH LOGIC ---
+        // --- AUTH ---
         if (localStorage.getItem("adminKey")) {
             secretKey = localStorage.getItem("adminKey");
             showPanel();
@@ -70,7 +87,7 @@
         function showPanel() {
             document.getElementById('loginScreen').classList.add('hidden');
             document.getElementById('adminPanel').classList.remove('hidden');
-            loadPhones();
+            init();
         }
 
         function logout() {
@@ -78,31 +95,39 @@
             location.reload();
         }
 
-        // --- CRUD LOGIC ---
+        // --- LOGIC ---
+        async function init() {
+            await loadTypes();
+            loadPhones();
+        }
 
         async function loadTypes() {
-            const res = await fetch(`${API_URL}/types`);
-            const types = await res.json();
-            const sel = document.getElementById('typeSelect');
-            sel.innerHTML = "";
-            types.forEach(t => {
-                sel.innerHTML += `<option value="${t.id}">${t.name}</option>`;
-            });
+            try {
+                const res = await fetch(`${API_URL}/types`);
+                const types = await res.json();
+                const sel = document.getElementById('typeSelect');
+                sel.innerHTML = "";
+                types.forEach(t => {
+                    sel.innerHTML += `<option value="${t.id}">${t.name}</option>`;
+                });
+            } catch (e) { console.error("Error loading types:", e); }
         }
 
         async function addType() {
             const name = document.getElementById('newTypeName').value;
             if(!name) return;
-            await fetch(`${API_URL}/types`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'admin-secret': secretKey },
-                body: JSON.stringify({ name })
-            });
-            document.getElementById('newTypeName').value = "";
-            loadTypes();
-            alert("Category Added!");
+            try {
+                await fetch(`${API_URL}/types`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'admin-secret': secretKey },
+                    body: JSON.stringify({ name })
+                });
+                document.getElementById('newTypeName').value = "";
+                loadTypes();
+                alert("Category Added!");
+            } catch (e) { alert("Error adding type"); }
         }
-        
+
         async function loadPhones() {
             try {
                 const res = await fetch(`${API_URL}/phones`);
@@ -117,11 +142,9 @@
                     const div = document.createElement('div');
                     div.className = "phone-item";
                     div.innerHTML = `
-                        <span><div style="padding:10px; border-bottom:1px solid #eee;">
-                            <b>[${p.type_name || 'Phone'}]</b> ${p.model} (RM ${p.rrp})
-                        </div></span>
+                        <span><b>[${p.type_name || 'Phone'}]</b> ${p.model} (RM ${p.rrp})</span>
                         <div>
-                            <button class="btn-edit" onclick="startEdit(${p.id}, '${p.model}', ${p.rrp})">Edit</button>
+                            <button class="btn-edit" onclick="startEdit(${p.id}, '${p.model}', ${p.rrp}, ${p.type_id})">Edit</button>
                             <button class="btn-delete" onclick="deletePhone(${p.id})">Delete</button>
                         </div>
                     `;
@@ -144,7 +167,7 @@
             const res = await fetch(url, {
                 method: method,
                 headers: { 'Content-Type': 'application/json', 'admin-secret': secretKey },
-                body: JSON.stringify({ model, rrp })
+                body: JSON.stringify({ model, rrp, type_id })
             });
             
             const result = await res.json();
@@ -159,7 +182,7 @@
         }
 
         async function deletePhone(id) {
-            if(!confirm("Are you sure you want to delete this phone?")) return;
+            if(!confirm("Are you sure you want to delete this item?")) return;
             
             const res = await fetch(`${API_URL}/phones/${id}`, {
                 method: 'DELETE',
@@ -170,20 +193,21 @@
             else alert("Failed to delete");
         }
 
-        function startEdit(id, model, rrp) {
-            document.getElementById('formTitle').innerText = "Edit Phone";
-            document.getElementById('saveBtn').innerText = "Update Phone";
+        function startEdit(id, model, rrp, typeId) {
+            document.getElementById('formTitle').innerText = "✏️ Edit Item";
+            document.getElementById('saveBtn').innerText = "Update Database";
             document.getElementById('cancelBtn').classList.remove('hidden');
             
             document.getElementById('editId').value = id;
             document.getElementById('modelName').value = model;
             document.getElementById('rrpPrice').value = rrp;
+            if(typeId) document.getElementById('typeSelect').value = typeId;
             
             window.scrollTo(0,0);
         }
 
         function resetForm() {
-            document.getElementById('formTitle').innerText = "Add New Phone";
+            document.getElementById('formTitle').innerText = "➕ Add New Item";
             document.getElementById('saveBtn').innerText = "Add to Database";
             document.getElementById('cancelBtn').classList.add('hidden');
             document.getElementById('editId').value = "";
@@ -193,4 +217,3 @@
     </script>
 </body>
 </html>
-

@@ -181,46 +181,46 @@
     <div class="container">
         <div id="calc" class="tab-content active-content">
             <div class="card">
-                <label>🔍 Quick Search</label>
-                <input type="text" id="search" placeholder="Type model name (e.g. Samsung)..." onkeyup="handleSearch()">
+                <label>Quick Search</label>
                 
+                <div style="display:flex; gap:10px; margin-bottom:10px;">
+                    <select id="typeFilter" onchange="handleSearch()" style="width:130px; margin:0;">
+                        <option value="all">All Types</option>
+                        </select>
+                    <input type="text" id="search" placeholder="Type model name..." onkeyup="handleSearch()" style="margin:0;">
+                </div>
+
                 <div id="searchResults" style="margin-bottom: 20px; border: 1px solid #eee; display:none; max-height: 200px; overflow-y: auto;"></div>
 
-                <hr style="border: 0; border-top: 1px solid #eee; margin: 20px 0;">
+                <hr style="margin: 20px 0; border:0; border-top:1px solid #eee;">
 
-                <label>Phone Model 1</label>
-                <select id="phone1" onchange="calculate()"></select>
+                <label>Item 1</label> <select id="phone1" onchange="calculate()"></select>
 
                 <div id="secondPhoneWrapper" class="hidden">
-                    <label>Phone Model 2</label>
+                    <label>Item 2</label>
                     <div class="phone-2-wrapper">
                         <select id="phone2" onchange="calculate()"></select>
                         <button onclick="toggleSecondPhone(false)" class="btn-danger">✕</button>
                     </div>
                 </div>
-
-                <button id="addBtn" class="btn-secondary" onclick="toggleSecondPhone(true)">Add Second Model</button>
+                <button id="addBtn" class="btn-secondary" onclick="toggleSecondPhone(true)">+ Add Second Item</button>
 
                 <div class="results-box">
                     <div class="result-item">
-                        <span>Total RRP: <b>RM <span id="totalRrp">0.00</span></b></span>
-                        <button class="btn-copy" onclick="copyText('totalRrp', 'Total')">Copy</button>
-                    </div>
+                        <span>Total RRP: <b>RM <span id="totalRrp">0.00</span></b></span> </div>
                     <div class="result-item">
                         <span>12 Months: <b>RM <span id="m12">0.00</span></b></span>
                         <button class="btn-copy" onclick="copyText('m12', '12 Months')">Copy</button>
                     </div>
-                    <div class="result-item">
+                     <div class="result-item">
                         <span>24 Months: <b>RM <span id="m24">0.00</span></b></span>
                         <button class="btn-copy" onclick="copyText('m24', '24 Months')">Copy</button>
                     </div>
-                    <div class="result-item">
+                     <div class="result-item">
                         <span>36 Months: <b>RM <span id="m36">0.00</span></b></span>
                         <button class="btn-copy" onclick="copyText('m36', '36 Months')">Copy</button>
                     </div>
                 </div>
-                
-                <button class="btn-primary" style="margin-top: 15px;" onclick="copyAll()">Copy Full Plan</button>
             </div>
         </div>
 
@@ -292,33 +292,73 @@
             btnElement.classList.add('active-tab');
         }
 
-        // DEBUG VERSION of loadPhones
-        async function loadPhones() {
-            try {
-                const response = await fetch(`${API_URL}/phones`);
-                const data = await response.json();
+        // LOAD BOTH PHONES AND TYPES
+        async function loadData() {
+            const [phonesRes, typesRes] = await Promise.all([
+                fetch(`${API_URL}/phones`),
+                fetch(`${API_URL}/types`)
+            ]);
+            
+            allPhones = await phonesRes.json();
+            const types = await typesRes.json();
 
-                if (Array.isArray(data)) {
-                    allPhones = data;
-                    updateDropdowns(allPhones);
-                } else {
-                    console.error("Backend returned non-array:", data);
-                }
-            } catch (error) {
-                alert("Fetch Error: " + error.message);
-            }
+            // Fill Filter Dropdown
+            const typeFilter = document.getElementById('typeFilter');
+            types.forEach(t => {
+                typeFilter.innerHTML += `<option value="${t.id}">${t.name}</option>`;
+            });
+
+            // Fill Main Dropdowns (Hide RRP in text)
+            updateDropdowns(allPhones);
         }
 
         function updateDropdowns(list) {
             const dropdowns = [document.getElementById('phone1'), document.getElementById('phone2')];
             dropdowns.forEach(select => {
                 const currentVal = select.value;
-                select.innerHTML = '<option value="0">-- Select Model --</option>';
+                select.innerHTML = '<option value="0">-- Select Item --</option>';
                 list.forEach(p => {
-                    select.innerHTML += `<option value="${p.rrp}">${p.model} (RM${p.rrp})</option>`;
+                    // HIDDEN RRP: We use p.model only for the text
+                    // The value="${p.rrp}" keeps the price for calculation
+                    select.innerHTML += `<option value="${p.rrp}">${p.model}</option>`;
                 });
                 select.value = currentVal;
             });
+        }
+
+        function handleSearch() {
+            const query = document.getElementById('search').value.toLowerCase();
+            const typeId = document.getElementById('typeFilter').value;
+            const resultBox = document.getElementById('searchResults');
+
+            // Filter by Name AND Type
+            const matches = allPhones.filter(p => {
+                const nameMatch = p.model.toLowerCase().includes(query);
+                const typeMatch = typeId === "all" || String(p.type_id) === String(typeId);
+                return nameMatch && typeMatch;
+            });
+
+            if (!query && typeId === 'all') {
+                resultBox.style.display = 'none';
+                return;
+            }
+
+            resultBox.style.display = 'block';
+            if(matches.length === 0) {
+                resultBox.innerHTML = '<div style="padding:10px; color:#999;">No items found</div>';
+                return;
+            }
+
+            // Render Results (Hide RRP Text here too)
+            resultBox.innerHTML = matches.map(p => `
+                <div style="padding: 10px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center;">
+                    <span style="font-weight:500;">${p.model}</span>
+                    <div>
+                        <button onclick="selectSearchResult(1, '${p.rrp}')" style="background: #e3f2fd; color: #0056b3; border:none; padding:5px 10px; margin-right:5px; border-radius:4px;">Set Item 1</button>
+                        <button onclick="selectSearchResult(2, '${p.rrp}')" style="background: #e3f2fd; color: #0056b3; border:none; padding:5px 10px; border-radius:4px;">Set Item 2</button>
+                    </div>
+                </div>
+            `).join('');
         }
 
         function filterPhones() {
@@ -496,11 +536,13 @@
             btn.disabled = false;
         };
 
-        loadPhones();
+        // Initialize
+        loadData(); 
     </script>
 </body>
 
 </html>
+
 
 
 

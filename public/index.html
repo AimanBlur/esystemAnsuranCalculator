@@ -293,8 +293,6 @@
                 const response = await fetch(`${API_URL}/phones`);
                 const data = await response.json();
 
-                alert("DEBUG DATA: " + JSON.stringify(data));
-
                 if (Array.isArray(data)) {
                     allPhones = data;
                     updateDropdowns(allPhones);
@@ -443,6 +441,7 @@
 </body>
 
 </html>
+
 
 
 

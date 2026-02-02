@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Ansuran Calculator</title>
+</head>
+<body>
+    <h1>Admin: Add New Phone</h1>
+    <div>
+        <input type="text" id="modelName" placeholder="Phone Model (e.g. Vivo V30)">
+        <input type="number" id="rrpPrice" placeholder="RRP Price (e.g. 1999)">
+        <button onclick="addPhone()">Add to Database</button>
+    </div>
+
+    <script>
+        const API_URL = "http://localhost:3000/phones";
+
+        async function addPhone() {
+            const model = document.getElementById('modelName').value;
+            const rrp = parseFloat(document.getElementById('rrpPrice').value);
+
+            if (!model || !rrp) return alert("Please fill in all fields");
+
+            const response = await fetch(API_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ model, rrp })
+            });
+            
+            if (response.ok) {
+                alert("Phone added successfully!");
+                document.getElementById('modelName').value = "";
+                document.getElementById('rrpPrice').value = "";
+            } else {
+                alert("Error adding phone.");
+            }
+        }
+    </script>
+</body>
+</html>

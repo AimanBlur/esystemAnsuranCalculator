@@ -370,13 +370,13 @@
             alert("All details copied!");
         }
 
-        // --- FORM SUBMISSION LOGIC ---
+        // --- FORM SUBMISSION LOGIC (UPDATED FOR DEBUGGING) ---
         document.getElementById('uploadForm').onsubmit = async (e) => {
             e.preventDefault();
             const btn = document.getElementById('submitBtn');
             const originalText = btn.innerText;
             
-            // UI Feedback: Show loading state
+            // UI Feedback
             btn.innerText = "Sending... Please Wait";
             btn.style.backgroundColor = "#999";
             btn.disabled = true;
@@ -392,10 +392,10 @@
 
             fields.forEach(field => {
                 const el = document.getElementById(field);
-                if (el) formData.append(field, el.value);
+                // Send empty string "" if field is empty, so backend doesn't complain
+                formData.append(field, el ? el.value : ""); 
             });
 
-            // Append files securely
             const icInput = document.getElementById('icFile');
             const salaryInput = document.getElementById('salarySlip');
             
@@ -410,8 +410,6 @@
 
                 if (response.ok) {
                     alert("✅ Permohonan berjaya dihantar! Boss has received the email."); 
-                    
-                    // Clear inputs
                     fields.forEach(field => {
                         const el = document.getElementById(field);
                         if(el) el.value = "";
@@ -419,14 +417,16 @@
                     icInput.value = "";
                     salaryInput.value = "";
                 } else {
-                    alert("❌ Failed to send. Please try again or check internet.");
+                    // --- NEW: Read the actual error message from backend ---
+                    const errorText = await response.text(); 
+                    console.error("Server Error:", errorText);
+                    alert(`❌ Failed to send. Server said: \n${errorText}`);
                 }
             } catch (err) {
                 console.error(err);
                 alert("❌ Error connecting to server. Is the backend running?");
             }
 
-            // Restore button state
             btn.innerText = originalText;
             btn.style.backgroundColor = "var(--primary)";
             btn.disabled = false;
@@ -437,3 +437,4 @@
 </body>
 
 </html>
+

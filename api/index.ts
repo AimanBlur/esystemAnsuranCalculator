@@ -29,28 +29,32 @@ const transporter = nodemailer.createTransport({
 const app = new Elysia()
     .use(cors())
     .group('/api', app => app
+        // ROUTE 1: Get All Phones
         .get('/phones', async () => {
             if (!sql) return { error: "DB Error" };
             try {
-                // Join tables so we get the type name (e.g., "TV") along with the phone
                 const phones = await sql`
                     SELECT phones.*, types.name as type_name 
                     FROM phones 
                     LEFT JOIN types ON phones.type_id = types.id 
                     ORDER BY phones.id DESC
                 `;
+                // FIX: Use [...phones] to convert to plain array
                 return [...phones];
             } catch (error: any) { return { error: error.message }; }
         })
 
-        // NEW: Get All Types (for the dropdowns)
+        // ROUTE 2: Get All Types (The one causing your error!)
         .get('/types', async () => {
             if (!sql) return [];
-            return await sql`SELECT * FROM types ORDER BY name ASC`;
-            return [...types];
+            try {
+                const types = await sql`SELECT * FROM types ORDER BY name ASC`;
+                // FIX: This was missing the [...types] spread operator
+                return [...types]; 
+            } catch (error: any) { return []; }
         })
 
-        // NEW: Add New Type (Protected)
+        // ROUTE 3: Add New Type
         .post('/types', async ({ body, headers, set }) => {
             if (headers['admin-secret'] !== process.env.ADMIN_PASSWORD) {
                 set.status = 401; return { success: false };
@@ -61,7 +65,7 @@ const app = new Elysia()
             } catch (e: any) { return { success: false, message: e.message }; }
         }, { body: t.Object({ name: t.String() }) })
 
-        // FIX: Merged the two conflicting POST routes into one correct version
+        // ROUTE 4: Add New Phone
         .post('/phones', async ({ body, headers, set }) => {
             if (!sql) {
                 set.status = 500;
@@ -73,7 +77,6 @@ const app = new Elysia()
                 set.status = 401; return { success: false, message: "Wrong Admin Password" };
             }
             try {
-                // Now includes type_id AND has error handling
                 await sql`
                     INSERT INTO phones (model, rrp, type_id) 
                     VALUES (${b.model}, ${b.rrp}, ${b.type_id})
@@ -84,11 +87,9 @@ const app = new Elysia()
                 set.status = 500;
                 return { success: false, message: e.message }; 
             }
-        }, { 
-            // Removed strict validation to allow type_id flexibility
-        })
+        }, {})
         
-        // FIX: Added type_id to UPDATE route so edits don't lose the category
+        // ROUTE 5: Edit Phone
         .put('/phones/:id', async ({ params, body, headers, set }) => {
             if (!sql) return { success: false, message: "DB not connected" };
             
@@ -99,7 +100,6 @@ const app = new Elysia()
 
             try {
                 const b = body as any;
-                // Added type_id to the update query
                 await sql`
                     UPDATE phones 
                     SET model = ${b.model}, rrp = ${b.rrp}, type_id = ${b.type_id}
@@ -109,10 +109,9 @@ const app = new Elysia()
             } catch (error: any) {
                 return { success: false, message: error.message };
             }
-        }, {
-             // relaxed validation for body
-        })
+        }, {})
 
+        // ROUTE 6: Delete Phone
         .delete('/phones/:id', async ({ params, headers, set }) => {
             if (!sql) return { success: false, message: "DB not connected" };
 
@@ -129,6 +128,7 @@ const app = new Elysia()
             }
         })
         
+        // ROUTE 7: Submit Email
         .post('/submit-application', async ({ body }: { body: any }) => {
             const emailBody = `
                 BORANG PERMOHONAN ANSURAN BARU
@@ -168,7 +168,7 @@ const app = new Elysia()
 
             const mailOptions = {
                 from: process.env.GMAIL_USER,
-                to: process.env.GMAIL_BOSS, // Ensure this ENV var exists or hardcode email
+                to: process.env.GMAIL_BOSS,
                 replyTo: body.email_user,
                 subject: `PERMOHONAN BARU - ${body.nama}`,
                 text: emailBody,

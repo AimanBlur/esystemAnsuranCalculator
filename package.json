@@ -1,0 +1,17 @@
+{
+  "name": "ansuran-app",
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "bun run --watch server.ts",
+    "start": "bun run server.ts"
+  },
+  "dependencies": {
+    "elysia": "latest",
+    "@elysiajs/cors": "latest",
+    "nodemailer": "latest"
+  },
+  "devDependencies": {
+    "bun-types": "latest",
+    "@types/nodemailer": "latest"
+  }
+}

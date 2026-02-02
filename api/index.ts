@@ -29,7 +29,7 @@ const app = new Elysia()
         }, {
             body: t.Object({ model: t.String(), rrp: t.Number() })
         })
-        .post('/submit-application', async ({ body }) => {
+        .post('/submit-application', async ({ body }: { body: any }) => {
             const emailBody = `
                 BORANG PERMOHONAN ANSURAN BARU
                 ===============================

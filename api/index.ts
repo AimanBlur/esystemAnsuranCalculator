@@ -30,14 +30,17 @@ const app = new Elysia()
     .use(cors())
     .group('/api', app => app
         .get('/phones', async () => {
-            if (!sql) return { error: "Database URL not configured in Vercel" };
+            if (!sql) return { error: "Database not connected. Check Vercel Logs." };
             
             try {
                 const phones = await sql`SELECT * FROM phones ORDER BY id DESC`;
-                return phones;
+                
+                // FIX: Convert the special SQL list into a normal JavaScript Array
+                // Using [...phones] forces it to be a plain list
+                return [...phones]; 
+                
             } catch (error: any) {
                 console.error("SQL Error:", error);
-                // Return the actual error to the frontend so you can see it
                 return { error: error.message || "Database Query Failed" }; 
             }
         })

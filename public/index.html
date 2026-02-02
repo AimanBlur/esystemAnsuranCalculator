@@ -86,7 +86,7 @@
 </head>
 <body>
 
-    <header>Company Sales Portal</header>
+    <header>Esystem Sales Portal</header>
 
     <div class="tabs">
         <button class="tab-btn active-tab" onclick="openTab('calc', this)">Calculator</button>
@@ -96,7 +96,7 @@
     <div class="container">
         <div id="calc" class="tab-content active-content">
             <div class="card">
-                <label>🔍 Quick Search</label>
+                <label>Quick Search</label>
                 
                 <div style="display:flex; gap:10px; margin-bottom:10px;">
                     <select id="typeFilter" onchange="handleSearch()" style="width:130px; margin:0;">
@@ -122,9 +122,6 @@
                 <button id="addBtn" class="btn-secondary" onclick="toggleSecondPhone(true)">+ Add Second Item</button>
 
                 <div class="results-box">
-                    <div class="result-item">
-                        <span>Total RRP: <b>RM <span id="totalRrp">0.00</span></b></span> 
-                    </div>
                      <div class="result-item">
                         <span>12 Months: <b>RM <span id="m12">0.00</span></b></span>
                         <button class="btn-copy" onclick="copyText('m12', '12 Months')">Copy</button>
@@ -139,7 +136,7 @@
                     </div>
                 </div>
                 
-                <button class="btn-primary" style="margin-top: 15px;" onclick="copyAll()">📋 Copy Full Plan</button>
+                <button class="btn-primary" style="margin-top: 15px;" onclick="copyAll()">Copy Full Plan</button>
             </div>
         </div>
 
@@ -388,3 +385,4 @@
     </script>
 </body>
 </html>
+

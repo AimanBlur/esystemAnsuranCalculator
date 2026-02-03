@@ -8,13 +8,18 @@
         :root { --primary: #0056b3; --danger: #d32f2f; --text: #333; }
         body { font-family: sans-serif; background: #f0f2f5; padding: 20px; color: var(--text); }
         .container { max-width: 600px; margin: 20px auto; background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
-        input, select { width: 100%; padding: 12px; margin: 8px 0 15px; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; }
+        input, select { width: 100%; padding: 12px; margin: 5px 0 15px; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; }
+        label { font-size: 0.9rem; font-weight: bold; color: #555; }
         button { padding: 12px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; width: 100%; color: white; background: var(--primary); }
         .btn-delete { background: var(--danger); width: auto; padding: 5px 10px; font-size: 0.8rem; margin-left: 5px; }
         .btn-edit { background: #ff9800; width: auto; padding: 5px 10px; font-size: 0.8rem; }
         .row { display: flex; gap: 10px; }
         .phone-item { padding: 10px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; }
         .hidden { display: none; }
+        
+        /* Highlight the Total Box */
+        .total-box { background: #e3f2fd; padding: 15px; border-radius: 8px; margin-bottom: 20px; text-align: center; border: 1px solid #bbdefb; }
+        .total-box span { font-size: 1.5rem; color: var(--primary); font-weight: bold; }
     </style>
 </head>
 <body>
@@ -31,7 +36,7 @@
             <button onclick="logout()" style="width:auto; background:#666;">Logout</button>
         </div>
 
-        <div style="background:#e3f2fd; padding:15px; border-radius:8px; margin-bottom:20px;">
+        <div style="background:#f1f3f4; padding:15px; border-radius:8px; margin-bottom:20px;">
             <h4 style="margin:0 0 10px 0;">Manage Categories</h4>
             <div class="row">
                 <input type="text" id="newTypeName" placeholder="New Type (e.g. TV)" style="margin:0;">
@@ -39,18 +44,38 @@
             </div>
         </div>
 
-        <div style="background: #f9f9f9; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
-            <h3 style="margin-top:0;" id="formTitle">Add New Item</h3>
+        <div style="background: #fff; padding: 0; border-radius: 8px; margin-bottom: 20px;">
+            <h3 style="margin-top:0; color: var(--primary);" id="formTitle">Add New Item</h3>
             <input type="hidden" id="editId">
             
             <label>Category</label>
             <select id="typeSelect"><option value="">Loading types...</option></select>
             
             <label>Model Name</label>
-            <input type="text" id="modelName" placeholder="Model Name (e.g. iPhone 15)">
+            <input type="text" id="modelName" placeholder="e.g. iPhone 15">
             
-            <label>RRP Price (RM)</label>
-            <input type="number" id="rrpPrice" placeholder="RRP Price (e.g. 3499)">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                <div>
+                    <label>Device Base Price</label>
+                    <input type="number" id="basePrice" placeholder="0.00" oninput="calcTotal()">
+                </div>
+                <div>
+                    <label>LCD Amount</label>
+                    <input type="number" id="lcdAmt" placeholder="0.00" oninput="calcTotal()">
+                </div>
+                <div>
+                    <label>Aeon Charges</label>
+                    <input type="number" id="aeonFee" placeholder="0.00" oninput="calcTotal()">
+                </div>
+                <div>
+                    <label>Stamping Charges</label>
+                    <input type="number" id="stampingFee" placeholder="0.00" oninput="calcTotal()">
+                </div>
+            </div>
+
+            <div class="total-box">
+                Final RRP: RM <span id="displayTotal">0.00</span>
+            </div>
             
             <div style="display:flex; gap:10px;">
                 <button onclick="savePhone()" id="saveBtn">Add to Database</button>
@@ -95,7 +120,19 @@
             location.reload();
         }
 
-        // --- LOGIC ---
+        // --- CALCULATOR LOGIC ---
+        function calcTotal() {
+            const base = parseFloat(document.getElementById('basePrice').value) || 0;
+            const lcd = parseFloat(document.getElementById('lcdAmt').value) || 0;
+            const aeon = parseFloat(document.getElementById('aeonFee').value) || 0;
+            const stamp = parseFloat(document.getElementById('stampingFee').value) || 0;
+            
+            const total = base + lcd + aeon + stamp;
+            document.getElementById('displayTotal').innerText = total.toFixed(2);
+            return total;
+        }
+
+        // --- CRUD LOGIC ---
         async function init() {
             await loadTypes();
             loadPhones();
@@ -142,7 +179,7 @@
                     const div = document.createElement('div');
                     div.className = "phone-item";
                     div.innerHTML = `
-                        <span><b>[${p.type_name || 'Phone'}]</b> ${p.model} (RM ${p.rrp})</span>
+                        <span><b>[${p.type_name || 'Item'}]</b> ${p.model} (RM ${p.rrp})</span>
                         <div>
                             <button class="btn-edit" onclick="startEdit(${p.id}, '${p.model}', ${p.rrp}, ${p.type_id})">Edit</button>
                             <button class="btn-delete" onclick="deletePhone(${p.id})">Delete</button>
@@ -157,9 +194,11 @@
             const id = document.getElementById('editId').value;
             const type_id = document.getElementById('typeSelect').value;
             const model = document.getElementById('modelName').value;
-            const rrp = parseFloat(document.getElementById('rrpPrice').value);
+            
+            // Get the calculated total
+            const rrp = calcTotal();
 
-            if(!model || !rrp) return alert("Fill all fields");
+            if(!model || rrp <= 0) return alert("Please fill in fields correctly");
 
             const method = id ? 'PUT' : 'POST';
             const url = id ? `${API_URL}/phones/${id}` : `${API_URL}/phones`;
@@ -193,26 +232,40 @@
             else alert("Failed to delete");
         }
 
-        function startEdit(id, model, rrp, typeId) {
-            document.getElementById('formTitle').innerText = "✏️ Edit Item";
+        function startEdit(id, model, totalRrp, typeId) {
+            document.getElementById('formTitle').innerText = "Edit Item";
             document.getElementById('saveBtn').innerText = "Update Database";
             document.getElementById('cancelBtn').classList.remove('hidden');
             
             document.getElementById('editId').value = id;
             document.getElementById('modelName').value = model;
-            document.getElementById('rrpPrice').value = rrp;
+            
+            // NOTE: Since we don't store the breakdown, we put the Total into Base Price
+            // and set others to 0. You can re-adjust them if needed.
+            document.getElementById('basePrice').value = totalRrp;
+            document.getElementById('lcdAmt').value = "";
+            document.getElementById('aeonFee').value = "";
+            document.getElementById('stampingFee').value = "";
+            calcTotal();
+
             if(typeId) document.getElementById('typeSelect').value = typeId;
             
             window.scrollTo(0,0);
         }
 
         function resetForm() {
-            document.getElementById('formTitle').innerText = "➕ Add New Item";
+            document.getElementById('formTitle').innerText = "Add New Item";
             document.getElementById('saveBtn').innerText = "Add to Database";
             document.getElementById('cancelBtn').classList.add('hidden');
             document.getElementById('editId').value = "";
             document.getElementById('modelName').value = "";
-            document.getElementById('rrpPrice').value = "";
+            
+            // Clear all price fields
+            document.getElementById('basePrice').value = "";
+            document.getElementById('lcdAmt').value = "";
+            document.getElementById('aeonFee').value = "";
+            document.getElementById('stampingFee').value = "";
+            calcTotal();
         }
     </script>
 </body>

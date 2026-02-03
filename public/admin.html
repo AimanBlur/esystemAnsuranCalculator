@@ -20,6 +20,9 @@
         /* Highlight the Total Box */
         .total-box { background: #e3f2fd; padding: 15px; border-radius: 8px; margin-bottom: 20px; text-align: center; border: 1px solid #bbdefb; }
         .total-box span { font-size: 1.5rem; color: var(--primary); font-weight: bold; }
+        
+        /* Calculated Amount Labels */
+        .calc-display { font-size: 0.85rem; color: #666; font-weight: normal; margin-top: -10px; margin-bottom: 10px; display: block; }
     </style>
 </head>
 <body>
@@ -45,7 +48,7 @@
         </div>
 
         <div style="background: #fff; padding: 0; border-radius: 8px; margin-bottom: 20px;">
-            <h3 style="margin-top:0; color: var(--primary);" id="formTitle">Add New Item</h3>
+            <h3 style="margin-top:0; color: var(--primary);" id="formTitle">➕ Add New Item</h3>
             <input type="hidden" id="editId">
             
             <label>Category</label>
@@ -56,25 +59,28 @@
             
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
                 <div>
-                    <label>Device Base Price</label>
+                    <label>Device Base Price (RM)</label>
                     <input type="number" id="basePrice" placeholder="0.00" oninput="calcTotal()">
                 </div>
                 <div>
-                    <label>LCD Amount</label>
+                    <label>LCD Amount (RM)</label>
                     <input type="number" id="lcdAmt" placeholder="0.00" oninput="calcTotal()">
                 </div>
+                
                 <div>
-                    <label>Aeon Charges</label>
-                    <input type="number" id="aeonFee" placeholder="0.00" oninput="calcTotal()">
+                    <label>Aeon Charges (%)</label>
+                    <input type="number" id="aeonPercent" placeholder="e.g. 1.25" step="0.01" oninput="calcTotal()">
+                    <span id="aeonDisplay" class="calc-display">-> RM 0.00</span>
                 </div>
                 <div>
-                    <label>Stamping Charges</label>
-                    <input type="number" id="stampingFee" placeholder="0.00" oninput="calcTotal()">
+                    <label>Stamping Charges (%)</label>
+                    <input type="number" id="stampPercent" placeholder="e.g. 0.5" step="0.01" oninput="calcTotal()">
+                    <span id="stampDisplay" class="calc-display">-> RM 0.00</span>
                 </div>
             </div>
 
             <div class="total-box">
-                Final Total: RM <span id="displayTotal">0.00</span>
+                Final RRP: RM <span id="displayTotal">0.00</span>
             </div>
             
             <div style="display:flex; gap:10px;">
@@ -95,7 +101,6 @@
         const API_URL = "/api"; 
         let secretKey = "";
 
-        // --- AUTH ---
         if (localStorage.getItem("adminKey")) {
             secretKey = localStorage.getItem("adminKey");
             showPanel();
@@ -120,19 +125,32 @@
             location.reload();
         }
 
-        // --- CALCULATOR LOGIC ---
+        // --- NEW CALCULATION LOGIC ---
         function calcTotal() {
+            // 1. Get Values
             const base = parseFloat(document.getElementById('basePrice').value) || 0;
             const lcd = parseFloat(document.getElementById('lcdAmt').value) || 0;
-            const aeon = parseFloat(document.getElementById('aeonFee').value) || 0;
-            const stamp = parseFloat(document.getElementById('stampingFee').value) || 0;
+            const aeonP = parseFloat(document.getElementById('aeonPercent').value) || 0;
+            const stampP = parseFloat(document.getElementById('stampPercent').value) || 0;
             
-            const total = base + lcd + aeon + stamp;
+            // 2. Calculate Principal (Base + LCD)
+            const principal = base + lcd;
+
+            // 3. Calculate Percentage Amounts
+            const aeonRM = principal * (aeonP / 100);
+            const stampRM = principal * (stampP / 100);
+
+            // 4. Update Displays
+            document.getElementById('aeonDisplay').innerText = `-> RM ${aeonRM.toFixed(2)}`;
+            document.getElementById('stampDisplay').innerText = `-> RM ${stampRM.toFixed(2)}`;
+
+            // 5. Final Total
+            const total = principal + aeonRM + stampRM;
             document.getElementById('displayTotal').innerText = total.toFixed(2);
+            
             return total;
         }
 
-        // --- CRUD LOGIC ---
         async function init() {
             await loadTypes();
             loadPhones();
@@ -169,10 +187,8 @@
             try {
                 const res = await fetch(`${API_URL}/phones`);
                 const data = await res.json();
-                
                 const list = document.getElementById('phoneList');
                 list.innerHTML = "";
-                
                 if(data.error) return list.innerHTML = "Error loading data.";
 
                 data.forEach(p => {
@@ -195,7 +211,7 @@
             const type_id = document.getElementById('typeSelect').value;
             const model = document.getElementById('modelName').value;
             
-            // Get the calculated total
+            // Get calculated total
             const rrp = calcTotal();
 
             if(!model || rrp <= 0) return alert("Please fill in fields correctly");
@@ -222,12 +238,10 @@
 
         async function deletePhone(id) {
             if(!confirm("Are you sure you want to delete this item?")) return;
-            
             const res = await fetch(`${API_URL}/phones/${id}`, {
                 method: 'DELETE',
                 headers: { 'admin-secret': secretKey }
             });
-            
             if(res.ok) loadPhones();
             else alert("Failed to delete");
         }
@@ -240,16 +254,15 @@
             document.getElementById('editId').value = id;
             document.getElementById('modelName').value = model;
             
-            // NOTE: Since we don't store the breakdown, we put the Total into Base Price
-            // and set others to 0. You can re-adjust them if needed.
+            // NOTE: We don't save the breakdown, so we put the full Total into Base Price
+            // and clear the other fields for the admin to re-enter if needed.
             document.getElementById('basePrice').value = totalRrp;
             document.getElementById('lcdAmt').value = "";
-            document.getElementById('aeonFee').value = "";
-            document.getElementById('stampingFee').value = "";
+            document.getElementById('aeonPercent').value = "";
+            document.getElementById('stampPercent').value = "";
             calcTotal();
 
             if(typeId) document.getElementById('typeSelect').value = typeId;
-            
             window.scrollTo(0,0);
         }
 
@@ -260,14 +273,13 @@
             document.getElementById('editId').value = "";
             document.getElementById('modelName').value = "";
             
-            // Clear all price fields
+            // Clear pricing fields
             document.getElementById('basePrice').value = "";
             document.getElementById('lcdAmt').value = "";
-            document.getElementById('aeonFee').value = "";
-            document.getElementById('stampingFee').value = "";
+            document.getElementById('aeonPercent').value = "";
+            document.getElementById('stampPercent').value = "";
             calcTotal();
         }
     </script>
 </body>
 </html>
-

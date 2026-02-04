@@ -4,51 +4,104 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin - Inventory Manager</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    
     <style>
-        :root { --primary: #0056b3; --danger: #d32f2f; --text: #333; }
-        body { font-family: sans-serif; background: #f0f2f5; padding: 20px; color: var(--text); }
-        .container { max-width: 600px; margin: 20px auto; background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+        :root { --primary: #0056b3; --danger: #d32f2f; --success: #28a745; --text: #333; }
+        body { font-family: "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background: #f0f2f5; padding: 20px; color: var(--text); }
+        .container { max-width: 700px; margin: 20px auto; background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
         input, select { width: 100%; padding: 12px; margin: 5px 0 15px; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; }
         label { font-size: 0.9rem; font-weight: bold; color: #555; }
-        button { padding: 12px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; width: 100%; color: white; background: var(--primary); }
-        .btn-delete { background: var(--danger); width: auto; padding: 5px 10px; font-size: 0.8rem; margin-left: 5px; }
-        .btn-edit { background: #ff9800; width: auto; padding: 5px 10px; font-size: 0.8rem; }
+        
+        button { padding: 12px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; width: 100%; color: white; background: var(--primary); display: flex; align-items: center; justify-content: center; gap: 8px; }
+        button:hover { opacity: 0.9; }
+
+        .btn-delete { background: var(--danger); width: auto; padding: 6px 12px; font-size: 0.85rem; }
+        .btn-edit { background: #f39c12; width: auto; padding: 6px 12px; font-size: 0.85rem; }
+        .btn-success { background: var(--success); }
+        
         .row { display: flex; gap: 10px; }
-        .phone-item { padding: 10px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; }
-        .hidden { display: none; }
+        .phone-item { padding: 15px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; }
+        .phone-item:last-child { border-bottom: none; }
+        .hidden { display: none !important; }
         
-        /* Highlight the Total Box */
+        /* Pricing Box */
         .total-box { background: #e3f2fd; padding: 15px; border-radius: 8px; margin-bottom: 20px; text-align: center; border: 1px solid #bbdefb; }
-        .total-box span { font-size: 1.5rem; color: var(--primary); font-weight: bold; }
+        .total-box span { font-size: 1.5rem; color: var(--primary); font-weight: bold; display: block; margin-top: 5px;}
         
-        /* Calculated Amount Labels */
-        .calc-display { font-size: 0.85rem; color: #666; font-weight: normal; margin-top: -10px; margin-bottom: 10px; display: block; }
+        .calc-display { font-size: 0.85rem; color: #666; font-weight: normal; margin-top: -10px; margin-bottom: 10px; display: block; font-style: italic;}
+        
+        /* Import Section Styles */
+        .import-box { background: #fff3cd; border: 1px solid #ffeeba; padding: 15px; border-radius: 8px; margin-bottom: 20px; }
+        .file-upload { border: 2px dashed #ccc; padding: 20px; text-align: center; border-radius: 8px; background: #fff; cursor: pointer; margin-bottom: 15px; }
+        .col-mapping { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px; }
+        
+        h2, h3, h4 { display: flex; align-items: center; gap: 10px; }
     </style>
 </head>
 <body>
 
     <div id="loginScreen" class="container">
-        <h2 style="text-align:center;">Admin Login</h2>
+        <h2 style="justify-content:center;"><i class="fas fa-lock"></i> Admin Login</h2>
         <input type="password" id="adminPassInput" placeholder="Enter Secret Password">
-        <button onclick="attemptLogin()">Login</button>
+        <button onclick="attemptLogin()"><i class="fas fa-sign-in-alt"></i> Login</button>
     </div>
 
     <div id="adminPanel" class="container hidden">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
-            <h2 style="margin:0;">Inventory Manager</h2>
-            <button onclick="logout()" style="width:auto; background:#666;">Logout</button>
+            <h2 style="margin:0;"><i class="fas fa-mobile-alt"></i> Inventory</h2>
+            <button onclick="logout()" style="width:auto; background:#666;"><i class="fas fa-sign-out-alt"></i> Logout</button>
         </div>
 
-        <div style="background:#f1f3f4; padding:15px; border-radius:8px; margin-bottom:20px;">
-            <h4 style="margin:0 0 10px 0;">Manage Categories</h4>
+        <div style="background:#f8f9fa; padding:15px; border-radius:8px; margin-bottom:20px; border:1px solid #eee;">
+            <h4 style="margin:0 0 10px 0;"><i class="fas fa-tags"></i> Manage Categories</h4>
             <div class="row">
                 <input type="text" id="newTypeName" placeholder="New Type (e.g. TV)" style="margin:0;">
-                <button onclick="addType()" style="width:auto;">Add Type</button>
+                <button onclick="addType()" style="width:auto;"><i class="fas fa-plus"></i> Add</button>
             </div>
         </div>
 
-        <div style="background: #fff; padding: 0; border-radius: 8px; margin-bottom: 20px;">
-            <h3 style="margin-top:0; color: var(--primary);" id="formTitle">Add New Item</h3>
+        <div style="margin-bottom: 15px; display:flex; justify-content: flex-end;">
+            <button onclick="toggleImport()" style="width:auto; background: #28a745;"><i class="fas fa-file-excel"></i> Bulk Import from Excel</button>
+        </div>
+
+        <div id="importSection" class="import-box hidden">
+            <h3 style="margin-top:0; color:#856404;"><i class="fas fa-file-import"></i> Bulk Import</h3>
+            <p style="font-size:0.9rem; color:#856404;">Upload an .xlsx file. The RRP will be set as the Base Price.</p>
+            
+            <label>1. Select Category for this Batch</label>
+            <select id="importTypeSelect"><option>Loading...</option></select>
+
+            <label>2. Upload File</label>
+            <input type="file" id="excelFile" accept=".xlsx, .xls" class="file-upload" onchange="processExcelFile()">
+            
+            <div id="columnMapping" class="hidden">
+                <label>3. Map Columns</label>
+                <div class="col-mapping">
+                    <div>
+                        <label>Brand Column</label>
+                        <select id="colBrand"></select>
+                    </div>
+                    <div>
+                        <label>Model Column</label>
+                        <select id="colModel"></select>
+                    </div>
+                    <div>
+                        <label>Specs Column</label>
+                        <select id="colSpecs"></select>
+                    </div>
+                    <div>
+                        <label>RRP / Price Column</label>
+                        <select id="colRRP"></select>
+                    </div>
+                </div>
+                <button onclick="runImport()" class="btn-success"><i class="fas fa-check"></i> Import Items</button>
+            </div>
+        </div>
+
+        <div id="singleEntryForm" style="background: #fff; border-radius: 8px; margin-bottom: 20px;">
+            <h3 style="margin-top:0; color: var(--primary);" id="formTitle"><i class="fas fa-plus-circle"></i> Add New Item</h3>
             <input type="hidden" id="editId">
             
             <label>Category</label>
@@ -57,7 +110,7 @@
             <label>Model Name</label>
             <input type="text" id="modelName" placeholder="e.g. iPhone 15">
             
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
                 <div>
                     <label>Device Base Price (RM)</label>
                     <input type="number" id="basePrice" placeholder="0.00" oninput="calcTotal()">
@@ -66,40 +119,49 @@
                     <label>LCD Amount (RM)</label>
                     <input type="number" id="lcdAmt" placeholder="0.00" oninput="calcTotal()">
                 </div>
-                
                 <div>
                     <label>Aeon Charges (%)</label>
                     <input type="number" id="aeonPercent" placeholder="e.g. 1.25" step="0.01" oninput="calcTotal()">
-                    <span id="aeonDisplay" class="calc-display">-> RM 0.00</span>
+                    <span id="aeonDisplay" class="calc-display"><i class="fas fa-arrow-right"></i> RM 0.00</span>
                 </div>
                 <div>
                     <label>Stamping Charges (%)</label>
                     <input type="number" id="stampPercent" placeholder="e.g. 0.5" step="0.01" oninput="calcTotal()">
-                    <span id="stampDisplay" class="calc-display">-> RM 0.00</span>
+                    <span id="stampDisplay" class="calc-display"><i class="fas fa-arrow-right"></i> RM 0.00</span>
                 </div>
             </div>
 
             <div class="total-box">
-                Final Total: RM <span id="displayTotal">0.00</span>
+                Final RRP
+                <span id="displayTotal">RM 0.00</span>
             </div>
             
             <div style="display:flex; gap:10px;">
-                <button onclick="savePhone()" id="saveBtn">Add to Database</button>
-                <button onclick="resetForm()" id="cancelBtn" class="hidden" style="background:#888;">Cancel</button>
+                <button onclick="savePhone()" id="saveBtn"><i class="fas fa-save"></i> Add to Database</button>
+                <button onclick="resetForm()" id="cancelBtn" class="hidden" style="background:#888;"><i class="fas fa-times"></i> Cancel</button>
             </div>
         </div>
 
-        <h3>Current Inventory</h3>
+        <div style="margin-top: 30px; margin-bottom: 10px;">
+            <h3 style="margin-bottom: 10px;"><i class="fas fa-list"></i> Current Inventory</h3>
+            <div style="position: relative;">
+                <i class="fas fa-search" style="position: absolute; left: 12px; top: 12px; color: #999;"></i>
+                <input type="text" id="inventorySearch" placeholder="Search inventory..." onkeyup="filterInventory()" style="padding-left: 35px; margin-bottom: 0;">
+            </div>
+        </div>
+
         <div id="phoneList">Loading...</div>
         
         <br>
-        <a href="index.html" style="display:block; text-align:center; color:var(--primary); text-decoration:none;">&larr; Back to Sales Portal</a>
+        <a href="index.html" style="display:block; text-align:center; color:var(--primary); text-decoration:none; font-weight:600;">
+            <i class="fas fa-arrow-left"></i> Back to Sales Portal
+        </a>
     </div>
 
     <script>
-        // CHANGE THIS URL IF DEPLOYED (e.g. "https://your-app.onrender.com/api")
         const API_URL = "/api"; 
         let secretKey = "";
+        let excelData = []; // Store raw excel data
 
         if (localStorage.getItem("adminKey")) {
             secretKey = localStorage.getItem("adminKey");
@@ -125,32 +187,130 @@
             location.reload();
         }
 
-        // --- NEW CALCULATION LOGIC ---
+        // --- EXCEL LOGIC ---
+        function toggleImport() {
+            const section = document.getElementById('importSection');
+            const single = document.getElementById('singleEntryForm');
+            if(section.classList.contains('hidden')) {
+                section.classList.remove('hidden');
+                single.classList.add('hidden');
+            } else {
+                section.classList.add('hidden');
+                single.classList.remove('hidden');
+            }
+        }
+
+        function processExcelFile() {
+            const file = document.getElementById('excelFile').files[0];
+            if(!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const data = new Uint8Array(e.target.result);
+                const workbook = XLSX.read(data, {type: 'array'});
+                const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+                // Get header row
+                excelData = XLSX.utils.sheet_to_json(firstSheet, {header: 1});
+                
+                if(excelData.length > 0) {
+                    populateColumnSelects(excelData[0]);
+                    document.getElementById('columnMapping').classList.remove('hidden');
+                }
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        function populateColumnSelects(headers) {
+            const selects = ['colBrand', 'colModel', 'colSpecs', 'colRRP'];
+            selects.forEach(id => {
+                const sel = document.getElementById(id);
+                sel.innerHTML = '<option value="-1">-- Select Column --</option>';
+                headers.forEach((h, index) => {
+                    sel.innerHTML += `<option value="${index}">${h}</option>`;
+                });
+            });
+        }
+
+        async function runImport() {
+            const brandIdx = parseInt(document.getElementById('colBrand').value);
+            const modelIdx = parseInt(document.getElementById('colModel').value);
+            const specsIdx = parseInt(document.getElementById('colSpecs').value);
+            const rrpIdx = parseInt(document.getElementById('colRRP').value);
+            const typeId = document.getElementById('importTypeSelect').value;
+
+            if(modelIdx === -1 || rrpIdx === -1) return alert("Model and RRP columns are required!");
+
+            let count = 0;
+            const btn = document.querySelector('#importSection button');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> Importing...`;
+            btn.disabled = true;
+
+            // Start from row 1 (skip header)
+            for(let i = 1; i < excelData.length; i++) {
+                const row = excelData[i];
+                if(!row || row.length === 0) continue;
+
+                // Construct Name: Brand + Model + (Specs)
+                const brand = brandIdx !== -1 && row[brandIdx] ? row[brandIdx] : "";
+                const model = row[modelIdx] ? row[modelIdx] : "";
+                const specs = specsIdx !== -1 && row[specsIdx] ? `(${row[specsIdx]})` : "";
+                
+                const finalName = `${brand} ${model} ${specs}`.trim();
+                const price = parseFloat(row[rrpIdx]) || 0;
+
+                if(finalName && price > 0) {
+                    try {
+                        await fetch(`${API_URL}/phones`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json', 'admin-secret': secretKey },
+                            body: JSON.stringify({ model: finalName, rrp: price, type_id: typeId })
+                        });
+                        count++;
+                    } catch(e) { console.error(e); }
+                }
+            }
+
+            alert(`✅ Imported ${count} items successfully!`);
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+            document.getElementById('importSection').classList.add('hidden');
+            document.getElementById('singleEntryForm').classList.remove('hidden');
+            loadPhones();
+        }
+
+        // --- SEARCH LOGIC ---
+        function filterInventory() {
+            const query = document.getElementById('inventorySearch').value.toLowerCase();
+            const items = document.querySelectorAll('.phone-item');
+            
+            items.forEach(item => {
+                const text = item.innerText.toLowerCase();
+                item.style.display = text.includes(query) ? "flex" : "none";
+            });
+        }
+
+        // --- CALCULATION LOGIC ---
         function calcTotal() {
-            // 1. Get Values
             const base = parseFloat(document.getElementById('basePrice').value) || 0;
             const lcd = parseFloat(document.getElementById('lcdAmt').value) || 0;
             const aeonP = parseFloat(document.getElementById('aeonPercent').value) || 0;
             const stampP = parseFloat(document.getElementById('stampPercent').value) || 0;
             
-            // 2. Calculate Principal (Base + LCD)
-            const principal = base + lcd;
-
-            // 3. Calculate Percentage Amounts
+            const principal = base + lcd; 
             const aeonRM = principal * (aeonP / 100);
             const stampRM = principal * (stampP / 100);
 
-            // 4. Update Displays
-            document.getElementById('aeonDisplay').innerText = `-> RM ${aeonRM.toFixed(2)}`;
-            document.getElementById('stampDisplay').innerText = `-> RM ${stampRM.toFixed(2)}`;
+            document.getElementById('aeonDisplay').innerHTML = `<i class="fas fa-arrow-right"></i> RM ${aeonRM.toFixed(2)}`;
+            document.getElementById('stampDisplay').innerHTML = `<i class="fas fa-arrow-right"></i> RM ${stampRM.toFixed(2)}`;
 
-            // 5. Final Total
             const total = principal + aeonRM + stampRM;
-            document.getElementById('displayTotal').innerText = total.toFixed(2);
+            document.getElementById('displayTotal').innerText = `RM ${total.toFixed(2)}`;
             
             return total;
         }
 
+        // --- CRUD LOGIC ---
         async function init() {
             await loadTypes();
             loadPhones();
@@ -160,10 +320,18 @@
             try {
                 const res = await fetch(`${API_URL}/types`);
                 const types = await res.json();
+                
+                // Populate both dropdowns (Single Entry & Import)
                 const sel = document.getElementById('typeSelect');
+                const importSel = document.getElementById('importTypeSelect');
+                
                 sel.innerHTML = "";
+                importSel.innerHTML = "";
+                
                 types.forEach(t => {
-                    sel.innerHTML += `<option value="${t.id}">${t.name}</option>`;
+                    const opt = `<option value="${t.id}">${t.name}</option>`;
+                    sel.innerHTML += opt;
+                    importSel.innerHTML += opt;
                 });
             } catch (e) { console.error("Error loading types:", e); }
         }
@@ -189,16 +357,19 @@
                 const data = await res.json();
                 const list = document.getElementById('phoneList');
                 list.innerHTML = "";
-                if(data.error) return list.innerHTML = "Error loading data.";
+                if(data.error) return list.innerHTML = `<div style="text-align:center; padding:20px;"><i class="fas fa-exclamation-triangle"></i> Error loading data</div>`;
 
                 data.forEach(p => {
                     const div = document.createElement('div');
                     div.className = "phone-item";
                     div.innerHTML = `
-                        <span><b>[${p.type_name || 'Item'}]</b> ${p.model} (RM ${p.rrp})</span>
-                        <div>
-                            <button class="btn-edit" onclick="startEdit(${p.id}, '${p.model}', ${p.rrp}, ${p.type_id})">Edit</button>
-                            <button class="btn-delete" onclick="deletePhone(${p.id})">Delete</button>
+                        <span>
+                            <span style="font-size:0.8rem; background:#eee; padding:2px 6px; border-radius:4px; margin-right:5px;">${p.type_name || 'Item'}</span>
+                            <b>${p.model}</b> (RM ${p.rrp})
+                        </span>
+                        <div style="display:flex; gap:5px;">
+                            <button class="btn-edit" onclick="startEdit(${p.id}, '${p.model}', ${p.rrp}, ${p.type_id})"><i class="fas fa-edit"></i> Edit</button>
+                            <button class="btn-delete" onclick="deletePhone(${p.id})"><i class="fas fa-trash-alt"></i></button>
                         </div>
                     `;
                     list.appendChild(div);
@@ -210,9 +381,7 @@
             const id = document.getElementById('editId').value;
             const type_id = document.getElementById('typeSelect').value;
             const model = document.getElementById('modelName').value;
-            
-            // Get calculated total
-            const rrp = calcTotal();
+            const rrp = calcTotal(); 
 
             if(!model || rrp <= 0) return alert("Please fill in fields correctly");
 
@@ -247,15 +416,13 @@
         }
 
         function startEdit(id, model, totalRrp, typeId) {
-            document.getElementById('formTitle').innerText = "Edit Item";
-            document.getElementById('saveBtn').innerText = "Update Database";
+            document.getElementById('formTitle').innerHTML = `<i class="fas fa-edit"></i> Edit Item`;
+            document.getElementById('saveBtn').innerHTML = `<i class="fas fa-save"></i> Update Database`;
             document.getElementById('cancelBtn').classList.remove('hidden');
             
             document.getElementById('editId').value = id;
             document.getElementById('modelName').value = model;
             
-            // NOTE: We don't save the breakdown, so we put the full Total into Base Price
-            // and clear the other fields for the admin to re-enter if needed.
             document.getElementById('basePrice').value = totalRrp;
             document.getElementById('lcdAmt').value = "";
             document.getElementById('aeonPercent').value = "";
@@ -267,13 +434,12 @@
         }
 
         function resetForm() {
-            document.getElementById('formTitle').innerText = "Add New Item";
-            document.getElementById('saveBtn').innerText = "Add to Database";
+            document.getElementById('formTitle').innerHTML = `<i class="fas fa-plus-circle"></i> Add New Item`;
+            document.getElementById('saveBtn').innerHTML = `<i class="fas fa-save"></i> Add to Database`;
             document.getElementById('cancelBtn').classList.add('hidden');
             document.getElementById('editId').value = "";
             document.getElementById('modelName').value = "";
             
-            // Clear pricing fields
             document.getElementById('basePrice').value = "";
             document.getElementById('lcdAmt').value = "";
             document.getElementById('aeonPercent').value = "";
@@ -283,5 +449,3 @@
     </script>
 </body>
 </html>
-
-

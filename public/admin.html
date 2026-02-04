@@ -68,7 +68,7 @@
 
         <div id="importSection" class="import-box hidden">
             <h3 style="margin-top:0; color:#856404;"><i class="fas fa-file-import"></i> Bulk Import</h3>
-            <p style="font-size:0.9rem; color:#856404;">Upload .xlsx file. Select Sheet. Map Columns.</p>
+            <p style="font-size:0.9rem; color:#856404;">Upload .xlsx file. Select Sheet. Select Row Range.</p>
             
             <label>1. Select Category for this Batch</label>
             <select id="importTypeSelect"><option>Loading...</option></select>
@@ -82,6 +82,20 @@
             </div>
 
             <div id="columnMapping" class="hidden">
+                
+                <div style="background: rgba(255,255,255,0.6); padding: 10px; border-radius: 8px; margin-bottom: 15px;">
+                    <label style="margin-bottom: 5px; display:block;"><i class="fas fa-arrows-alt-v"></i> Row Range (Optional)</label>
+                    <div class="row">
+                        <div>
+                            <input type="number" id="startRow" placeholder="Start Row (e.g. 2)">
+                        </div>
+                        <div>
+                            <input type="number" id="endRow" placeholder="End Row (e.g. 50)">
+                        </div>
+                    </div>
+                    <small style="color:#666;">Leave blank to import all rows.</small>
+                </div>
+
                 <label>4. Map Columns</label>
                 <div class="col-mapping">
                     <div>
@@ -167,7 +181,7 @@
         const API_URL = "/api"; 
         let secretKey = "";
         
-        // EXCEL GLOBAL VARS
+        // EXCEL VARS
         let globalWorkbook = null;
         let currentSheetData = []; 
 
@@ -225,10 +239,7 @@
                     sheetSelect.innerHTML += `<option value="${name}">${name}</option>`;
                 });
 
-                // Show Sheet Section
                 document.getElementById('sheetSection').classList.remove('hidden');
-                
-                // Automatically load first sheet
                 loadSelectedSheet();
             };
             reader.readAsArrayBuffer(file);
@@ -238,12 +249,15 @@
             const sheetName = document.getElementById('sheetSelect').value;
             const sheet = globalWorkbook.Sheets[sheetName];
             
-            // Convert to JSON (Header: 1 means array of arrays)
+            // Get data (array of arrays)
             currentSheetData = XLSX.utils.sheet_to_json(sheet, {header: 1});
             
             if(currentSheetData.length > 0) {
-                populateColumnSelects(currentSheetData[0]); // Use Row 0 as headers
+                populateColumnSelects(currentSheetData[0]); 
                 document.getElementById('columnMapping').classList.remove('hidden');
+                
+                // Auto-fill End Row hint
+                document.getElementById('endRow').placeholder = `End Row (Max: ${currentSheetData.length})`;
             } else {
                 alert("Sheet appears empty!");
                 document.getElementById('columnMapping').classList.add('hidden');
@@ -267,6 +281,17 @@
             const specsIdx = parseInt(document.getElementById('colSpecs').value);
             const rrpIdx = parseInt(document.getElementById('colRRP').value);
             const typeId = document.getElementById('importTypeSelect').value;
+            
+            // Row Ranges
+            let startRow = parseInt(document.getElementById('startRow').value);
+            let endRow = parseInt(document.getElementById('endRow').value);
+
+            // Default Logic
+            // If startRow is empty, default to 2 (Index 1).
+            // Note: Excel Rows are 1-based. Array is 0-based.
+            // If user types "2", they mean Index 1.
+            const startIdx = isNaN(startRow) ? 1 : startRow - 1;
+            const endIdx = isNaN(endRow) ? currentSheetData.length : endRow;
 
             if(modelIdx === -1 || rrpIdx === -1) return alert("Model and RRP columns are required!");
 
@@ -276,32 +301,31 @@
             btn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> Importing...`;
             btn.disabled = true;
 
-            // Start from row 1 (skip header)
-            for(let i = 1; i < currentSheetData.length; i++) {
+            // Loop through selected range
+            for(let i = startIdx; i < endIdx && i < currentSheetData.length; i++) {
                 const row = currentSheetData[i];
                 if(!row || row.length === 0) continue;
 
-                // Construct Name: Brand + Model + (Specs)
+                // Build Name
                 const brand = brandIdx !== -1 && row[brandIdx] ? row[brandIdx] : "";
                 const model = row[modelIdx] ? row[modelIdx] : "";
                 const specs = specsIdx !== -1 && row[specsIdx] ? `(${row[specsIdx]})` : "";
                 
-                // Clean Name
                 const finalName = `${brand} ${model} ${specs}`.replace(/\s+/g, ' ').trim();
                 
-                // Clean Price (remove "RM", commas, etc)
+                // Price Logic (Default to 0 if blank)
                 let priceRaw = row[rrpIdx];
                 if(typeof priceRaw === 'string') {
                      priceRaw = priceRaw.replace(/[^0-9.]/g, '');
                 }
                 const price = parseFloat(priceRaw) || 0;
 
-                if(finalName && price > 0) {
+                // Insert if name exists (Price allows 0)
+                if(finalName) {
                     try {
                         await fetch(`${API_URL}/phones`, {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json', 'admin-secret': secretKey },
-                            // Note: We only send price as RRP (Base Price). Other fees = 0 initially.
                             body: JSON.stringify({ model: finalName, rrp: price, type_id: typeId })
                         });
                         count++;
@@ -313,8 +337,10 @@
             btn.innerHTML = originalText;
             btn.disabled = false;
             
-            // Reset UI
+            // Clean up
             document.getElementById('excelFile').value = ""; 
+            document.getElementById('startRow').value = "";
+            document.getElementById('endRow').value = "";
             document.getElementById('importSection').classList.add('hidden');
             document.getElementById('singleEntryForm').classList.remove('hidden');
             loadPhones();
@@ -362,7 +388,6 @@
                 const res = await fetch(`${API_URL}/types`);
                 const types = await res.json();
                 
-                // Populate both dropdowns (Single Entry & Import)
                 const sel = document.getElementById('typeSelect');
                 const importSel = document.getElementById('importTypeSelect');
                 
@@ -461,7 +486,6 @@
             document.getElementById('saveBtn').innerHTML = `<i class="fas fa-save"></i> Update Database`;
             document.getElementById('cancelBtn').classList.remove('hidden');
             
-            // Hide Import if editing
             document.getElementById('importSection').classList.add('hidden');
             document.getElementById('singleEntryForm').classList.remove('hidden');
             

@@ -8,7 +8,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     
     <style>
-        :root { --primary: #0056b3; --danger: #d32f2f; --success: #28a745; --text: #333; }
+        :root { --primary: #0056b3; --danger: #d32f2f; --success: #28a745; --warning: #ffc107; --text: #333; }
         body { font-family: "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background: #f0f2f5; padding: 20px; color: var(--text); }
         .container { max-width: 700px; margin: 20px auto; background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
         input, select { width: 100%; padding: 12px; margin: 5px 0 15px; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; }
@@ -20,6 +20,7 @@
         .btn-delete { background: var(--danger); width: auto; padding: 6px 12px; font-size: 0.85rem; }
         .btn-edit { background: #f39c12; width: auto; padding: 6px 12px; font-size: 0.85rem; }
         .btn-success { background: var(--success); }
+        .btn-warning { background: var(--warning); color: #333; }
         
         .row { display: flex; gap: 10px; }
         .phone-item { padding: 15px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; }
@@ -62,8 +63,9 @@
             </div>
         </div>
 
-        <div style="margin-bottom: 15px; display:flex; justify-content: flex-end;">
-            <button onclick="toggleImport()" style="width:auto; background: #28a745;"><i class="fas fa-file-excel"></i> Bulk Import from Excel</button>
+        <div style="margin-bottom: 15px; display:flex; gap: 10px; justify-content: flex-end;">
+             <button onclick="cleanInventory()" class="btn-warning" style="width:auto;"><i class="fas fa-broom"></i> Clean Names</button>
+            <button onclick="toggleImport()" style="width:auto; background: #28a745;"><i class="fas fa-file-excel"></i> Bulk Import</button>
         </div>
 
         <div id="importSection" class="import-box hidden">
@@ -184,6 +186,7 @@
         // EXCEL VARS
         let globalWorkbook = null;
         let currentSheetData = []; 
+        let allInventory = []; // Store current inventory for cleanup
 
         if (localStorage.getItem("adminKey")) {
             secretKey = localStorage.getItem("adminKey");
@@ -209,6 +212,48 @@
             location.reload();
         }
 
+        // --- CLEANUP LOGIC ---
+        async function cleanInventory() {
+            if(!confirm("This will scan all items and remove empty brackets like '()' or '(-)' from names. Continue?")) return;
+
+            let count = 0;
+            const btn = document.querySelector('.btn-warning');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> Cleaning...`;
+            btn.disabled = true;
+
+            for(let p of allInventory) {
+                // Regex checks for " ()" or " (-)" or " -" at end of string
+                // or just replaces "()" inside string
+                let newName = p.model
+                    .replace(/\s?\(\-\)/g, "") // Remove (-)
+                    .replace(/\s?\(\)/g, "")   // Remove ()
+                    .replace(/\s?\-\s?$/g, "") // Remove trailing -
+                    .trim();
+
+                if (newName !== p.model) {
+                    try {
+                        // We must update the DB. We send current RRP/TypeID to preserve them.
+                        await fetch(`${API_URL}/phones/${p.id}`, {
+                            method: 'PUT',
+                            headers: { 'Content-Type': 'application/json', 'admin-secret': secretKey },
+                            body: JSON.stringify({ 
+                                model: newName, 
+                                rrp: p.rrp, 
+                                type_id: p.type_id 
+                            })
+                        });
+                        count++;
+                    } catch(e) { console.error(e); }
+                }
+            }
+
+            alert(`✅ Cleaned ${count} items!`);
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+            loadPhones(); // Refresh list
+        }
+
         // --- EXCEL LOGIC ---
         function toggleImport() {
             const section = document.getElementById('importSection');
@@ -231,10 +276,8 @@
                 const data = new Uint8Array(e.target.result);
                 globalWorkbook = XLSX.read(data, {type: 'array'});
                 
-                // Populate Sheet Select
                 const sheetSelect = document.getElementById('sheetSelect');
                 sheetSelect.innerHTML = "";
-                
                 globalWorkbook.SheetNames.forEach(name => {
                     sheetSelect.innerHTML += `<option value="${name}">${name}</option>`;
                 });
@@ -248,15 +291,11 @@
         function loadSelectedSheet() {
             const sheetName = document.getElementById('sheetSelect').value;
             const sheet = globalWorkbook.Sheets[sheetName];
-            
-            // Get data (array of arrays)
             currentSheetData = XLSX.utils.sheet_to_json(sheet, {header: 1});
             
             if(currentSheetData.length > 0) {
                 populateColumnSelects(currentSheetData[0]); 
                 document.getElementById('columnMapping').classList.remove('hidden');
-                
-                // Auto-fill End Row hint
                 document.getElementById('endRow').placeholder = `End Row (Max: ${currentSheetData.length})`;
             } else {
                 alert("Sheet appears empty!");
@@ -282,14 +321,9 @@
             const rrpIdx = parseInt(document.getElementById('colRRP').value);
             const typeId = document.getElementById('importTypeSelect').value;
             
-            // Row Ranges
             let startRow = parseInt(document.getElementById('startRow').value);
             let endRow = parseInt(document.getElementById('endRow').value);
 
-            // Default Logic
-            // If startRow is empty, default to 2 (Index 1).
-            // Note: Excel Rows are 1-based. Array is 0-based.
-            // If user types "2", they mean Index 1.
             const startIdx = isNaN(startRow) ? 1 : startRow - 1;
             const endIdx = isNaN(endRow) ? currentSheetData.length : endRow;
 
@@ -301,17 +335,23 @@
             btn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> Importing...`;
             btn.disabled = true;
 
-            // Loop through selected range
             for(let i = startIdx; i < endIdx && i < currentSheetData.length; i++) {
                 const row = currentSheetData[i];
                 if(!row || row.length === 0) continue;
 
-                // Build Name
                 const brand = brandIdx !== -1 && row[brandIdx] ? row[brandIdx] : "";
                 const model = row[modelIdx] ? row[modelIdx] : "";
-                const specs = specsIdx !== -1 && row[specsIdx] ? `(${row[specsIdx]})` : "";
                 
-                const finalName = `${brand} ${model} ${specs}`.replace(/\s+/g, ' ').trim();
+                // --- NEW SPECS LOGIC ---
+                let specsRaw = (specsIdx !== -1 && row[specsIdx]) ? String(row[specsIdx]).trim() : "";
+                let specsStr = "";
+                
+                // Only add brackets if specs exist AND are not "-"
+                if (specsRaw && specsRaw !== "-" && specsRaw !== "0") {
+                    specsStr = `(${specsRaw})`;
+                }
+                
+                const finalName = `${brand} ${model} ${specsStr}`.replace(/\s+/g, ' ').trim();
                 
                 // Price Logic (Default to 0 if blank)
                 let priceRaw = row[rrpIdx];
@@ -320,7 +360,6 @@
                 }
                 const price = parseFloat(priceRaw) || 0;
 
-                // Insert if name exists (Price allows 0)
                 if(finalName) {
                     try {
                         await fetch(`${API_URL}/phones`, {
@@ -337,7 +376,6 @@
             btn.innerHTML = originalText;
             btn.disabled = false;
             
-            // Clean up
             document.getElementById('excelFile').value = ""; 
             document.getElementById('startRow').value = "";
             document.getElementById('endRow').value = "";
@@ -421,6 +459,10 @@
             try {
                 const res = await fetch(`${API_URL}/phones`);
                 const data = await res.json();
+                
+                // Store global for cleanup
+                allInventory = Array.isArray(data) ? data : [];
+
                 const list = document.getElementById('phoneList');
                 list.innerHTML = "";
                 if(data.error) return list.innerHTML = `<div style="text-align:center; padding:20px;"><i class="fas fa-exclamation-triangle"></i> Error loading data</div>`;

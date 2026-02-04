@@ -68,7 +68,7 @@
 
         <div id="importSection" class="import-box hidden">
             <h3 style="margin-top:0; color:#856404;"><i class="fas fa-file-import"></i> Bulk Import</h3>
-            <p style="font-size:0.9rem; color:#856404;">Upload an .xlsx file. The RRP will be set as the Base Price.</p>
+            <p style="font-size:0.9rem; color:#856404;">Upload .xlsx file. Select Sheet. Map Columns.</p>
             
             <label>1. Select Category for this Batch</label>
             <select id="importTypeSelect"><option>Loading...</option></select>
@@ -76,8 +76,13 @@
             <label>2. Upload File</label>
             <input type="file" id="excelFile" accept=".xlsx, .xls" class="file-upload" onchange="processExcelFile()">
             
+            <div id="sheetSection" class="hidden">
+                <label>3. Select Excel Sheet</label>
+                <select id="sheetSelect" onchange="loadSelectedSheet()"></select>
+            </div>
+
             <div id="columnMapping" class="hidden">
-                <label>3. Map Columns</label>
+                <label>4. Map Columns</label>
                 <div class="col-mapping">
                     <div>
                         <label>Brand Column</label>
@@ -161,7 +166,10 @@
     <script>
         const API_URL = "/api"; 
         let secretKey = "";
-        let excelData = []; // Store raw excel data
+        
+        // EXCEL GLOBAL VARS
+        let globalWorkbook = null;
+        let currentSheetData = []; 
 
         if (localStorage.getItem("adminKey")) {
             secretKey = localStorage.getItem("adminKey");
@@ -207,17 +215,39 @@
             const reader = new FileReader();
             reader.onload = function(e) {
                 const data = new Uint8Array(e.target.result);
-                const workbook = XLSX.read(data, {type: 'array'});
-                const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
-                // Get header row
-                excelData = XLSX.utils.sheet_to_json(firstSheet, {header: 1});
+                globalWorkbook = XLSX.read(data, {type: 'array'});
                 
-                if(excelData.length > 0) {
-                    populateColumnSelects(excelData[0]);
-                    document.getElementById('columnMapping').classList.remove('hidden');
-                }
+                // Populate Sheet Select
+                const sheetSelect = document.getElementById('sheetSelect');
+                sheetSelect.innerHTML = "";
+                
+                globalWorkbook.SheetNames.forEach(name => {
+                    sheetSelect.innerHTML += `<option value="${name}">${name}</option>`;
+                });
+
+                // Show Sheet Section
+                document.getElementById('sheetSection').classList.remove('hidden');
+                
+                // Automatically load first sheet
+                loadSelectedSheet();
             };
             reader.readAsArrayBuffer(file);
+        }
+
+        function loadSelectedSheet() {
+            const sheetName = document.getElementById('sheetSelect').value;
+            const sheet = globalWorkbook.Sheets[sheetName];
+            
+            // Convert to JSON (Header: 1 means array of arrays)
+            currentSheetData = XLSX.utils.sheet_to_json(sheet, {header: 1});
+            
+            if(currentSheetData.length > 0) {
+                populateColumnSelects(currentSheetData[0]); // Use Row 0 as headers
+                document.getElementById('columnMapping').classList.remove('hidden');
+            } else {
+                alert("Sheet appears empty!");
+                document.getElementById('columnMapping').classList.add('hidden');
+            }
         }
 
         function populateColumnSelects(headers) {
@@ -226,7 +256,7 @@
                 const sel = document.getElementById(id);
                 sel.innerHTML = '<option value="-1">-- Select Column --</option>';
                 headers.forEach((h, index) => {
-                    sel.innerHTML += `<option value="${index}">${h}</option>`;
+                    sel.innerHTML += `<option value="${index}">${h || `Column ${index+1}`}</option>`;
                 });
             });
         }
@@ -241,14 +271,14 @@
             if(modelIdx === -1 || rrpIdx === -1) return alert("Model and RRP columns are required!");
 
             let count = 0;
-            const btn = document.querySelector('#importSection button');
+            const btn = document.querySelector('#importSection button.btn-success');
             const originalText = btn.innerHTML;
             btn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> Importing...`;
             btn.disabled = true;
 
             // Start from row 1 (skip header)
-            for(let i = 1; i < excelData.length; i++) {
-                const row = excelData[i];
+            for(let i = 1; i < currentSheetData.length; i++) {
+                const row = currentSheetData[i];
                 if(!row || row.length === 0) continue;
 
                 // Construct Name: Brand + Model + (Specs)
@@ -256,14 +286,22 @@
                 const model = row[modelIdx] ? row[modelIdx] : "";
                 const specs = specsIdx !== -1 && row[specsIdx] ? `(${row[specsIdx]})` : "";
                 
-                const finalName = `${brand} ${model} ${specs}`.trim();
-                const price = parseFloat(row[rrpIdx]) || 0;
+                // Clean Name
+                const finalName = `${brand} ${model} ${specs}`.replace(/\s+/g, ' ').trim();
+                
+                // Clean Price (remove "RM", commas, etc)
+                let priceRaw = row[rrpIdx];
+                if(typeof priceRaw === 'string') {
+                     priceRaw = priceRaw.replace(/[^0-9.]/g, '');
+                }
+                const price = parseFloat(priceRaw) || 0;
 
                 if(finalName && price > 0) {
                     try {
                         await fetch(`${API_URL}/phones`, {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json', 'admin-secret': secretKey },
+                            // Note: We only send price as RRP (Base Price). Other fees = 0 initially.
                             body: JSON.stringify({ model: finalName, rrp: price, type_id: typeId })
                         });
                         count++;
@@ -274,6 +312,9 @@
             alert(`✅ Imported ${count} items successfully!`);
             btn.innerHTML = originalText;
             btn.disabled = false;
+            
+            // Reset UI
+            document.getElementById('excelFile').value = ""; 
             document.getElementById('importSection').classList.add('hidden');
             document.getElementById('singleEntryForm').classList.remove('hidden');
             loadPhones();
@@ -419,6 +460,10 @@
             document.getElementById('formTitle').innerHTML = `<i class="fas fa-edit"></i> Edit Item`;
             document.getElementById('saveBtn').innerHTML = `<i class="fas fa-save"></i> Update Database`;
             document.getElementById('cancelBtn').classList.remove('hidden');
+            
+            // Hide Import if editing
+            document.getElementById('importSection').classList.add('hidden');
+            document.getElementById('singleEntryForm').classList.remove('hidden');
             
             document.getElementById('editId').value = id;
             document.getElementById('modelName').value = model;

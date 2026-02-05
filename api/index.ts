@@ -67,49 +67,48 @@ const app = new Elysia()
 
         // ROUTE 4: Add New Phone
         .post('/phones', async ({ body, headers, set }) => {
-            if (!sql) {
-                set.status = 500;
-                return { success: false, message: "Database not connected" };
-            }
-
+            if (!sql) { set.status = 500; return { success: false }; }
+            if (headers['admin-secret'] !== process.env.ADMIN_PASSWORD) { set.status = 401; return { success: false }; }
+            
             const b = body as any;
-            if (headers['admin-secret'] !== process.env.ADMIN_PASSWORD) {
-                set.status = 401; return { success: false, message: "Wrong Admin Password" };
-            }
             try {
                 await sql`
-                    INSERT INTO phones (model, rrp, type_id) 
-                    VALUES (${b.model}, ${b.rrp}, ${b.type_id})
+                    INSERT INTO phones (model, rrp, type_id, base_price, lcd_amt, aeon_rate, stamping_rate) 
+                    VALUES (
+                        ${b.model}, 
+                        ${b.rrp}, 
+                        ${b.type_id},
+                        ${b.base_price || 0}, 
+                        ${b.lcd_amt || 0}, 
+                        ${b.aeon_rate || 0}, 
+                        ${b.stamping_rate || 0}
+                    )
                 `;
                 return { success: true };
-            } catch (e: any) { 
-                console.error("Insert Error:", e);
-                set.status = 500;
-                return { success: false, message: e.message }; 
-            }
-        }, {})
+            } catch (e: any) { return { success: false, message: e.message }; }
+        })    
         
         // ROUTE 5: Edit Phone
         .put('/phones/:id', async ({ params, body, headers, set }) => {
-            if (!sql) return { success: false, message: "DB not connected" };
+            if (headers['admin-secret'] !== process.env.ADMIN_PASSWORD) { set.status = 401; return { success: false }; }
             
-            if (headers['admin-secret'] !== process.env.ADMIN_PASSWORD) {
-                set.status = 401; 
-                return { success: false, message: "Wrong Password" };
-            }
-
+            const b = body as any;
             try {
-                const b = body as any;
                 await sql`
                     UPDATE phones 
-                    SET model = ${b.model}, rrp = ${b.rrp}, type_id = ${b.type_id}
+                    SET 
+                        model = ${b.model}, 
+                        rrp = ${b.rrp}, 
+                        type_id = ${b.type_id},
+                        base_price = ${b.base_price || 0},
+                        lcd_amt = ${b.lcd_amt || 0},
+                        aeon_rate = ${b.aeon_rate || 0},
+                        stamping_rate = ${b.stamping_rate || 0}
                     WHERE id = ${params.id}
                 `;
                 return { success: true };
-            } catch (error: any) {
-                return { success: false, message: error.message };
-            }
-        }, {})
+            } catch (e: any) { return { success: false, message: e.message }; }
+        })
 
         // ROUTE 6: Delete Phone
         .delete('/phones/:id', async ({ params, headers, set }) => {

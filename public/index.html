@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Esystem Ansuran Portal</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
     <style>
         :root { --primary: #0056b3; --light-blue: #e3f2fd; --white: #ffffff; --text: #333; --border: #ddd; }
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f0f2f5; margin: 0; padding: 0; color: var(--text); }
@@ -27,6 +29,11 @@
         .result-item:last-child { border-bottom: none; }
         .hidden { display: none !important; }
         .phone-2-wrapper { display: flex; align-items: center; gap: 10px; }
+        
+        /* New Styles for Remark Box */
+        .remark-box { margin-top: 20px; padding: 15px; background-color: #fff3cd; border: 1px solid #ffeeba; border-radius: 8px; color: #856404; font-size: 0.9rem; }
+        .remark-box ul { margin: 5px 0 0 20px; padding: 0; }
+        .remark-box li { margin-bottom: 4px; }
     </style>
 </head>
 <body>
@@ -89,6 +96,17 @@
                 </div>
                 
                 <button class="btn-primary" style="margin-top: 15px;" onclick="copyAll()">Copy Full Plan</button>
+
+                <div class="remark-box">
+                    <strong style="display:block; margin-bottom:5px;">
+                        <i class="fas fa-info-circle"></i> Important Remarks:
+                    </strong>
+                    <ul>
+                        <li><b>6 to 36 Months:</b> JCL, Aeon, Ansuran Kedai</li>
+                        <li><b>6 to 48 Months:</b> Aeon & Ansuran Kedai ONLY</li>
+                    </ul>
+                </div>
+
             </div>
         </div>
 
@@ -322,12 +340,3 @@
     </script>
 </body>
 </html>
-
-
-
-
-
-
-
-
-

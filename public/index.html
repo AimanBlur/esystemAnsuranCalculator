@@ -30,7 +30,6 @@
         .hidden { display: none !important; }
         .phone-2-wrapper { display: flex; align-items: center; gap: 10px; }
         
-        /* New Styles for Remark Box */
         .remark-box { margin-top: 20px; padding: 15px; background-color: #fff3cd; border: 1px solid #ffeeba; border-radius: 8px; color: #856404; font-size: 0.9rem; }
         .remark-box ul { margin: 5px 0 0 20px; padding: 0; }
         .remark-box li { margin-bottom: 4px; }
@@ -196,7 +195,8 @@
             dropdowns.forEach(select => {
                 const currentVal = select.value;
                 select.innerHTML = '<option value="0">-- Select Item --</option>';
-                list.forEach(p => select.innerHTML += `<option value="${p.rrp}">${p.model}</option>`);
+                // CHANGE: Use ID as value instead of RRP to ensure unique selection
+                list.forEach(p => select.innerHTML += `<option value="${p.id}">${p.model}</option>`);
                 select.value = currentVal;
             });
         }
@@ -221,16 +221,20 @@
                 <div style="padding:10px; border-bottom:1px solid #eee; display:flex; justify-content:space-between; align-items:center;">
                     <span style="font-weight:500;">${p.model}</span>
                     <div>
-                        <button onclick="selectSearchResult(1, '${p.rrp}')" style="background:#e3f2fd; color:#0056b3; border:none; padding:5px 10px; margin-right:5px; border-radius:4px;">Item 1</button>
-                        <button onclick="selectSearchResult(2, '${p.rrp}')" style="background:#e3f2fd; color:#0056b3; border:none; padding:5px 10px; border-radius:4px;">Item 2</button>
+                        <button onclick="selectSearchResult(1, '${p.id}')" style="background:#e3f2fd; color:#0056b3; border:none; padding:5px 10px; margin-right:5px; border-radius:4px;">Item 1</button>
+                        <button onclick="selectSearchResult(2, '${p.id}')" style="background:#e3f2fd; color:#0056b3; border:none; padding:5px 10px; border-radius:4px;">Item 2</button>
                     </div>
                 </div>
             `).join('');
         }
 
-        function selectSearchResult(slot, rrpVal) {
+        function selectSearchResult(slot, id) {
             if (slot === 2) toggleSecondPhone(true);
-            document.getElementById('phone' + slot).value = rrpVal;
+            
+            // Set value by ID now
+            const selectBox = document.getElementById('phone' + slot);
+            selectBox.value = id;
+            
             calculate();
             document.getElementById('search').value = "";
             document.getElementById('searchResults').style.display = 'none';
@@ -244,14 +248,24 @@
             else { wrapper.classList.add('hidden'); addBtn.classList.remove('hidden'); phone2.value = "0"; calculate(); }
         }
 
+        // Helper to find price from ID
+        function getPrice(id) {
+            if (!id || id === "0") return 0;
+            const item = allPhones.find(p => String(p.id) === String(id));
+            return item ? parseFloat(item.rrp) : 0;
+        }
+
         function calculate() {
-            const p1 = parseFloat(document.getElementById('phone1').value) || 0;
-            const p2 = parseFloat(document.getElementById('phone2').value) || 0;
+            // Updated logic to find price based on ID
+            const id1 = document.getElementById('phone1').value;
+            const id2 = document.getElementById('phone2').value;
+
+            const p1 = getPrice(id1);
+            const p2 = getPrice(id2);
+            
             const totalPrincipal = p1 + p2;
             const interestRate = 0.0125;
 
-            // This line crashed before because the element was missing. 
-            // Now it exists but is hidden, so this works safely.
             document.getElementById('totalRrp').innerText = totalPrincipal.toFixed(2);
 
             const calc = (m) => totalPrincipal === 0 ? "0.00" : ((totalPrincipal + (totalPrincipal * interestRate * m)) / m).toFixed(2);
@@ -280,7 +294,6 @@
             const btn = document.getElementById('submitBtn');
             const originalText = btn.innerText;
             
-            // UI Feedback
             btn.innerText = "Sending... Please Wait";
             btn.style.backgroundColor = "#999";
             btn.disabled = true;
@@ -296,7 +309,6 @@
 
             fields.forEach(field => {
                 const el = document.getElementById(field);
-                // Send empty string "" if field is empty, so backend doesn't complain
                 formData.append(field, el ? el.value : ""); 
             });
 
@@ -321,7 +333,6 @@
                     icInput.value = "";
                     salaryInput.value = "";
                 } else {
-                    // --- NEW: Read the actual error message from backend ---
                     const errorText = await response.text(); 
                     console.error("Server Error:", errorText);
                     alert(`❌ Failed to send. Server said: \n${errorText}`);

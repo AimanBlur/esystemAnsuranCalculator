@@ -399,17 +399,16 @@
                 data.forEach(p => {
                     const div = document.createElement('div');
                     div.className = "phone-item";
-                    // Check if previously selected to maintain state
                     const checked = selectedIds.has(p.id) ? "checked" : "";
                     
                     div.innerHTML = `
                         <input type="checkbox" class="item-checkbox" value="${p.id}" onchange="toggleItem(${p.id})" ${checked}>
                         <div style="flex-grow:1;">
                             <span style="font-size:0.8rem; background:#eee; padding:2px 6px; border-radius:4px; margin-right:5px;">${p.type_name || 'Item'}</span>
-                            <b>${p.model}</b> (RM ${p.rrp})
+                            <b>${p.model}</b> (Total: RM ${p.rrp})
                         </div>
                         <div style="display:flex; gap:5px;">
-                            <button class="btn-edit" onclick="startEdit(${p.id}, '${p.model}', ${p.rrp}, ${p.type_id})"><i class="fas fa-edit"></i></button>
+                            <button class="btn-edit" onclick="startEdit(${p.id}, '${p.model}', ${p.type_id}, ${p.base_price}, ${p.lcd_amt}, ${p.aeon_rate}, ${p.stamping_rate})"><i class="fas fa-edit"></i></button>
                             <button class="btn-delete" onclick="deletePhone(${p.id})"><i class="fas fa-trash-alt"></i></button>
                         </div>
                     `;
@@ -422,7 +421,15 @@
             const id = document.getElementById('editId').value;
             const type_id = document.getElementById('typeSelect').value;
             const model = document.getElementById('modelName').value;
-            const rrp = calcTotal(); 
+            
+            // Get individual values
+            const base = parseFloat(document.getElementById('basePrice').value) || 0;
+            const lcd = parseFloat(document.getElementById('lcdAmt').value) || 0;
+            const aeon = parseFloat(document.getElementById('aeonPercent').value) || 0;
+            const stamp = parseFloat(document.getElementById('stampPercent').value) || 0;
+
+            // Calculate Final RRP for the main display/sales page
+            const rrp = calcTotal();
 
             if(!model || rrp <= 0) return alert("Please fill in fields correctly");
 
@@ -432,14 +439,25 @@
             const res = await fetch(url, {
                 method: method,
                 headers: { 'Content-Type': 'application/json', 'admin-secret': secretKey },
-                body: JSON.stringify({ model, rrp, type_id })
+                body: JSON.stringify({ 
+                    model, 
+                    rrp, // We still save the total for the sales calculator
+                    type_id,
+                    base_price: base,
+                    lcd_amt: lcd,
+                    aeon_rate: aeon,
+                    stamping_rate: stamp
+                })
             });
             
-            if((await res.json()).success) {
+            const result = await res.json();
+            if(result.success) {
                 alert(id ? "Updated!" : "Added!");
                 resetForm();
                 loadPhones();
-            } else { alert("Failed. Check login."); logout(); }
+            } else {
+                alert("Failed: " + result.message);
+            }
         }
 
         async function deletePhone(id) {
@@ -451,22 +469,25 @@
             if(res.ok) loadPhones();
         }
 
-        function startEdit(id, model, totalRrp, typeId) {
+        function startEdit(id, model, typeId, base, lcd, aeon, stamp) {
             document.getElementById('formTitle').innerHTML = `<i class="fas fa-edit"></i> Edit Item`;
             document.getElementById('saveBtn').innerHTML = `<i class="fas fa-save"></i> Update`;
             document.getElementById('cancelBtn').classList.remove('hidden');
+            
             document.getElementById('importSection').classList.add('hidden');
             document.getElementById('singleEntryForm').classList.remove('hidden');
             
             document.getElementById('editId').value = id;
             document.getElementById('modelName').value = model;
-            document.getElementById('basePrice').value = totalRrp;
             
-            document.getElementById('lcdAmt').value = "";
-            document.getElementById('aeonPercent').value = "";
-            document.getElementById('stampPercent').value = "";
+            // FILL BREAKDOWN FIELDS
+            document.getElementById('basePrice').value = base || 0;
+            document.getElementById('lcdAmt').value = lcd || 0;
+            document.getElementById('aeonPercent').value = aeon || 0;
+            document.getElementById('stampPercent').value = stamp || 0;
             
-            calcTotal();
+            calcTotal(); // Update the "Final Total" display
+
             if(typeId) document.getElementById('typeSelect').value = typeId;
             window.scrollTo(0,0);
         }
@@ -608,3 +629,4 @@
     </script>
 </body>
 </html>
+

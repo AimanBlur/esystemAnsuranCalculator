@@ -10,7 +10,7 @@
     <style>
         :root { --primary: #0056b3; --danger: #d32f2f; --success: #28a745; --warning: #ffc107; --text: #333; }
         body { font-family: "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background: #f0f2f5; padding: 20px; color: var(--text); padding-bottom: 80px; }
-        .container { max-width: 700px; margin: 20px auto; background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+        .container { max-width: 800px; margin: 20px auto; background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
         input, select { width: 100%; padding: 12px; margin: 5px 0 15px; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; }
         label { font-size: 0.9rem; font-weight: bold; color: #555; }
         
@@ -39,6 +39,10 @@
         .import-box { background: #fff3cd; border: 1px solid #ffeeba; padding: 15px; border-radius: 8px; margin-bottom: 20px; }
         .file-upload { border: 2px dashed #ccc; padding: 20px; text-align: center; border-radius: 8px; background: #fff; cursor: pointer; margin-bottom: 15px; }
         .col-mapping { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px; }
+        
+        /* FILTER BAR */
+        .filter-container { background: #f8f9fa; padding: 15px; border-radius: 8px; border: 1px solid #eee; margin-bottom: 15px; }
+        .filter-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
         
         /* BULK ACTION BAR */
         .bulk-bar { 
@@ -143,15 +147,32 @@
         <div style="margin-top: 30px; margin-bottom: 10px;">
             <h3 style="margin-bottom: 10px;"><i class="fas fa-list"></i> Inventory</h3>
             
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 10px;">
+            <div class="filter-container">
+                <div style="position: relative; margin-bottom: 10px;">
+                    <i class="fas fa-search" style="position: absolute; left: 12px; top: 12px; color: #999;"></i>
+                    <input type="text" id="inventorySearch" placeholder="Search by name..." onkeyup="filterInventory()" style="padding-left: 35px; margin-bottom: 0;">
+                </div>
+                
+                <div class="filter-grid">
+                    <div>
+                        <select id="filterType" onchange="filterInventory()" style="margin-bottom:0;">
+                            <option value="all">All Categories</option>
+                        </select>
+                    </div>
+                    <div>
+                        <input type="number" id="filterMin" placeholder="Min Price (RM)" oninput="filterInventory()" style="margin-bottom:0;">
+                    </div>
+                    <div>
+                        <input type="number" id="filterMax" placeholder="Max Price (RM)" oninput="filterInventory()" style="margin-bottom:0;">
+                    </div>
+                </div>
+            </div>
+
+            <div style="margin-bottom: 10px;">
                 <label style="margin:0; display:flex; align-items:center; cursor:pointer;">
                     <input type="checkbox" id="selectAllBox" onchange="toggleSelectAll()" style="width:18px; height:18px; margin-right:8px;">
                     Select All
                 </label>
-                <div style="position: relative; width: 60%;">
-                    <i class="fas fa-search" style="position: absolute; left: 12px; top: 12px; color: #999;"></i>
-                    <input type="text" id="inventorySearch" placeholder="Search..." onkeyup="filterInventory()" style="padding-left: 35px; margin-bottom: 0;">
-                </div>
             </div>
         </div>
 
@@ -169,22 +190,14 @@
     <div id="bulkEditModal" class="modal-overlay hidden">
         <div class="modal-content">
             <h3 style="margin-top:0;"><i class="fas fa-calculator"></i> Bulk Adjust Prices</h3>
-            <p style="font-size:0.9rem; color:#666; line-height:1.4;">
-                <b style="color:var(--danger)">Note:</b> The current Price/RRP of selected items will be treated as the <b>Base Price</b>. <br>
-                New charges will be added on top of it.
+            <p style="font-size:0.9rem; color:#666;">
+                <b style="color:var(--danger)">Note:</b> Current RRP becomes Base Price. New charges added on top.
             </p>
-            
-            <label>Add LCD Cost (RM)</label>
-            <input type="number" id="bulkLcd" placeholder="0.00">
-            
-            <label>Add Aeon Charge (%)</label>
-            <input type="number" id="bulkAeon" placeholder="e.g. 1.25">
-            
-            <label>Add Stamping Charge (%)</label>
-            <input type="number" id="bulkStamp" placeholder="e.g. 0.5">
-
+            <label>Add LCD (RM)</label><input type="number" id="bulkLcd" placeholder="0.00">
+            <label>Add Aeon (%)</label><input type="number" id="bulkAeon" placeholder="e.g. 1.25">
+            <label>Add Stamping (%)</label><input type="number" id="bulkStamp" placeholder="e.g. 0.5">
             <div style="display:flex; gap:10px; margin-top:15px;">
-                <button onclick="executeBulkEdit()" class="btn-success">Update Items</button>
+                <button onclick="executeBulkEdit()" class="btn-success">Update</button>
                 <button onclick="closeBulkModal()" style="background:#888;">Cancel</button>
             </div>
         </div>
@@ -193,8 +206,6 @@
     <script>
         const API_URL = "/api"; 
         let secretKey = "";
-        
-        // GLOBAL DATA
         let allInventory = [];
         let selectedIds = new Set();
         let globalWorkbook = null;
@@ -224,17 +235,44 @@
             location.reload();
         }
 
+        // --- FILTER LOGIC ---
+        function filterInventory() {
+            const query = document.getElementById('inventorySearch').value.toLowerCase();
+            const type = document.getElementById('filterType').value;
+            const min = parseFloat(document.getElementById('filterMin').value) || 0;
+            const max = parseFloat(document.getElementById('filterMax').value) || Infinity;
+
+            document.querySelectorAll('.phone-item').forEach(item => {
+                const text = item.querySelector('b').innerText.toLowerCase();
+                const price = parseFloat(item.getAttribute('data-price')) || 0;
+                const itemType = item.getAttribute('data-type');
+
+                const matchText = text.includes(query);
+                const matchType = type === 'all' || itemType === type;
+                const matchPrice = price >= min && price <= max;
+
+                if(matchText && matchType && matchPrice) {
+                    item.style.display = "flex";
+                } else {
+                    item.style.display = "none";
+                    // If item is hidden, uncheck it to avoid bulk action errors
+                    const checkbox = item.querySelector('.item-checkbox');
+                    if(checkbox && checkbox.checked) {
+                        checkbox.checked = false;
+                        toggleItem(parseInt(checkbox.value));
+                    }
+                }
+            });
+        }
+
         // --- BULK LOGIC ---
         function toggleSelectAll() {
             const check = document.getElementById('selectAllBox').checked;
-            const checkboxes = document.querySelectorAll('.item-checkbox');
-            
-            selectedIds.clear();
-            checkboxes.forEach(box => {
-                // Only select visible items (in case of search filter)
+            document.querySelectorAll('.item-checkbox').forEach(box => {
                 if(box.closest('.phone-item').style.display !== 'none') {
                     box.checked = check;
                     if(check) selectedIds.add(parseInt(box.value));
+                    else selectedIds.delete(parseInt(box.value));
                 }
             });
             updateBulkBar();
@@ -249,40 +287,24 @@
         function updateBulkBar() {
             const bar = document.getElementById('bulkBar');
             document.getElementById('selectedCount').innerText = `${selectedIds.size} Selected`;
-            
             if(selectedIds.size > 0) bar.classList.remove('inactive');
             else bar.classList.add('inactive');
         }
 
-        function showBulkEditModal() {
-            document.getElementById('bulkEditModal').classList.remove('hidden');
-        }
-
-        function closeBulkModal() {
-            document.getElementById('bulkEditModal').classList.add('hidden');
-        }
+        function showBulkEditModal() { document.getElementById('bulkEditModal').classList.remove('hidden'); }
+        function closeBulkModal() { document.getElementById('bulkEditModal').classList.add('hidden'); }
 
         async function executeBulkDelete() {
-            if(!confirm(`Are you sure you want to DELETE ${selectedIds.size} items?`)) return;
-            
+            if(!confirm(`Delete ${selectedIds.size} items?`)) return;
             const btn = document.querySelector('.bulk-bar .btn-delete');
-            btn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> Deleting...`;
+            btn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> ...`;
             
-            let count = 0;
             for (let id of selectedIds) {
                 try {
-                    await fetch(`${API_URL}/phones/${id}`, {
-                        method: 'DELETE',
-                        headers: { 'admin-secret': secretKey }
-                    });
-                    count++;
+                    await fetch(`${API_URL}/phones/${id}`, { method: 'DELETE', headers: { 'admin-secret': secretKey } });
                 } catch(e) { console.error(e); }
             }
-            
-            alert(`Deleted ${count} items.`);
-            selectedIds.clear();
-            updateBulkBar();
-            loadPhones();
+            alert("Deleted."); selectedIds.clear(); updateBulkBar(); loadPhones();
         }
 
         async function executeBulkEdit() {
@@ -290,98 +312,68 @@
             const aeonP = parseFloat(document.getElementById('bulkAeon').value) || 0;
             const stampP = parseFloat(document.getElementById('bulkStamp').value) || 0;
 
-            if(!confirm(`This will update prices for ${selectedIds.size} items based on CURRENT RRP + Charges. Continue?`)) return;
-
+            if(!confirm("Update prices for selected items?")) return;
             const btn = document.querySelector('#bulkEditModal .btn-success');
-            const originalText = btn.innerText;
-            btn.innerText = "Updating...";
-            btn.disabled = true;
+            btn.innerText = "Updating..."; btn.disabled = true;
 
-            let count = 0;
             for (let id of selectedIds) {
                 const item = allInventory.find(p => p.id === id);
                 if (!item) continue;
-
-                // LOGIC: Current RRP becomes "Base Price" for this calculation
                 const base = parseFloat(item.rrp); 
-                const principal = base + lcd;
-                const aeonRM = principal * (aeonP / 100);
-                const stampRM = principal * (stampP / 100);
-                const newTotal = principal + aeonRM + stampRM;
+                const newTotal = (base + lcd) + ((base + lcd) * (aeonP/100)) + ((base + lcd) * (stampP/100));
 
                 try {
                     await fetch(`${API_URL}/phones/${id}`, {
                         method: 'PUT',
                         headers: { 'Content-Type': 'application/json', 'admin-secret': secretKey },
-                        body: JSON.stringify({ 
-                            model: item.model, 
-                            rrp: newTotal.toFixed(2), // Send new total
-                            type_id: item.type_id 
-                        })
+                        body: JSON.stringify({ model: item.model, rrp: newTotal.toFixed(2), type_id: item.type_id })
                     });
-                    count++;
                 } catch(e) { console.error(e); }
             }
-
-            alert(`Updated ${count} items!`);
-            selectedIds.clear();
-            closeBulkModal();
-            updateBulkBar();
-            loadPhones();
-            
-            // Reset inputs
-            document.getElementById('bulkLcd').value = "";
-            document.getElementById('bulkAeon').value = "";
-            document.getElementById('bulkStamp').value = "";
-            btn.innerText = originalText;
-            btn.disabled = false;
+            alert("Updated!"); selectedIds.clear(); closeBulkModal(); updateBulkBar(); loadPhones();
+            btn.innerText = "Update"; btn.disabled = false;
         }
 
-        // --- CLEANUP LOGIC ---
         async function cleanInventory() {
-            if(!confirm("Scan all items and remove empty brackets?")) return;
+            if(!confirm("Remove empty brackets from names?")) return;
             const btn = document.querySelector('.btn-warning');
             btn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> ...`;
             btn.disabled = true;
 
             let count = 0;
             for(let p of allInventory) {
-                let newName = p.model
-                    .replace(/\s?\(\-\)/g, "").replace(/\s?\(\)/g, "").replace(/\s?\-\s?$/g, "").trim();
-
+                let newName = p.model.replace(/\s?\(\-\)/g, "").replace(/\s?\(\)/g, "").replace(/\s?\-\s?$/g, "").trim();
                 if (newName !== p.model) {
-                    try {
-                        await fetch(`${API_URL}/phones/${p.id}`, {
-                            method: 'PUT',
-                            headers: { 'Content-Type': 'application/json', 'admin-secret': secretKey },
-                            body: JSON.stringify({ model: newName, rrp: p.rrp, type_id: p.type_id })
-                        });
-                        count++;
-                    } catch(e) { console.error(e); }
+                    await fetch(`${API_URL}/phones/${p.id}`, {
+                        method: 'PUT', headers: { 'Content-Type': 'application/json', 'admin-secret': secretKey },
+                        body: JSON.stringify({ model: newName, rrp: p.rrp, type_id: p.type_id })
+                    });
+                    count++;
                 }
             }
             alert(`Cleaned ${count} items!`);
-            btn.innerHTML = `<i class="fas fa-broom"></i> Clean Names`;
-            btn.disabled = false;
-            loadPhones();
+            btn.innerHTML = `<i class="fas fa-broom"></i> Clean Names`; btn.disabled = false; loadPhones();
         }
 
-        // --- STANDARD CRUD ---
-        async function init() {
-            await loadTypes();
-            loadPhones();
-        }
+        async function init() { await loadTypes(); loadPhones(); }
 
         async function loadTypes() {
             try {
                 const res = await fetch(`${API_URL}/types`);
                 const types = await res.json();
-                const sel = document.getElementById('typeSelect');
-                const importSel = document.getElementById('importTypeSelect');
-                sel.innerHTML = ""; importSel.innerHTML = "";
-                types.forEach(t => {
-                    const opt = `<option value="${t.id}">${t.name}</option>`;
-                    sel.innerHTML += opt; importSel.innerHTML += opt;
+                
+                // Populate ALL dropdowns (Single, Import, Filter)
+                const selects = [
+                    document.getElementById('typeSelect'),
+                    document.getElementById('importTypeSelect'),
+                    document.getElementById('filterType')
+                ];
+                
+                selects.forEach(sel => {
+                    if (sel.id === 'filterType') sel.innerHTML = '<option value="all">All Categories</option>';
+                    else sel.innerHTML = ""; // Clear others
+                    
+                    types.forEach(t => sel.innerHTML += `<option value="${t.id}">${t.name}</option>`);
                 });
             } catch (e) { console.error(e); }
         }
@@ -399,6 +391,10 @@
                 data.forEach(p => {
                     const div = document.createElement('div');
                     div.className = "phone-item";
+                    // Add Data Attributes for Filtering
+                    div.setAttribute('data-price', p.rrp);
+                    div.setAttribute('data-type', p.type_id);
+                    
                     const checked = selectedIds.has(p.id) ? "checked" : "";
                     
                     div.innerHTML = `
@@ -408,12 +404,16 @@
                             <b>${p.model}</b> (Total: RM ${p.rrp})
                         </div>
                         <div style="display:flex; gap:5px;">
-                            <button class="btn-edit" onclick="startEdit(${p.id}, '${p.model}', ${p.type_id}, ${p.base_price}, ${p.lcd_amt}, ${p.aeon_rate}, ${p.stamping_rate})"><i class="fas fa-edit"></i></button>
+                            <button class="btn-edit" onclick="startEdit(${p.id}, '${p.model}', ${p.rrp}, ${p.type_id}, ${p.base_price}, ${p.lcd_amt}, ${p.aeon_rate}, ${p.stamping_rate})"><i class="fas fa-edit"></i></button>
                             <button class="btn-delete" onclick="deletePhone(${p.id})"><i class="fas fa-trash-alt"></i></button>
                         </div>
                     `;
                     list.appendChild(div);
                 });
+                
+                // Re-run filter in case inputs exist
+                filterInventory(); 
+                
             } catch(e) { console.error(e); }
         }
 
@@ -422,14 +422,11 @@
             const type_id = document.getElementById('typeSelect').value;
             const model = document.getElementById('modelName').value;
             
-            // Get individual values
             const base = parseFloat(document.getElementById('basePrice').value) || 0;
             const lcd = parseFloat(document.getElementById('lcdAmt').value) || 0;
             const aeon = parseFloat(document.getElementById('aeonPercent').value) || 0;
             const stamp = parseFloat(document.getElementById('stampPercent').value) || 0;
-
-            // Calculate Final RRP for the main display/sales page
-            const rrp = calcTotal();
+            const rrp = calcTotal(); 
 
             if(!model || rrp <= 0) return alert("Please fill in fields correctly");
 
@@ -439,55 +436,34 @@
             const res = await fetch(url, {
                 method: method,
                 headers: { 'Content-Type': 'application/json', 'admin-secret': secretKey },
-                body: JSON.stringify({ 
-                    model, 
-                    rrp, // We still save the total for the sales calculator
-                    type_id,
-                    base_price: base,
-                    lcd_amt: lcd,
-                    aeon_rate: aeon,
-                    stamping_rate: stamp
-                })
+                body: JSON.stringify({ model, rrp, type_id, base_price: base, lcd_amt: lcd, aeon_rate: aeon, stamping_rate: stamp })
             });
             
-            const result = await res.json();
-            if(result.success) {
-                alert(id ? "Updated!" : "Added!");
-                resetForm();
-                loadPhones();
-            } else {
-                alert("Failed: " + result.message);
-            }
+            if((await res.json()).success) { alert(id ? "Updated!" : "Added!"); resetForm(); loadPhones(); }
+            else { alert("Failed."); logout(); }
         }
 
         async function deletePhone(id) {
-            if(!confirm("Delete this item?")) return;
-            const res = await fetch(`${API_URL}/phones/${id}`, {
-                method: 'DELETE',
-                headers: { 'admin-secret': secretKey }
-            });
+            if(!confirm("Delete?")) return;
+            const res = await fetch(`${API_URL}/phones/${id}`, { method: 'DELETE', headers: { 'admin-secret': secretKey } });
             if(res.ok) loadPhones();
         }
 
-        function startEdit(id, model, typeId, base, lcd, aeon, stamp) {
+        function startEdit(id, model, totalRrp, typeId, base, lcd, aeon, stamp) {
             document.getElementById('formTitle').innerHTML = `<i class="fas fa-edit"></i> Edit Item`;
             document.getElementById('saveBtn').innerHTML = `<i class="fas fa-save"></i> Update`;
             document.getElementById('cancelBtn').classList.remove('hidden');
-            
             document.getElementById('importSection').classList.add('hidden');
             document.getElementById('singleEntryForm').classList.remove('hidden');
             
             document.getElementById('editId').value = id;
             document.getElementById('modelName').value = model;
-            
-            // FILL BREAKDOWN FIELDS
             document.getElementById('basePrice').value = base || 0;
             document.getElementById('lcdAmt').value = lcd || 0;
             document.getElementById('aeonPercent').value = aeon || 0;
             document.getElementById('stampPercent').value = stamp || 0;
             
-            calcTotal(); // Update the "Final Total" display
-
+            calcTotal();
             if(typeId) document.getElementById('typeSelect').value = typeId;
             window.scrollTo(0,0);
         }
@@ -597,7 +573,7 @@
                     await fetch(`${API_URL}/phones`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json', 'admin-secret': secretKey },
-                        body: JSON.stringify({ model: finalName, rrp: price, type_id: typeId })
+                        body: JSON.stringify({ model: finalName, rrp: price, type_id: typeId, base_price: price })
                     });
                     count++;
                 }
@@ -618,15 +594,6 @@
                 loadTypes();
             });
         }
-
-        function filterInventory() {
-            const query = document.getElementById('inventorySearch').value.toLowerCase();
-            document.querySelectorAll('.phone-item').forEach(item => {
-                const text = item.innerText.toLowerCase();
-                item.style.display = text.includes(query) ? "flex" : "none";
-            });
-        }
     </script>
 </body>
 </html>
-

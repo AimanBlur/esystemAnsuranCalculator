@@ -9,7 +9,9 @@
     <style>
         :root { --primary: #0056b3; --light-blue: #e3f2fd; --white: #ffffff; --text: #333; --border: #ddd; }
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f0f2f5; margin: 0; padding: 0; color: var(--text); }
-        header { background: var(--primary); color: white; padding: 15px; text-align: center; font-size: 1.25rem; font-weight: 600; }
+        
+        /* -- STRUCTURE UNCHANGED -- */
+        header { background: var(--primary); color: white; padding: 15px; text-align: center; font-size: 1.25rem; font-weight: 600; display: flex; justify-content: space-between; align-items: center; }
         .tabs { display: flex; background: white; position: sticky; top: 0; z-index: 100; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
         .tab-btn { flex: 1; padding: 15px; border: none; background: none; font-size: 1rem; cursor: pointer; color: #666; border-bottom: 3px solid transparent; }
         .tab-btn.active-tab { border-bottom: 3px solid var(--primary); color: var(--primary); font-weight: bold; background: #f8fbff; }
@@ -29,135 +31,158 @@
         .result-item:last-child { border-bottom: none; }
         .hidden { display: none !important; }
         .phone-2-wrapper { display: flex; align-items: center; gap: 10px; }
-        
         .remark-box { margin-top: 20px; padding: 15px; background-color: #fff3cd; border: 1px solid #ffeeba; border-radius: 8px; color: #856404; font-size: 0.9rem; }
         .remark-box ul { margin: 5px 0 0 20px; padding: 0; }
         .remark-box li { margin-bottom: 4px; }
+
+        /* -- NEW LOGIN STYLES -- */
+        #loginOverlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #0056b3; z-index: 9999; display: flex; justify-content: center; align-items: center; }
+        .login-box { background: white; padding: 30px; border-radius: 15px; width: 85%; max-width: 350px; text-align: center; box-shadow: 0 10px 25px rgba(0,0,0,0.2); }
+        .login-box h2 { margin-top: 0; color: var(--primary); }
     </style>
 </head>
 <body>
 
-    <header>Esystem Ansuran Portal</header>
-
-    <div class="tabs">
-        <button class="tab-btn active-tab" onclick="openTab('calc', this)">Calculator</button>
-        <button class="tab-btn" onclick="openTab('apply', this)">Application</button>
+    <div id="loginOverlay">
+        <div class="login-box">
+            <h2><i class="fas fa-lock"></i> Staff Login</h2>
+            <p>Please log in to access the system.</p>
+            <input type="text" id="staffUser" placeholder="User ID">
+            <input type="password" id="staffPass" placeholder="Password">
+            <button onclick="handleLogin()">Login</button>
+            <p id="loginMsg" style="color:red; margin-top:10px; font-size:0.9rem;"></p>
+        </div>
     </div>
 
-    <div class="container">
-        <div id="calc" class="tab-content active-content">
-            <div class="card">
-                <label>Quick Search</label>
-                <div style="display:flex; gap:10px; margin-bottom:10px;">
-                    <select id="typeFilter" onchange="handleSearch()" style="width:130px; margin:0;">
-                        <option value="all">All Types</option>
-                    </select>
-                    <input type="text" id="search" placeholder="Type model name..." onkeyup="handleSearch()" style="margin:0;">
-                </div>
+    <div id="mainApp" class="hidden">
+        
+        <header>
+            <div style="flex-grow:1; text-align:center;">Esystem Ansuran Portal</div>
+            <button onclick="doLogout()" style="width:auto; padding:5px 10px; font-size:0.8rem; background:rgba(255,255,255,0.2); border:1px solid rgba(255,255,255,0.4);">
+                <i class="fas fa-sign-out-alt"></i> Logout
+            </button>
+        </header>
 
-                <div id="searchResults" style="margin-bottom: 20px; border: 1px solid #eee; display:none; max-height: 200px; overflow-y: auto;"></div>
-
-                <hr style="margin: 20px 0; border:0; border-top:1px solid #eee;">
-
-                <label>Item 1</label> 
-                <select id="phone1" onchange="calculate()"></select>
-
-                <div id="secondPhoneWrapper" class="hidden">
-                    <label>Item 2</label>
-                    <div class="phone-2-wrapper">
-                        <select id="phone2" onchange="calculate()"></select>
-                        <button onclick="toggleSecondPhone(false)" class="btn-danger">✕</button>
-                    </div>
-                </div>
-                <button id="addBtn" class="btn-secondary" onclick="toggleSecondPhone(true)">+ Add Second Item</button>
-
-                <div class="results-box">
-                    <div class="result-item" style="display:none;">
-                        <span>Total RRP: <b>RM <span id="totalRrp">0.00</span></b></span> 
-                    </div>
-
-                    <div class="result-item">
-                        <span>12 Months: <b>RM <span id="m12">0.00</span></b></span>
-                        <button class="btn-copy" onclick="copyText('m12', '12 Months')">Copy</button>
-                    </div>
-                    <div class="result-item">
-                        <span>24 Months: <b>RM <span id="m24">0.00</span></b></span>
-                        <button class="btn-copy" onclick="copyText('m24', '24 Months')">Copy</button>
-                    </div>
-                    <div class="result-item">
-                        <span>36 Months: <b>RM <span id="m36">0.00</span></b></span>
-                        <button class="btn-copy" onclick="copyText('m36', '36 Months')">Copy</button>
-                    </div>
-                    <div class="result-item">
-                        <span>48 Months: <b>RM <span id="m48">0.00</span></b></span>
-                        <button class="btn-copy" onclick="copyText('m48', '48 Months')">Copy</button>
-                    </div>
-                </div>
-                
-                <button class="btn-primary" style="margin-top: 15px;" onclick="copyAll()">Copy Full Plan</button>
-
-                <div class="remark-box">
-                    <strong style="display:block; margin-bottom:5px;">
-                        <i class="fas fa-info-circle"></i> Important Remarks:
-                    </strong>
-                    <ul>
-                        <li><b>6 to 36 Months:</b> JCL, Aeon, Ansuran Kedai</li>
-                        <li><b>6 to 48 Months:</b> Aeon & Ansuran Kedai ONLY</li>
-                    </ul>
-                </div>
-
-            </div>
+        <div class="tabs">
+            <button class="tab-btn active-tab" onclick="openTab('calc', this)">Calculator</button>
+            <button class="tab-btn" onclick="openTab('apply', this)">Application</button>
         </div>
 
-        <div id="apply" class="tab-content">
-            <form id="uploadForm" class="card">
-                <h2 style="margin-top:0; color:var(--primary); font-size: 1.2rem;">New Application Form</h2>
-                
-                <h3 class="section-title">Personal Info</h3>
-                <input type="text" id="nama" placeholder="Full Name (Nama Penuh)" required>
-                <input type="text" id="ic" placeholder="IC Number" required>
-                <textarea id="alamat" placeholder="Current Address" rows="3"></textarea>
-                <input type="number" id="tahun_tinggal" placeholder="Years Staying (Tahun Tinggal)">
-                <select id="jenis_rumah">
-                    <option value="Sendiri">Own House (Rumah Sendiri)</option>
-                    <option value="Sewa">Rented (Rumah Sewa)</option>
-                </select>
-                <input type="text" id="status" placeholder="Marital Status">
-                <input type="number" id="anak" placeholder="No. of Children">
-                <input type="tel" id="hp" placeholder="Phone Number (H/P)" required>
-                <input type="email" id="email_user" placeholder="Email Address">
-                <input type="text" id="tarikh_gaji" placeholder="Salary Date (e.g., 28hb)">
+        <div class="container">
+            <div id="calc" class="tab-content active-content">
+                <div class="card">
+                    <label>Quick Search</label>
+                    <div style="display:flex; gap:10px; margin-bottom:10px;">
+                        <select id="typeFilter" onchange="handleSearch()" style="width:130px; margin:0;">
+                            <option value="all">All Types</option>
+                        </select>
+                        <input type="text" id="search" placeholder="Type model name..." onkeyup="handleSearch()" style="margin:0;">
+                    </div>
 
-                <h3 class="section-title">Employment</h3>
-                <input type="text" id="syarikat" placeholder="Company Name">
-                <textarea id="alamat_kerja" placeholder="Company Address" rows="3"></textarea>
-                <input type="number" id="tahun_kerja" placeholder="Years Working">
-                <input type="tel" id="no_pejabat" placeholder="Office Phone No.">
-                <input type="text" id="jawatan" placeholder="Position (Jawatan)">
+                    <div id="searchResults" style="margin-bottom: 20px; border: 1px solid #eee; display:none; max-height: 200px; overflow-y: auto;"></div>
 
-                <h3 class="section-title">Reference 1 (Parent)</h3>
-                <input type="text" id="ref1_nama" placeholder="Name">
-                <input type="text" id="ref1_hub" placeholder="Relationship (Hubungan)">
-                <input type="tel" id="ref1_hp" placeholder="Phone No.">
+                    <hr style="margin: 20px 0; border:0; border-top:1px solid #eee;">
 
-                <h3 class="section-title">Reference 2 (Relative)</h3>
-                <input type="text" id="ref2_nama" placeholder="Name">
-                <input type="text" id="ref2_hub" placeholder="Relationship (Hubungan)">
-                <input type="tel" id="ref2_hp" placeholder="Phone No.">
+                    <label>Item 1</label> 
+                    <select id="phone1" onchange="calculate()"></select>
 
-                <h3 class="section-title">Bank Details</h3>
-                <input type="text" id="bank_nama" placeholder="Bank Name">
-                <input type="text" id="bank_acc" placeholder="Account Number">
+                    <div id="secondPhoneWrapper" class="hidden">
+                        <label>Item 2</label>
+                        <div class="phone-2-wrapper">
+                            <select id="phone2" onchange="calculate()"></select>
+                            <button onclick="toggleSecondPhone(false)" class="btn-danger">✕</button>
+                        </div>
+                    </div>
+                    <button id="addBtn" class="btn-secondary" onclick="toggleSecondPhone(true)">+ Add Second Item</button>
 
-                <h3 class="section-title">Documents</h3>
-                <label>IC Copy (Image/PDF):</label>
-                <input type="file" id="icFile" accept="image/*,.pdf" required>
-                
-                <label style="margin-top:10px;">Salary Slip (Image/PDF):</label>
-                <input type="file" id="salarySlip" accept="image/*,.pdf" required>
+                    <div class="results-box">
+                        <div class="result-item" style="display:none;">
+                            <span>Total RRP: <b>RM <span id="totalRrp">0.00</span></b></span> 
+                        </div>
 
-                <button type="submit" id="submitBtn" class="btn-primary" style="margin-top:25px;">Submit Application</button>
-            </form>
+                        <div class="result-item">
+                            <span>12 Months: <b>RM <span id="m12">0.00</span></b></span>
+                            <button class="btn-copy" onclick="copyText('m12', '12 Months')">Copy</button>
+                        </div>
+                        <div class="result-item">
+                            <span>24 Months: <b>RM <span id="m24">0.00</span></b></span>
+                            <button class="btn-copy" onclick="copyText('m24', '24 Months')">Copy</button>
+                        </div>
+                        <div class="result-item">
+                            <span>36 Months: <b>RM <span id="m36">0.00</span></b></span>
+                            <button class="btn-copy" onclick="copyText('m36', '36 Months')">Copy</button>
+                        </div>
+                        <div class="result-item">
+                            <span>48 Months: <b>RM <span id="m48">0.00</span></b></span>
+                            <button class="btn-copy" onclick="copyText('m48', '48 Months')">Copy</button>
+                        </div>
+                    </div>
+                    
+                    <button class="btn-primary" style="margin-top: 15px;" onclick="copyAll()">Copy Full Plan</button>
+
+                    <div class="remark-box">
+                        <strong style="display:block; margin-bottom:5px;">
+                            <i class="fas fa-info-circle"></i> Important Remarks:
+                        </strong>
+                        <ul>
+                            <li><b>6 to 36 Months:</b> JCL, Aeon, Ansuran Kedai</li>
+                            <li><b>6 to 48 Months:</b> Aeon & Ansuran Kedai ONLY</li>
+                        </ul>
+                    </div>
+
+                </div>
+            </div>
+
+            <div id="apply" class="tab-content">
+                <form id="uploadForm" class="card">
+                    <h2 style="margin-top:0; color:var(--primary); font-size: 1.2rem;">New Application Form</h2>
+                    
+                    <h3 class="section-title">Personal Info</h3>
+                    <input type="text" id="nama" placeholder="Full Name (Nama Penuh)" required>
+                    <input type="text" id="ic" placeholder="IC Number" required>
+                    <textarea id="alamat" placeholder="Current Address" rows="3"></textarea>
+                    <input type="number" id="tahun_tinggal" placeholder="Years Staying (Tahun Tinggal)">
+                    <select id="jenis_rumah">
+                        <option value="Sendiri">Own House (Rumah Sendiri)</option>
+                        <option value="Sewa">Rented (Rumah Sewa)</option>
+                    </select>
+                    <input type="text" id="status" placeholder="Marital Status">
+                    <input type="number" id="anak" placeholder="No. of Children">
+                    <input type="tel" id="hp" placeholder="Phone Number (H/P)" required>
+                    <input type="email" id="email_user" placeholder="Email Address">
+                    <input type="text" id="tarikh_gaji" placeholder="Salary Date (e.g., 28hb)">
+
+                    <h3 class="section-title">Employment</h3>
+                    <input type="text" id="syarikat" placeholder="Company Name">
+                    <textarea id="alamat_kerja" placeholder="Company Address" rows="3"></textarea>
+                    <input type="number" id="tahun_kerja" placeholder="Years Working">
+                    <input type="tel" id="no_pejabat" placeholder="Office Phone No.">
+                    <input type="text" id="jawatan" placeholder="Position (Jawatan)">
+
+                    <h3 class="section-title">Reference 1 (Parent)</h3>
+                    <input type="text" id="ref1_nama" placeholder="Name">
+                    <input type="text" id="ref1_hub" placeholder="Relationship (Hubungan)">
+                    <input type="tel" id="ref1_hp" placeholder="Phone No.">
+
+                    <h3 class="section-title">Reference 2 (Relative)</h3>
+                    <input type="text" id="ref2_nama" placeholder="Name">
+                    <input type="text" id="ref2_hub" placeholder="Relationship (Hubungan)">
+                    <input type="tel" id="ref2_hp" placeholder="Phone No.">
+
+                    <h3 class="section-title">Bank Details</h3>
+                    <input type="text" id="bank_nama" placeholder="Bank Name">
+                    <input type="text" id="bank_acc" placeholder="Account Number">
+
+                    <h3 class="section-title">Documents</h3>
+                    <label>IC Copy (Image/PDF):</label>
+                    <input type="file" id="icFile" accept="image/*,.pdf" required>
+                    
+                    <label style="margin-top:10px;">Salary Slip (Image/PDF):</label>
+                    <input type="file" id="salarySlip" accept="image/*,.pdf" required>
+
+                    <button type="submit" id="submitBtn" class="btn-primary" style="margin-top:25px;">Submit Application</button>
+                </form>
+            </div>
         </div>
     </div>
 
@@ -165,6 +190,52 @@
         const API_URL = "/api";
         let allPhones = [];
 
+        // --- AUTH LOGIC (NEW) ---
+        // Check if logged in immediately
+        if (localStorage.getItem("staffUser")) {
+            document.getElementById('loginOverlay').classList.add('hidden');
+            document.getElementById('mainApp').classList.remove('hidden');
+            loadData();
+        }
+
+        async function handleLogin() {
+            const u = document.getElementById('staffUser').value;
+            const p = document.getElementById('staffPass').value;
+            const btn = document.querySelector('#loginOverlay button');
+            
+            if(!u || !p) return;
+            btn.innerText = "Checking...";
+
+            try {
+                const res = await fetch(`${API_URL}/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username: u, password: p })
+                });
+                const data = await res.json();
+                
+                if (data.success) {
+                    localStorage.setItem("staffUser", u);
+                    document.getElementById('loginOverlay').classList.add('hidden');
+                    document.getElementById('mainApp').classList.remove('hidden');
+                    loadData();
+                } else {
+                    document.getElementById('loginMsg').innerText = "Invalid ID or Password";
+                }
+            } catch (e) { 
+                document.getElementById('loginMsg').innerText = "Server Error"; 
+            }
+            btn.innerText = "Login";
+        }
+
+        function doLogout() {
+            if(confirm("Logout from system?")) {
+                localStorage.removeItem("staffUser");
+                location.reload();
+            }
+        }
+
+        // --- APP LOGIC (EXISTING) ---
         function openTab(tabId, btnElement) {
             document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active-content'));
             document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active-tab'));
@@ -195,7 +266,6 @@
             dropdowns.forEach(select => {
                 const currentVal = select.value;
                 select.innerHTML = '<option value="0">-- Select Item --</option>';
-                // CHANGE: Use ID as value instead of RRP to ensure unique selection
                 list.forEach(p => select.innerHTML += `<option value="${p.id}">${p.model}</option>`);
                 select.value = currentVal;
             });
@@ -230,11 +300,8 @@
 
         function selectSearchResult(slot, id) {
             if (slot === 2) toggleSecondPhone(true);
-            
-            // Set value by ID now
             const selectBox = document.getElementById('phone' + slot);
             selectBox.value = id;
-            
             calculate();
             document.getElementById('search').value = "";
             document.getElementById('searchResults').style.display = 'none';
@@ -248,7 +315,6 @@
             else { wrapper.classList.add('hidden'); addBtn.classList.remove('hidden'); phone2.value = "0"; calculate(); }
         }
 
-        // Helper to find price from ID
         function getPrice(id) {
             if (!id || id === "0") return 0;
             const item = allPhones.find(p => String(p.id) === String(id));
@@ -256,7 +322,6 @@
         }
 
         function calculate() {
-            // Updated logic to find price based on ID
             const id1 = document.getElementById('phone1').value;
             const id2 = document.getElementById('phone2').value;
 
@@ -302,9 +367,8 @@
             const fields = [
                 'nama', 'ic', 'alamat', 'tahun_tinggal', 'jenis_rumah', 'status', 
                 'anak', 'hp', 'email_user', 'tarikh_gaji', 'syarikat', 'alamat_kerja', 
-                'tahun_kerja', 'no_pejabat', 'jawatan', 'ref1_nama', 'ref1_alamat', 
-                'ref1_hub', 'ref1_hp', 'ref2_nama', 'ref2_alamat', 'ref2_hub', 
-                'ref2_hp', 'bank_nama', 'bank_acc'
+                'tahun_kerja', 'no_pejabat', 'jawatan', 'ref1_nama', 'ref1_hub', 
+                'ref1_hp', 'ref2_nama', 'ref2_hub', 'ref2_hp', 'bank_nama', 'bank_acc'
             ];
 
             fields.forEach(field => {
@@ -346,8 +410,6 @@
             btn.style.backgroundColor = "var(--primary)";
             btn.disabled = false;
         };
-
-        loadData();
     </script>
 </body>
 </html>

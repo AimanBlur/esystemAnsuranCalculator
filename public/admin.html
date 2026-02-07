@@ -36,7 +36,7 @@
         .total-box span { font-size: 1.5rem; color: var(--primary); font-weight: bold; display: block; margin-top: 5px;}
         .calc-display { font-size: 0.85rem; color: #666; font-weight: normal; margin-top: -10px; margin-bottom: 10px; display: block; font-style: italic;}
         
-        /* Import Section */
+        /* Import Section Styles */
         .import-box { background: #fff3cd; border: 1px solid #ffeeba; padding: 15px; border-radius: 8px; margin-bottom: 20px; }
         .file-upload { border: 2px dashed #ccc; padding: 20px; text-align: center; border-radius: 8px; background: #fff; cursor: pointer; margin-bottom: 15px; }
         .col-mapping { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px; }
@@ -60,6 +60,9 @@
         .modal-content { background: white; padding: 25px; border-radius: 12px; width: 90%; max-width: 400px; }
 
         h2, h3, h4 { display: flex; align-items: center; gap: 10px; }
+        
+        /* Staff List */
+        .staff-item { display: flex; justify-content: space-between; padding: 8px; background: #fff; border-bottom: 1px solid #eee; }
     </style>
 </head>
 <body>
@@ -74,6 +77,16 @@
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
             <h2 style="margin:0;"><i class="fas fa-mobile-alt"></i> Inventory</h2>
             <button onclick="logout()" style="width:auto; background:#666;"><i class="fas fa-sign-out-alt"></i> Logout</button>
+        </div>
+
+        <div style="background:#e8f0fe; padding:15px; border-radius:8px; margin-bottom:20px; border:1px solid #b8daff;">
+            <h4 style="margin:0 0 10px 0; color: #004085;"><i class="fas fa-user-shield"></i> Manage Staff</h4>
+            <div class="row">
+                <input type="text" id="newStaffId" placeholder="User ID" style="margin:0;">
+                <input type="text" id="newStaffPass" placeholder="Password (6 char)" maxlength="6" style="margin:0;">
+                <button onclick="addStaff()" style="width:auto;"><i class="fas fa-plus"></i> Add</button>
+            </div>
+            <div id="staffList" style="margin-top:10px; max-height:100px; overflow-y:auto; background:white; border-radius:4px;"></div>
         </div>
 
         <div style="background:#f8f9fa; padding:15px; border-radius:8px; margin-bottom:20px; border:1px solid #eee;">
@@ -227,25 +240,59 @@
             location.reload();
         }
 
+        // --- NEW STAFF MANAGEMENT ---
+        async function loadStaff() {
+            try {
+                const res = await fetch(`${API_URL}/users`, { headers: { 'admin-secret': secretKey } });
+                const users = await res.json();
+                const list = document.getElementById('staffList');
+                list.innerHTML = "";
+                users.forEach(u => {
+                    if(u.role === 'admin') return; 
+                    list.innerHTML += `
+                        <div class="staff-item">
+                            <span><i class="fas fa-user"></i> ${u.username}</span>
+                            <button onclick="deleteStaff(${u.id})" style="background:red; padding:2px 8px; font-size:0.7rem; width:auto;">Delete</button>
+                        </div>`;
+                });
+            } catch(e) { console.error(e); }
+        }
+
+        async function addStaff() {
+            const username = document.getElementById('newStaffId').value;
+            const password = document.getElementById('newStaffPass').value;
+            if(!username || password.length < 4) return alert("Invalid details");
+
+            await fetch(`${API_URL}/users`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'admin-secret': secretKey },
+                body: JSON.stringify({ username, password })
+            });
+            loadStaff();
+            document.getElementById('newStaffId').value = "";
+            document.getElementById('newStaffPass').value = "";
+            alert("Staff Added");
+        }
+
+        async function deleteStaff(id) {
+            if(!confirm("Delete this staff?")) return;
+            await fetch(`${API_URL}/users/${id}`, { method: 'DELETE', headers: { 'admin-secret': secretKey } });
+            loadStaff();
+        }
+
         // --- NEW AUTO CALC LOGIC ---
         function getLcdCharge(price, typeName) {
             const lowerType = (typeName || "").toLowerCase();
             if (lowerType.includes('laptop') || lowerType.includes('ipad')) {
                 return 1200;
             }
-            // Standard Range for Phone/Tab/Watch
+            // Standard Range
             if (price >= 300 && price <= 1000) return 359;
             if (price > 1000 && price <= 2500) return 499;
             if (price > 2500 && price <= 3500) return 599;
             if (price > 3500 && price <= 5000) return 799;
             if (price > 5000) return 899;
-            return 0; // Below 300 or error
-        }
-
-        function getStampingFee(total) {
-            // 0.5% of total, rounded up to nearest 5
-            const fee = total * 0.005;
-            return Math.ceil(fee / 5) * 5;
+            return 0; 
         }
 
         function performAutoCalc() {
@@ -266,13 +313,11 @@
                 document.getElementById('aeonCharge').value = 50;
             }
 
-            // 3. Calculate Stamping
-            // Subtotal before stamping
-            const subTotal = base + lcd + admin;
-            const stamp = getStampingFee(subTotal);
+            // 3. Calculate Stamping (0.5% of Base + LCD) rounded up to 5
+            const subTotalForStamp = base + lcd;
+            const stamp = Math.ceil((subTotalForStamp * 0.005) / 5) * 5;
             document.getElementById('stampFee').value = stamp;
 
-            // 4. Update Final Total Display
             calcTotal();
         }
 
@@ -289,7 +334,7 @@
 
         // --- BULK AUTO APPLY ---
         async function applyAutoChargesToAll() {
-            if(!confirm("AUTO-CALCULATE ALL items in inventory? \n(Base Price will be used to set LCD, Admin=50, and Stamping).")) return;
+            if(!confirm("AUTO-CALCULATE ALL items?\n(Base Price will be used to set LCD, Admin=50, and Stamping based on Base+LCD).")) return;
             await processAutoCalcList(allInventory);
         }
 
@@ -301,19 +346,19 @@
 
         async function processAutoCalcList(items) {
             let count = 0;
-            // Visual Feedback
             const oldBtnText = document.querySelector('.btn-purple').innerHTML;
             document.querySelector('.btn-purple').innerHTML = `<i class="fas fa-spinner fa-spin"></i> Processing...`;
 
             for (let item of items) {
-                const base = parseFloat(item.base_price) || parseFloat(item.rrp) || 0; // Fallback to RRP if base is 0
+                const base = parseFloat(item.base_price) || parseFloat(item.rrp) || 0; 
                 const typeName = item.type_name || "";
                 
+                // Pricing Logic
                 const lcd = getLcdCharge(base, typeName);
                 const admin = 50;
-                const subTotal = base + lcd + admin;
-                const stamp = getStampingFee(subTotal);
-                const finalRrp = subTotal + stamp;
+                const subForStamp = base + lcd;
+                const stamp = Math.ceil((subForStamp * 0.005) / 5) * 5;
+                const finalRrp = base + lcd + admin + stamp;
 
                 try {
                     await fetch(`${API_URL}/phones/${item.id}`, {
@@ -325,14 +370,14 @@
                             type_id: item.type_id,
                             base_price: base,
                             lcd_amt: lcd,
-                            aeon_rate: admin, // Using aeon_rate col for Admin Charge
-                            stamping_rate: stamp // Using stamping_rate col for Stamp Fee
+                            aeon_rate: admin, 
+                            stamping_rate: stamp 
                         })
                     });
                     count++;
                 } catch(e) { console.error(e); }
             }
-            alert(`Updated ${count} items with new pricing formula!`);
+            alert(`Updated ${count} items!`);
             document.querySelector('.btn-purple').innerHTML = oldBtnText;
             selectedIds.clear();
             updateBulkBar();
@@ -340,7 +385,7 @@
         }
 
         // --- STANDARD CRUD ---
-        async function init() { await loadTypes(); loadPhones(); }
+        async function init() { await loadTypes(); loadStaff(); loadPhones(); }
 
         async function loadTypes() {
             try {
@@ -562,14 +607,14 @@
                 const finalName = `${brand} ${model} ${specsStr}`.replace(/\s+/g, ' ').trim();
                 let price = parseFloat(String(row[rrpIdx]).replace(/[^0-9.]/g, '')) || 0;
 
-                // NOTE: Import only sets Base Price. You must click "Auto-Apply Charges" after importing to set fees.
+                // Import sets Base Price = RRP initially. Charges are applied via Auto-Apply later.
                 if(finalName) {
                     await fetch(`${API_URL}/phones`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json', 'admin-secret': secretKey },
                         body: JSON.stringify({ 
                             model: finalName, 
-                            rrp: price, // For now, Total = Base
+                            rrp: price, 
                             type_id: typeId, 
                             base_price: price 
                         })

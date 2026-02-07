@@ -8,7 +8,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     
     <style>
-        :root { --primary: #0056b3; --danger: #d32f2f; --success: #28a745; --warning: #ffc107; --text: #333; }
+        :root { --primary: #0056b3; --danger: #d32f2f; --success: #28a745; --warning: #ffc107; --purple: #6f42c1; --text: #333; }
         body { font-family: "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background: #f0f2f5; padding: 20px; color: var(--text); padding-bottom: 80px; }
         .container { max-width: 800px; margin: 20px auto; background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
         input, select { width: 100%; padding: 12px; margin: 5px 0 15px; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; }
@@ -21,6 +21,7 @@
         .btn-edit { background: #f39c12; width: auto; padding: 6px 12px; font-size: 0.85rem; }
         .btn-success { background: var(--success); }
         .btn-warning { background: var(--warning); color: #333; }
+        .btn-purple { background: var(--purple); }
         
         .row { display: flex; gap: 10px; }
         .phone-item { padding: 15px; border-bottom: 1px solid #eee; display: flex; align-items: center; gap: 10px; }
@@ -35,16 +36,16 @@
         .total-box span { font-size: 1.5rem; color: var(--primary); font-weight: bold; display: block; margin-top: 5px;}
         .calc-display { font-size: 0.85rem; color: #666; font-weight: normal; margin-top: -10px; margin-bottom: 10px; display: block; font-style: italic;}
         
-        /* Import Section Styles */
+        /* Import Section */
         .import-box { background: #fff3cd; border: 1px solid #ffeeba; padding: 15px; border-radius: 8px; margin-bottom: 20px; }
         .file-upload { border: 2px dashed #ccc; padding: 20px; text-align: center; border-radius: 8px; background: #fff; cursor: pointer; margin-bottom: 15px; }
         .col-mapping { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px; }
         
-        /* FILTER BAR */
+        /* Filter Bar */
         .filter-container { background: #f8f9fa; padding: 15px; border-radius: 8px; border: 1px solid #eee; margin-bottom: 15px; }
         .filter-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
         
-        /* BULK ACTION BAR */
+        /* Bulk Bar */
         .bulk-bar { 
             position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
             background: #333; color: white; padding: 15px 25px; border-radius: 50px;
@@ -54,7 +55,7 @@
         .bulk-bar.inactive { transform: translate(-50%, 150%); opacity: 0; }
         .bulk-btn { padding: 8px 16px; border-radius: 20px; font-size: 0.9rem; width: auto; }
         
-        /* MODAL */
+        /* Modal */
         .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 2000; display: flex; justify-content: center; align-items: center; }
         .modal-content { background: white; padding: 25px; border-radius: 12px; width: 90%; max-width: 400px; }
 
@@ -84,8 +85,12 @@
         </div>
 
         <div style="margin-bottom: 15px; display:flex; gap: 10px; justify-content: flex-end;">
-             <button onclick="cleanInventory()" class="btn-warning" style="width:auto;"><i class="fas fa-broom"></i> Clean Names</button>
-            <button onclick="toggleImport()" style="width:auto; background: #28a745;"><i class="fas fa-file-excel"></i> Bulk Import</button>
+             <button onclick="applyAutoChargesToAll()" class="btn-purple" style="width:auto;">
+                <i class="fas fa-magic"></i> Auto-Apply Charges
+             </button>
+            <button onclick="toggleImport()" style="width:auto; background: #28a745;">
+                <i class="fas fa-file-excel"></i> Bulk Import
+            </button>
         </div>
 
         <div id="importSection" class="import-box hidden">
@@ -126,14 +131,26 @@
         <div id="singleEntryForm" style="background: #fff; border-radius: 8px; margin-bottom: 20px;">
             <h3 style="margin-top:0; color: var(--primary);" id="formTitle"><i class="fas fa-plus-circle"></i> Add New Item</h3>
             <input type="hidden" id="editId">
-            <label>Category</label><select id="typeSelect"></select>
+            <label>Category</label><select id="typeSelect" onchange="performAutoCalc()"></select>
             <label>Model Name</label><input type="text" id="modelName" placeholder="e.g. iPhone 15">
             
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
-                <div><label>Base Price (RM)</label><input type="number" id="basePrice" placeholder="0.00" oninput="calcTotal()"></div>
-                <div><label>LCD Amount (RM)</label><input type="number" id="lcdAmt" placeholder="0.00" oninput="calcTotal()"></div>
-                <div><label>Aeon (%)</label><input type="number" id="aeonPercent" placeholder="1.25" step="0.01" oninput="calcTotal()"><span id="aeonDisplay" class="calc-display">RM 0.00</span></div>
-                <div><label>Stamping (%)</label><input type="number" id="stampPercent" placeholder="0.5" step="0.01" oninput="calcTotal()"><span id="stampDisplay" class="calc-display">RM 0.00</span></div>
+                <div>
+                    <label>Device Base Price (RM)</label>
+                    <input type="number" id="basePrice" placeholder="0.00" oninput="performAutoCalc()">
+                </div>
+                <div>
+                    <label>LCD Amount (RM)</label>
+                    <input type="number" id="lcdAmt" placeholder="0.00" oninput="calcTotal()">
+                </div>
+                <div>
+                    <label>Admin Charge (RM)</label>
+                    <input type="number" id="aeonCharge" placeholder="50.00" oninput="calcTotal()">
+                </div>
+                <div>
+                    <label>Stamping Fee (RM)</label>
+                    <input type="number" id="stampFee" placeholder="0.00" oninput="calcTotal()">
+                </div>
             </div>
 
             <div class="total-box">Final RRP <span id="displayTotal">RM 0.00</span></div>
@@ -152,19 +169,10 @@
                     <i class="fas fa-search" style="position: absolute; left: 12px; top: 12px; color: #999;"></i>
                     <input type="text" id="inventorySearch" placeholder="Search by name..." onkeyup="filterInventory()" style="padding-left: 35px; margin-bottom: 0;">
                 </div>
-                
                 <div class="filter-grid">
-                    <div>
-                        <select id="filterType" onchange="filterInventory()" style="margin-bottom:0;">
-                            <option value="all">All Categories</option>
-                        </select>
-                    </div>
-                    <div>
-                        <input type="number" id="filterMin" placeholder="Min Price (RM)" oninput="filterInventory()" style="margin-bottom:0;">
-                    </div>
-                    <div>
-                        <input type="number" id="filterMax" placeholder="Max Price (RM)" oninput="filterInventory()" style="margin-bottom:0;">
-                    </div>
+                    <div><select id="filterType" onchange="filterInventory()" style="margin-bottom:0;"><option value="all">All Categories</option></select></div>
+                    <div><input type="number" id="filterMin" placeholder="Min Price" oninput="filterInventory()" style="margin-bottom:0;"></div>
+                    <div><input type="number" id="filterMax" placeholder="Max Price" oninput="filterInventory()" style="margin-bottom:0;"></div>
                 </div>
             </div>
 
@@ -183,24 +191,8 @@
 
     <div id="bulkBar" class="bulk-bar inactive">
         <span id="selectedCount">0 Selected</span>
-        <button onclick="showBulkEditModal()" class="bulk-btn btn-edit"><i class="fas fa-sliders-h"></i> Bulk Edit Charges</button>
+        <button onclick="applyAutoChargesToSelected()" class="bulk-btn btn-purple"><i class="fas fa-magic"></i> Auto-Apply Logic</button>
         <button onclick="executeBulkDelete()" class="bulk-btn btn-delete"><i class="fas fa-trash"></i> Delete Selected</button>
-    </div>
-
-    <div id="bulkEditModal" class="modal-overlay hidden">
-        <div class="modal-content">
-            <h3 style="margin-top:0;"><i class="fas fa-calculator"></i> Bulk Adjust Prices</h3>
-            <p style="font-size:0.9rem; color:#666;">
-                <b style="color:var(--danger)">Note:</b> Current RRP becomes Base Price. New charges added on top.
-            </p>
-            <label>Add LCD (RM)</label><input type="number" id="bulkLcd" placeholder="0.00">
-            <label>Add Aeon (%)</label><input type="number" id="bulkAeon" placeholder="e.g. 1.25">
-            <label>Add Stamping (%)</label><input type="number" id="bulkStamp" placeholder="e.g. 0.5">
-            <div style="display:flex; gap:10px; margin-top:15px;">
-                <button onclick="executeBulkEdit()" class="btn-success">Update</button>
-                <button onclick="closeBulkModal()" style="background:#888;">Cancel</button>
-            </div>
-        </div>
     </div>
 
     <script>
@@ -235,144 +227,130 @@
             location.reload();
         }
 
-        // --- FILTER LOGIC ---
-        function filterInventory() {
-            const query = document.getElementById('inventorySearch').value.toLowerCase();
-            const type = document.getElementById('filterType').value;
-            const min = parseFloat(document.getElementById('filterMin').value) || 0;
-            const max = parseFloat(document.getElementById('filterMax').value) || Infinity;
-
-            document.querySelectorAll('.phone-item').forEach(item => {
-                const text = item.querySelector('b').innerText.toLowerCase();
-                const price = parseFloat(item.getAttribute('data-price')) || 0;
-                const itemType = item.getAttribute('data-type');
-
-                const matchText = text.includes(query);
-                const matchType = type === 'all' || itemType === type;
-                const matchPrice = price >= min && price <= max;
-
-                if(matchText && matchType && matchPrice) {
-                    item.style.display = "flex";
-                } else {
-                    item.style.display = "none";
-                    // If item is hidden, uncheck it to avoid bulk action errors
-                    const checkbox = item.querySelector('.item-checkbox');
-                    if(checkbox && checkbox.checked) {
-                        checkbox.checked = false;
-                        toggleItem(parseInt(checkbox.value));
-                    }
-                }
-            });
-        }
-
-        // --- BULK LOGIC ---
-        function toggleSelectAll() {
-            const check = document.getElementById('selectAllBox').checked;
-            document.querySelectorAll('.item-checkbox').forEach(box => {
-                if(box.closest('.phone-item').style.display !== 'none') {
-                    box.checked = check;
-                    if(check) selectedIds.add(parseInt(box.value));
-                    else selectedIds.delete(parseInt(box.value));
-                }
-            });
-            updateBulkBar();
-        }
-
-        function toggleItem(id) {
-            if(selectedIds.has(id)) selectedIds.delete(id);
-            else selectedIds.add(id);
-            updateBulkBar();
-        }
-
-        function updateBulkBar() {
-            const bar = document.getElementById('bulkBar');
-            document.getElementById('selectedCount').innerText = `${selectedIds.size} Selected`;
-            if(selectedIds.size > 0) bar.classList.remove('inactive');
-            else bar.classList.add('inactive');
-        }
-
-        function showBulkEditModal() { document.getElementById('bulkEditModal').classList.remove('hidden'); }
-        function closeBulkModal() { document.getElementById('bulkEditModal').classList.add('hidden'); }
-
-        async function executeBulkDelete() {
-            if(!confirm(`Delete ${selectedIds.size} items?`)) return;
-            const btn = document.querySelector('.bulk-bar .btn-delete');
-            btn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> ...`;
-            
-            for (let id of selectedIds) {
-                try {
-                    await fetch(`${API_URL}/phones/${id}`, { method: 'DELETE', headers: { 'admin-secret': secretKey } });
-                } catch(e) { console.error(e); }
+        // --- NEW AUTO CALC LOGIC ---
+        function getLcdCharge(price, typeName) {
+            const lowerType = (typeName || "").toLowerCase();
+            if (lowerType.includes('laptop') || lowerType.includes('ipad')) {
+                return 1200;
             }
-            alert("Deleted."); selectedIds.clear(); updateBulkBar(); loadPhones();
+            // Standard Range for Phone/Tab/Watch
+            if (price >= 300 && price <= 1000) return 359;
+            if (price > 1000 && price <= 2500) return 499;
+            if (price > 2500 && price <= 3500) return 599;
+            if (price > 3500 && price <= 5000) return 799;
+            if (price > 5000) return 899;
+            return 0; // Below 300 or error
         }
 
-        async function executeBulkEdit() {
-            const lcd = parseFloat(document.getElementById('bulkLcd').value) || 0;
-            const aeonP = parseFloat(document.getElementById('bulkAeon').value) || 0;
-            const stampP = parseFloat(document.getElementById('bulkStamp').value) || 0;
+        function getStampingFee(total) {
+            // 0.5% of total, rounded up to nearest 5
+            const fee = total * 0.005;
+            return Math.ceil(fee / 5) * 5;
+        }
 
-            if(!confirm("Update prices for selected items?")) return;
-            const btn = document.querySelector('#bulkEditModal .btn-success');
-            btn.innerText = "Updating..."; btn.disabled = true;
+        function performAutoCalc() {
+            const base = parseFloat(document.getElementById('basePrice').value) || 0;
+            
+            // Get Category Name for Laptop detection
+            const typeSel = document.getElementById('typeSelect');
+            const typeName = typeSel.options[typeSel.selectedIndex]?.text || "";
 
-            for (let id of selectedIds) {
-                const item = allInventory.find(p => p.id === id);
-                if (!item) continue;
-                const base = parseFloat(item.rrp); 
-                const newTotal = (base + lcd) + ((base + lcd) * (aeonP/100)) + ((base + lcd) * (stampP/100));
+            // 1. Auto Set LCD
+            const lcd = getLcdCharge(base, typeName);
+            document.getElementById('lcdAmt').value = lcd;
+
+            // 2. Auto Set Admin (Default 50)
+            let admin = parseFloat(document.getElementById('aeonCharge').value);
+            if (isNaN(admin) || admin === 0) {
+                admin = 50;
+                document.getElementById('aeonCharge').value = 50;
+            }
+
+            // 3. Calculate Stamping
+            // Subtotal before stamping
+            const subTotal = base + lcd + admin;
+            const stamp = getStampingFee(subTotal);
+            document.getElementById('stampFee').value = stamp;
+
+            // 4. Update Final Total Display
+            calcTotal();
+        }
+
+        function calcTotal() {
+            const base = parseFloat(document.getElementById('basePrice').value) || 0;
+            const lcd = parseFloat(document.getElementById('lcdAmt').value) || 0;
+            const admin = parseFloat(document.getElementById('aeonCharge').value) || 0;
+            const stamp = parseFloat(document.getElementById('stampFee').value) || 0;
+            
+            const total = base + lcd + admin + stamp;
+            document.getElementById('displayTotal').innerText = `RM ${total.toFixed(2)}`;
+            return total;
+        }
+
+        // --- BULK AUTO APPLY ---
+        async function applyAutoChargesToAll() {
+            if(!confirm("AUTO-CALCULATE ALL items in inventory? \n(Base Price will be used to set LCD, Admin=50, and Stamping).")) return;
+            await processAutoCalcList(allInventory);
+        }
+
+        async function applyAutoChargesToSelected() {
+            if(!confirm(`AUTO-CALCULATE for ${selectedIds.size} selected items?`)) return;
+            const itemsToProcess = allInventory.filter(p => selectedIds.has(p.id));
+            await processAutoCalcList(itemsToProcess);
+        }
+
+        async function processAutoCalcList(items) {
+            let count = 0;
+            // Visual Feedback
+            const oldBtnText = document.querySelector('.btn-purple').innerHTML;
+            document.querySelector('.btn-purple').innerHTML = `<i class="fas fa-spinner fa-spin"></i> Processing...`;
+
+            for (let item of items) {
+                const base = parseFloat(item.base_price) || parseFloat(item.rrp) || 0; // Fallback to RRP if base is 0
+                const typeName = item.type_name || "";
+                
+                const lcd = getLcdCharge(base, typeName);
+                const admin = 50;
+                const subTotal = base + lcd + admin;
+                const stamp = getStampingFee(subTotal);
+                const finalRrp = subTotal + stamp;
 
                 try {
-                    await fetch(`${API_URL}/phones/${id}`, {
+                    await fetch(`${API_URL}/phones/${item.id}`, {
                         method: 'PUT',
                         headers: { 'Content-Type': 'application/json', 'admin-secret': secretKey },
-                        body: JSON.stringify({ model: item.model, rrp: newTotal.toFixed(2), type_id: item.type_id })
-                    });
-                } catch(e) { console.error(e); }
-            }
-            alert("Updated!"); selectedIds.clear(); closeBulkModal(); updateBulkBar(); loadPhones();
-            btn.innerText = "Update"; btn.disabled = false;
-        }
-
-        async function cleanInventory() {
-            if(!confirm("Remove empty brackets from names?")) return;
-            const btn = document.querySelector('.btn-warning');
-            btn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> ...`;
-            btn.disabled = true;
-
-            let count = 0;
-            for(let p of allInventory) {
-                let newName = p.model.replace(/\s?\(\-\)/g, "").replace(/\s?\(\)/g, "").replace(/\s?\-\s?$/g, "").trim();
-                if (newName !== p.model) {
-                    await fetch(`${API_URL}/phones/${p.id}`, {
-                        method: 'PUT', headers: { 'Content-Type': 'application/json', 'admin-secret': secretKey },
-                        body: JSON.stringify({ model: newName, rrp: p.rrp, type_id: p.type_id })
+                        body: JSON.stringify({ 
+                            model: item.model, 
+                            rrp: finalRrp.toFixed(2),
+                            type_id: item.type_id,
+                            base_price: base,
+                            lcd_amt: lcd,
+                            aeon_rate: admin, // Using aeon_rate col for Admin Charge
+                            stamping_rate: stamp // Using stamping_rate col for Stamp Fee
+                        })
                     });
                     count++;
-                }
+                } catch(e) { console.error(e); }
             }
-            alert(`Cleaned ${count} items!`);
-            btn.innerHTML = `<i class="fas fa-broom"></i> Clean Names`; btn.disabled = false; loadPhones();
+            alert(`Updated ${count} items with new pricing formula!`);
+            document.querySelector('.btn-purple').innerHTML = oldBtnText;
+            selectedIds.clear();
+            updateBulkBar();
+            loadPhones();
         }
 
+        // --- STANDARD CRUD ---
         async function init() { await loadTypes(); loadPhones(); }
 
         async function loadTypes() {
             try {
                 const res = await fetch(`${API_URL}/types`);
                 const types = await res.json();
-                
-                // Populate ALL dropdowns (Single, Import, Filter)
-                const selects = [
-                    document.getElementById('typeSelect'),
-                    document.getElementById('importTypeSelect'),
-                    document.getElementById('filterType')
-                ];
+                const selects = [document.getElementById('typeSelect'), document.getElementById('importTypeSelect'), document.getElementById('filterType')];
                 
                 selects.forEach(sel => {
                     if (sel.id === 'filterType') sel.innerHTML = '<option value="all">All Categories</option>';
-                    else sel.innerHTML = ""; // Clear others
-                    
+                    else sel.innerHTML = "";
                     types.forEach(t => sel.innerHTML += `<option value="${t.id}">${t.name}</option>`);
                 });
             } catch (e) { console.error(e); }
@@ -391,10 +369,8 @@
                 data.forEach(p => {
                     const div = document.createElement('div');
                     div.className = "phone-item";
-                    // Add Data Attributes for Filtering
                     div.setAttribute('data-price', p.rrp);
                     div.setAttribute('data-type', p.type_id);
-                    
                     const checked = selectedIds.has(p.id) ? "checked" : "";
                     
                     div.innerHTML = `
@@ -402,18 +378,16 @@
                         <div style="flex-grow:1;">
                             <span style="font-size:0.8rem; background:#eee; padding:2px 6px; border-radius:4px; margin-right:5px;">${p.type_name || 'Item'}</span>
                             <b>${p.model}</b> (Total: RM ${p.rrp})
+                            <div style="font-size:0.8rem; color:#666;">Base: ${p.base_price} | LCD: ${p.lcd_amt} | Admin: ${p.aeon_rate} | Stamp: ${p.stamping_rate}</div>
                         </div>
                         <div style="display:flex; gap:5px;">
-                            <button class="btn-edit" onclick="startEdit(${p.id}, '${p.model}', ${p.rrp}, ${p.type_id}, ${p.base_price}, ${p.lcd_amt}, ${p.aeon_rate}, ${p.stamping_rate})"><i class="fas fa-edit"></i></button>
+                            <button class="btn-edit" onclick="startEdit(${p.id}, '${p.model}', ${p.type_id}, ${p.base_price}, ${p.lcd_amt}, ${p.aeon_rate}, ${p.stamping_rate})"><i class="fas fa-edit"></i></button>
                             <button class="btn-delete" onclick="deletePhone(${p.id})"><i class="fas fa-trash-alt"></i></button>
                         </div>
                     `;
                     list.appendChild(div);
                 });
-                
-                // Re-run filter in case inputs exist
-                filterInventory(); 
-                
+                filterInventory();
             } catch(e) { console.error(e); }
         }
 
@@ -424,8 +398,8 @@
             
             const base = parseFloat(document.getElementById('basePrice').value) || 0;
             const lcd = parseFloat(document.getElementById('lcdAmt').value) || 0;
-            const aeon = parseFloat(document.getElementById('aeonPercent').value) || 0;
-            const stamp = parseFloat(document.getElementById('stampPercent').value) || 0;
+            const admin = parseFloat(document.getElementById('aeonCharge').value) || 0;
+            const stamp = parseFloat(document.getElementById('stampFee').value) || 0;
             const rrp = calcTotal(); 
 
             if(!model || rrp <= 0) return alert("Please fill in fields correctly");
@@ -436,7 +410,10 @@
             const res = await fetch(url, {
                 method: method,
                 headers: { 'Content-Type': 'application/json', 'admin-secret': secretKey },
-                body: JSON.stringify({ model, rrp, type_id, base_price: base, lcd_amt: lcd, aeon_rate: aeon, stamping_rate: stamp })
+                body: JSON.stringify({ 
+                    model, rrp, type_id, 
+                    base_price: base, lcd_amt: lcd, aeon_rate: admin, stamping_rate: stamp 
+                })
             });
             
             if((await res.json()).success) { alert(id ? "Updated!" : "Added!"); resetForm(); loadPhones(); }
@@ -449,7 +426,7 @@
             if(res.ok) loadPhones();
         }
 
-        function startEdit(id, model, totalRrp, typeId, base, lcd, aeon, stamp) {
+        function startEdit(id, model, typeId, base, lcd, admin, stamp) {
             document.getElementById('formTitle').innerHTML = `<i class="fas fa-edit"></i> Edit Item`;
             document.getElementById('saveBtn').innerHTML = `<i class="fas fa-save"></i> Update`;
             document.getElementById('cancelBtn').classList.remove('hidden');
@@ -460,8 +437,8 @@
             document.getElementById('modelName').value = model;
             document.getElementById('basePrice').value = base || 0;
             document.getElementById('lcdAmt').value = lcd || 0;
-            document.getElementById('aeonPercent').value = aeon || 0;
-            document.getElementById('stampPercent').value = stamp || 0;
+            document.getElementById('aeonCharge').value = admin || 0;
+            document.getElementById('stampFee').value = stamp || 0;
             
             calcTotal();
             if(typeId) document.getElementById('typeSelect').value = typeId;
@@ -475,35 +452,51 @@
             document.getElementById('editId').value = "";
             document.getElementById('modelName').value = "";
             document.getElementById('basePrice').value = "";
+            document.getElementById('lcdAmt').value = "";
+            document.getElementById('aeonCharge').value = "50"; // Default
+            document.getElementById('stampFee').value = "";
             calcTotal();
         }
 
-        function calcTotal() {
-            const base = parseFloat(document.getElementById('basePrice').value) || 0;
-            const lcd = parseFloat(document.getElementById('lcdAmt').value) || 0;
-            const aeonP = parseFloat(document.getElementById('aeonPercent').value) || 0;
-            const stampP = parseFloat(document.getElementById('stampPercent').value) || 0;
-            
-            const principal = base + lcd; 
-            const aeonRM = principal * (aeonP / 100);
-            const stampRM = principal * (stampP / 100);
+        // --- BULK LOGIC & IMPORT ---
+        function toggleSelectAll() {
+            const check = document.getElementById('selectAllBox').checked;
+            document.querySelectorAll('.item-checkbox').forEach(box => {
+                if(box.closest('.phone-item').style.display !== 'none') {
+                    box.checked = check;
+                    if(check) selectedIds.add(parseInt(box.value));
+                    else selectedIds.delete(parseInt(box.value));
+                }
+            });
+            updateBulkBar();
+        }
 
-            document.getElementById('aeonDisplay').innerHTML = `RM ${aeonRM.toFixed(2)}`;
-            document.getElementById('stampDisplay').innerHTML = `RM ${stampRM.toFixed(2)}`;
-            const total = principal + aeonRM + stampRM;
-            document.getElementById('displayTotal').innerText = `RM ${total.toFixed(2)}`;
-            return total;
+        function toggleItem(id) {
+            if(selectedIds.has(id)) selectedIds.delete(id); else selectedIds.add(id);
+            updateBulkBar();
+        }
+
+        function updateBulkBar() {
+            const bar = document.getElementById('bulkBar');
+            document.getElementById('selectedCount').innerText = `${selectedIds.size} Selected`;
+            if(selectedIds.size > 0) bar.classList.remove('inactive'); else bar.classList.add('inactive');
+        }
+
+        async function executeBulkDelete() {
+            if(!confirm(`Delete ${selectedIds.size} items?`)) return;
+            for (let id of selectedIds) {
+                try { await fetch(`${API_URL}/phones/${id}`, { method: 'DELETE', headers: { 'admin-secret': secretKey } }); } 
+                catch(e) { console.error(e); }
+            }
+            alert("Deleted."); selectedIds.clear(); updateBulkBar(); loadPhones();
         }
 
         // --- IMPORT LOGIC ---
         function toggleImport() {
             const section = document.getElementById('importSection');
             const single = document.getElementById('singleEntryForm');
-            if(section.classList.contains('hidden')) {
-                section.classList.remove('hidden'); single.classList.add('hidden');
-            } else {
-                section.classList.add('hidden'); single.classList.remove('hidden');
-            }
+            if(section.classList.contains('hidden')) { section.classList.remove('hidden'); single.classList.add('hidden'); } 
+            else { section.classList.add('hidden'); single.classList.remove('hidden'); }
         }
 
         function processExcelFile() {
@@ -569,16 +562,22 @@
                 const finalName = `${brand} ${model} ${specsStr}`.replace(/\s+/g, ' ').trim();
                 let price = parseFloat(String(row[rrpIdx]).replace(/[^0-9.]/g, '')) || 0;
 
+                // NOTE: Import only sets Base Price. You must click "Auto-Apply Charges" after importing to set fees.
                 if(finalName) {
                     await fetch(`${API_URL}/phones`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json', 'admin-secret': secretKey },
-                        body: JSON.stringify({ model: finalName, rrp: price, type_id: typeId, base_price: price })
+                        body: JSON.stringify({ 
+                            model: finalName, 
+                            rrp: price, // For now, Total = Base
+                            type_id: typeId, 
+                            base_price: price 
+                        })
                     });
                     count++;
                 }
             }
-            alert(`Imported ${count} items!`);
+            alert(`Imported ${count} items! Tip: Use 'Auto-Apply Charges' to set fees.`);
             btn.disabled = false; btn.innerHTML = `<i class="fas fa-check"></i> Import Items`;
             loadPhones();
         }
@@ -592,6 +591,26 @@
             }).then(() => {
                 document.getElementById('newTypeName').value = "";
                 loadTypes();
+            });
+        }
+
+        function filterInventory() {
+            const query = document.getElementById('inventorySearch').value.toLowerCase();
+            const type = document.getElementById('filterType').value;
+            const min = parseFloat(document.getElementById('filterMin').value) || 0;
+            const max = parseFloat(document.getElementById('filterMax').value) || Infinity;
+
+            document.querySelectorAll('.phone-item').forEach(item => {
+                const text = item.querySelector('b').innerText.toLowerCase();
+                const price = parseFloat(item.getAttribute('data-price')) || 0;
+                const itemType = item.getAttribute('data-type');
+
+                const matchText = text.includes(query);
+                const matchType = type === 'all' || itemType === type;
+                const matchPrice = price >= min && price <= max;
+
+                if(matchText && matchType && matchPrice) item.style.display = "flex";
+                else item.style.display = "none";
             });
         }
     </script>

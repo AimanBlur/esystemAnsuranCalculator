@@ -29,6 +29,47 @@ const transporter = nodemailer.createTransport({
 const app = new Elysia()
     .use(cors())
     .group('/api', app => app
+
+        .post('/login', async ({ body, set }) => {
+            if (!sql) { set.status = 500; return { success: false, message: "DB Error" }; }
+            try {
+                // Check DB for user
+                const users = await sql`
+                    SELECT * FROM users 
+                    WHERE username = ${body.username} AND password = ${body.password}
+                `;
+                
+                if (users.length > 0) {
+                    return { success: true, role: users[0].role, username: users[0].username };
+                } else {
+                    set.status = 401;
+                    return { success: false, message: "Invalid ID or Password" };
+                }
+            } catch (e: any) { return { success: false, message: e.message }; }
+        }, { body: t.Object({ username: t.String(), password: t.String() }) })
+
+        // 2. Create Staff (Protected by Admin Secret)
+        .post('/users', async ({ body, headers, set }) => {
+            if (headers['admin-secret'] !== process.env.ADMIN_PASSWORD) { set.status = 401; return { success: false }; }
+            try {
+                await sql`INSERT INTO users (username, password, role) VALUES (${body.username}, ${body.password}, 'staff')`;
+                return { success: true };
+            } catch (e: any) { return { success: false, message: e.message }; }
+        }, { body: t.Object({ username: t.String(), password: t.String() }) })
+
+        // 3. Get All Staff
+        .get('/users', async ({ headers, set }) => {
+            if (headers['admin-secret'] !== process.env.ADMIN_PASSWORD) { set.status = 401; return []; }
+            return await sql`SELECT id, username, role FROM users ORDER BY id ASC`;
+        })
+
+        // 4. Delete Staff
+        .delete('/users/:id', async ({ params, headers, set }) => {
+            if (headers['admin-secret'] !== process.env.ADMIN_PASSWORD) { set.status = 401; return { success: false }; }
+            await sql`DELETE FROM users WHERE id = ${params.id}`;
+            return { success: true };
+        })
+        
         // ROUTE 1: Get All Phones
         .get('/phones', async () => {
             if (!sql) return { error: "DB Error" };

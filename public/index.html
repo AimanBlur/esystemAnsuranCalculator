@@ -247,11 +247,11 @@
         let allPhones = [];
 
         // --- AUTH LOGIC (NEW) ---
-        // Check if logged in immediately
+        // --- AUTH LOGIC ---
         if (localStorage.getItem("staffUser")) {
             document.getElementById('loginOverlay').classList.add('hidden');
             document.getElementById('mainApp').classList.remove('hidden');
-            loadData();
+            initApp(); // CHANGED: Call initApp instead of just loadData
         }
 
         async function handleLogin() {
@@ -272,9 +272,13 @@
                 
                 if (data.success) {
                     localStorage.setItem("staffUser", u);
+                    // FIX: Save Name and Branch from response
+                    localStorage.setItem("staffName", data.name || u);
+                    localStorage.setItem("staffBranch", data.branch || "-");
+                    
                     document.getElementById('loginOverlay').classList.add('hidden');
                     document.getElementById('mainApp').classList.remove('hidden');
-                    loadData();
+                    initApp(); // Load data and populate text
                 } else {
                     document.getElementById('loginMsg').innerText = "Invalid ID or Password";
                 }
@@ -502,6 +506,7 @@
     </script>
 </body>
 </html>
+
 
 
 

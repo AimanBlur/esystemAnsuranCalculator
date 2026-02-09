@@ -31,39 +31,37 @@ const app = new Elysia()
     .group('/api', app => app
 
         .post('/login', async ({ body, set }) => {
-            if (!sql) { set.status = 500; return { success: false, message: "DB Error" }; }
+            if (!sql) { set.status = 500; return { success: false, message: "DB Disconnected" }; }
             try {
-                // Check DB for user
-                const users = await sql`
-                    SELECT * FROM users 
-                    WHERE username = ${body.username} AND password = ${body.password}
-                `;
-                
-                if (users.length > 0) {
-                    return { success: true, role: users[0].role, username: users[0].username };
-                } else {
-                    set.status = 401;
-                    return { success: false, message: "Invalid ID or Password" };
-                }
+                // We check 'username' (which acts as Staff ID)
+                const users = await sql`SELECT * FROM users WHERE username = ${body.username} AND password = ${body.password}`;
+                if (users.length > 0) return { success: true, role: users[0].role, username: users[0].username, name: users[0].name }; // Return name too
+                set.status = 401; return { success: false, message: "Invalid ID or Password" };
             } catch (e: any) { return { success: false, message: e.message }; }
         }, { body: t.Object({ username: t.String(), password: t.String() }) })
 
-        // 2. Create Staff (Protected by Admin Secret)
-        .post('/users', async ({ body, headers, set }) => {
-            if (headers['admin-secret'] !== process.env.ADMIN_PASSWORD) { set.status = 401; return { success: false }; }
-            try {
-                await sql`INSERT INTO users (username, password, role) VALUES (${body.username}, ${body.password}, 'staff')`;
-                return { success: true };
-            } catch (e: any) { return { success: false, message: e.message }; }
-        }, { body: t.Object({ username: t.String(), password: t.String() }) })
-
-        // 3. Get All Staff
+        // GET USERS (Updated to fetch name and branch)
         .get('/users', async ({ headers, set }) => {
+            if (!sql) return [];
             if (headers['admin-secret'] !== process.env.ADMIN_PASSWORD) { set.status = 401; return []; }
             try {
-                const users = await sql`SELECT id, username, role FROM users ORDER BY id ASC`;
+                const users = await sql`SELECT id, username, role, name, branch FROM users ORDER BY id ASC`;
                 return [...users];
             } catch (e) { return []; }
+        })
+
+        // CREATE STAFF (Updated to accept name and branch)
+        .post('/users', async ({ body, headers, set }) => {
+            if (!sql) return { success: false, message: "DB Error" };
+            if (headers['admin-secret'] !== process.env.ADMIN_PASSWORD) { set.status = 401; return { success: false }; }
+            try {
+                const b = body as any;
+                await sql`
+                    INSERT INTO users (username, password, role, name, branch) 
+                    VALUES (${b.username}, ${b.password}, 'staff', ${b.name}, ${b.branch})
+                `;
+                return { success: true };
+            } catch (e: any) { return { success: false, message: e.message }; }
         })
 
         // 4. Delete Staff

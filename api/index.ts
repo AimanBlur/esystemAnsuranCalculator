@@ -69,6 +69,24 @@ const app = new Elysia()
             await sql`DELETE FROM users WHERE id = ${params.id}`;
             return { success: true };
         })
+
+        // NEW: Update Staff Password
+        .put('/users/:id', async ({ params, body, headers, set }) => {
+            // Security Check
+            if (headers['admin-secret'] !== process.env.ADMIN_PASSWORD) { 
+                set.status = 401; 
+                return { success: false, message: "Unauthorized" }; 
+            }
+            
+            const b = body as any;
+            try {
+                // Update password for the specific user ID
+                await sql`UPDATE users SET password = ${b.password} WHERE id = ${params.id}`;
+                return { success: true };
+            } catch (e: any) { 
+                return { success: false, message: e.message }; 
+            }
+        }, { body: t.Object({ password: t.String() }) })g
         
         // ROUTE 1: Get All Phones
         .get('/phones', async () => {

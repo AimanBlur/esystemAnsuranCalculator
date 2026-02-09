@@ -60,7 +60,10 @@ const app = new Elysia()
         // 3. Get All Staff
         .get('/users', async ({ headers, set }) => {
             if (headers['admin-secret'] !== process.env.ADMIN_PASSWORD) { set.status = 401; return []; }
-            return await sql`SELECT id, username, role FROM users ORDER BY id ASC`;
+            try {
+                const users = await sql`SELECT id, username, role FROM users ORDER BY id ASC`;
+                return [...users];
+            } catch (e) { return []; }
         })
 
         // 4. Delete Staff

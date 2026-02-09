@@ -10,7 +10,7 @@
     <style>
         :root { --primary: #0056b3; --danger: #d32f2f; --success: #28a745; --warning: #ffc107; --purple: #6f42c1; --text: #333; }
         body { font-family: "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background: #f0f2f5; padding: 20px; color: var(--text); padding-bottom: 80px; }
-        .container { max-width: 800px; margin: 20px auto; background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+        .container { max-width: 900px; margin: 20px auto; background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
         input, select { width: 100%; padding: 12px; margin: 5px 0 15px; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; }
         label { font-size: 0.9rem; font-weight: bold; color: #555; }
         
@@ -25,55 +25,31 @@
         
         .row { display: flex; gap: 10px; }
         .phone-item { padding: 15px; border-bottom: 1px solid #eee; display: flex; align-items: center; gap: 10px; }
-        .phone-item:last-child { border-bottom: none; }
         .hidden { display: none !important; }
-        
-        /* Checkbox Style */
         .item-checkbox { width: 20px; height: 20px; margin: 0; cursor: pointer; }
-
-        /* Pricing Box */
         .total-box { background: #e3f2fd; padding: 15px; border-radius: 8px; margin-bottom: 20px; text-align: center; border: 1px solid #bbdefb; }
         .total-box span { font-size: 1.5rem; color: var(--primary); font-weight: bold; display: block; margin-top: 5px;}
-        .calc-display { font-size: 0.85rem; color: #666; font-weight: normal; margin-top: -10px; margin-bottom: 10px; display: block; font-style: italic;}
-        
-        /* Import Section Styles */
         .import-box { background: #fff3cd; border: 1px solid #ffeeba; padding: 15px; border-radius: 8px; margin-bottom: 20px; }
-        .file-upload { border: 2px dashed #ccc; padding: 20px; text-align: center; border-radius: 8px; background: #fff; cursor: pointer; margin-bottom: 15px; }
         .col-mapping { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px; }
-        
-        /* Filter Bar */
         .filter-container { background: #f8f9fa; padding: 15px; border-radius: 8px; border: 1px solid #eee; margin-bottom: 15px; }
         .filter-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
-        
-        /* Bulk Bar */
-        .bulk-bar { 
-            position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
-            background: #333; color: white; padding: 15px 25px; border-radius: 50px;
-            display: flex; align-items: center; gap: 20px; box-shadow: 0 5px 20px rgba(0,0,0,0.3);
-            z-index: 1000; transition: all 0.3s ease;
-        }
+        .bulk-bar { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #333; color: white; padding: 15px 25px; border-radius: 50px; display: flex; align-items: center; gap: 20px; box-shadow: 0 5px 20px rgba(0,0,0,0.3); z-index: 1000; transition: all 0.3s ease; }
         .bulk-bar.inactive { transform: translate(-50%, 150%); opacity: 0; }
         .bulk-btn { padding: 8px 16px; border-radius: 20px; font-size: 0.9rem; width: auto; }
-        
-        /* Modal */
         .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 2000; display: flex; justify-content: center; align-items: center; }
         .modal-content { background: white; padding: 25px; border-radius: 12px; width: 90%; max-width: 400px; }
-
         h2, h3, h4 { display: flex; align-items: center; gap: 10px; }
+        .staff-item { display: flex; justify-content: space-between; padding: 10px; background: #fff; border-bottom: 1px solid #eee; align-items: center; }
+
+        /* NAVIGATION TABS */
+        .nav-tabs { display: flex; gap: 10px; margin-bottom: 20px; border-bottom: 2px solid #eee; padding-bottom: 10px; }
+        .nav-btn { background: #eee; color: #555; border-radius: 20px; padding: 8px 20px; font-weight: 600; cursor: pointer; border: none; }
+        .nav-btn.active { background: var(--primary); color: white; }
         
-        /* Staff List Styles */
-        .staff-item { 
-            display: flex; 
-            justify-content: space-between; 
-            align-items: center; 
-            padding: 12px; 
-            background: #fff; 
-            border-bottom: 1px solid #eee; 
-            transition: background 0.2s;
-        }
-        .staff-item:hover { background: #f9f9f9; }
-        .staff-item span { font-weight: 500; color: #333; }
-        .staff-actions { display: flex; gap: 8px; }
+        /* AUDIT TABLE */
+        .audit-table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+        .audit-table th, .audit-table td { padding: 10px; text-align: left; border-bottom: 1px solid #ddd; }
+        .audit-table th { background: #f8f9fa; color: #333; }
     </style>
 </head>
 <body>
@@ -86,162 +62,142 @@
 
     <div id="adminPanel" class="container hidden">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
-            <h2 style="margin:0;"><i class="fas fa-mobile-alt"></i> Inventory</h2>
+            <h2 style="margin:0;">Admin Portal</h2>
             <button onclick="logout()" style="width:auto; background:#666;"><i class="fas fa-sign-out-alt"></i> Logout</button>
         </div>
 
-        <div style="background:#e8f0fe; padding:15px; border-radius:8px; margin-bottom:20px; border:1px solid #b8daff;">
-            <h4 style="margin:0 0 10px 0; color: #004085;"><i class="fas fa-user-shield"></i> Manage Staff</h4>
-            
-            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr auto; gap: 8px; align-items: center;">
-                <input type="text" id="newStaffId" placeholder="Staff ID (Login)" style="margin:0;">
-                <input type="text" id="newStaffName" placeholder="Name" style="margin:0;">
-                <input type="text" id="newStaffBranch" placeholder="Branch" style="margin:0;">
-                <input type="text" id="newStaffPass" placeholder="Password (6 char)" maxlength="6" style="margin:0;">
-                <button onclick="addStaff()" style="width:auto; height: 100%;"><i class="fas fa-plus"></i></button>
-            </div>
+        <div class="nav-tabs">
+            <button class="nav-btn active" onclick="switchTab('inventory')"><i class="fas fa-boxes"></i> Inventory</button>
+            <button class="nav-btn" onclick="switchTab('staff')"><i class="fas fa-users-cog"></i> Staff</button>
+            <button class="nav-btn" onclick="switchTab('audits')"><i class="fas fa-clipboard-check"></i> Audits</button>
+        </div>
 
-            <div style="margin-top:15px; background:white; border-radius:8px; border:1px solid #ddd; overflow:hidden;">
-                <div style="padding:10px; background:#f1f3f4; border-bottom:1px solid #ddd; font-size:0.85rem; font-weight:bold; color:#666; display:flex; justify-content:space-between;">
-                    <span>STAFF LIST</span>
-                    <span>ACTION</span>
-                </div>
-                <div id="staffList" style="max-height:150px; overflow-y:auto;">
-                    <div style="padding:15px; text-align:center; color:#999;">Loading...</div>
+        <div id="view-inventory">
+            <div style="background:#f8f9fa; padding:15px; border-radius:8px; margin-bottom:20px; border:1px solid #eee;">
+                <h4 style="margin:0 0 10px 0;"><i class="fas fa-tags"></i> Categories</h4>
+                <div class="row">
+                    <input type="text" id="newTypeName" placeholder="New Type (e.g. TV)" style="margin:0;">
+                    <button onclick="addType()" style="width:auto;"><i class="fas fa-plus"></i> Add</button>
                 </div>
             </div>
-        </div>
-        
-        <div style="background:#f8f9fa; padding:15px; border-radius:8px; margin-bottom:20px; border:1px solid #eee;">
-            <h4 style="margin:0 0 10px 0;"><i class="fas fa-tags"></i> Manage Categories</h4>
-            <div class="row">
-                <input type="text" id="newTypeName" placeholder="New Type (e.g. TV)" style="margin:0;">
-                <button onclick="addType()" style="width:auto;"><i class="fas fa-plus"></i> Add</button>
-            </div>
-        </div>
 
-        <div style="margin-bottom: 15px; display:flex; gap: 10px; justify-content: flex-end;">
-             <button onclick="applyAutoChargesToAll()" class="btn-purple" style="width:auto;">
-                <i class="fas fa-magic"></i> Auto-Apply Charges
-             </button>
-            <button onclick="toggleImport()" style="width:auto; background: #28a745;">
-                <i class="fas fa-file-excel"></i> Bulk Import
-            </button>
-        </div>
-
-        <div id="importSection" class="import-box hidden">
-            <h3 style="margin-top:0; color:#856404;"><i class="fas fa-file-import"></i> Bulk Import</h3>
-            <p style="font-size:0.9rem; color:#856404;">Upload .xlsx file. Select Sheet. Select Row Range.</p>
-            
-            <label>1. Category</label>
-            <select id="importTypeSelect"><option>Loading...</option></select>
-
-            <label>2. Upload File</label>
-            <input type="file" id="excelFile" accept=".xlsx, .xls" class="file-upload" onchange="processExcelFile()">
-            
-            <div id="sheetSection" class="hidden">
-                <label>3. Select Sheet</label>
-                <select id="sheetSelect" onchange="loadSelectedSheet()"></select>
+            <div style="margin-bottom: 15px; display:flex; gap: 10px; justify-content: flex-end;">
+                 <button onclick="applyAutoChargesToAll()" class="btn-purple" style="width:auto;"><i class="fas fa-magic"></i> Auto-Apply Charges</button>
+                <button onclick="toggleImport()" style="width:auto; background: #28a745;"><i class="fas fa-file-excel"></i> Bulk Import</button>
             </div>
 
-            <div id="columnMapping" class="hidden">
-                <div style="background: rgba(255,255,255,0.6); padding: 10px; border-radius: 8px; margin-bottom: 15px;">
-                    <label><i class="fas fa-arrows-alt-v"></i> Row Range (Optional)</label>
-                    <div class="row">
-                        <input type="number" id="startRow" placeholder="Start Row (e.g. 2)">
-                        <input type="number" id="endRow" placeholder="End Row">
+            <div id="importSection" class="import-box hidden">
+                <h3 style="margin-top:0; color:#856404;">Bulk Import</h3>
+                <label>1. Category</label><select id="importTypeSelect"></select>
+                <label>2. Upload File</label><input type="file" id="excelFile" accept=".xlsx, .xls" class="file-upload" onchange="processExcelFile()">
+                <div id="sheetSection" class="hidden"><label>3. Select Sheet</label><select id="sheetSelect" onchange="loadSelectedSheet()"></select></div>
+                <div id="columnMapping" class="hidden">
+                    <div style="background:rgba(255,255,255,0.6); padding:10px; margin-bottom:15px;"><label>Row Range</label><div class="row"><input type="number" id="startRow" placeholder="Start"><input type="number" id="endRow" placeholder="End"></div></div>
+                    <label>4. Map Columns</label>
+                    <div class="col-mapping">
+                        <div><label>Brand</label><select id="colBrand"></select></div>
+                        <div><label>Model</label><select id="colModel"></select></div>
+                        <div><label>Specs</label><select id="colSpecs"></select></div>
+                        <div><label>Price</label><select id="colRRP"></select></div>
                     </div>
-                </div>
-
-                <label>4. Map Columns</label>
-                <div class="col-mapping">
-                    <div><label>Brand</label><select id="colBrand"></select></div>
-                    <div><label>Model</label><select id="colModel"></select></div>
-                    <div><label>Specs</label><select id="colSpecs"></select></div>
-                    <div><label>Price</label><select id="colRRP"></select></div>
-                </div>
-                <button onclick="runImport()" class="btn-success"><i class="fas fa-check"></i> Import Items</button>
-            </div>
-        </div>
-
-        <div id="singleEntryForm" style="background: #fff; border-radius: 8px; margin-bottom: 20px;">
-            <h3 style="margin-top:0; color: var(--primary);" id="formTitle"><i class="fas fa-plus-circle"></i> Add New Item</h3>
-            <input type="hidden" id="editId">
-            <label>Category</label><select id="typeSelect" onchange="performAutoCalc()"></select>
-            <label>Model Name</label><input type="text" id="modelName" placeholder="e.g. iPhone 15">
-            
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
-                <div>
-                    <label>Device Base Price (RM)</label>
-                    <input type="number" id="basePrice" placeholder="0.00" oninput="performAutoCalc()">
-                </div>
-                <div>
-                    <label>LCD Amount (RM)</label>
-                    <input type="number" id="lcdAmt" placeholder="0.00" oninput="calcTotal()">
-                </div>
-                <div>
-                    <label>Admin Charge (RM)</label>
-                    <input type="number" id="aeonCharge" placeholder="50.00" oninput="calcTotal()">
-                </div>
-                <div>
-                    <label>Stamping Fee (RM)</label>
-                    <input type="number" id="stampFee" placeholder="0.00" oninput="calcTotal()">
+                    <button onclick="runImport()" class="btn-success">Import Items</button>
                 </div>
             </div>
 
-            <div class="total-box">Final RRP <span id="displayTotal">RM 0.00</span></div>
-            
-            <div style="display:flex; gap:10px;">
-                <button onclick="savePhone()" id="saveBtn"><i class="fas fa-save"></i> Add to Database</button>
-                <button onclick="resetForm()" id="cancelBtn" class="hidden" style="background:#888;"><i class="fas fa-times"></i> Cancel</button>
+            <div id="singleEntryForm" style="background: #fff; border-radius: 8px; margin-bottom: 20px;">
+                <h3 style="margin-top:0; color: var(--primary);" id="formTitle"><i class="fas fa-plus-circle"></i> Add Item</h3>
+                <input type="hidden" id="editId">
+                <label>Category</label><select id="typeSelect" onchange="performAutoCalc()"></select>
+                <label>Model</label><input type="text" id="modelName" placeholder="iPhone 15">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                    <div><label>Base Price (RM)</label><input type="number" id="basePrice" placeholder="0.00" oninput="performAutoCalc()"></div>
+                    <div><label>LCD (RM)</label><input type="number" id="lcdAmt" placeholder="0.00" oninput="calcTotal()"></div>
+                    <div><label>Admin (RM)</label><input type="number" id="aeonCharge" placeholder="50.00" oninput="calcTotal()"></div>
+                    <div><label>Stamp (RM)</label><input type="number" id="stampFee" placeholder="0.00" oninput="calcTotal()"></div>
+                </div>
+                <div class="total-box">Final RRP <span id="displayTotal">RM 0.00</span></div>
+                <div style="display:flex; gap:10px;">
+                    <button onclick="savePhone()" id="saveBtn">Add to Database</button>
+                    <button onclick="resetForm()" id="cancelBtn" class="hidden" style="background:#888;">Cancel</button>
+                </div>
             </div>
-        </div>
 
-        <div style="margin-top: 30px; margin-bottom: 10px;">
-            <h3 style="margin-bottom: 10px;"><i class="fas fa-list"></i> Inventory</h3>
-            
             <div class="filter-container">
-                <div style="position: relative; margin-bottom: 10px;">
-                    <i class="fas fa-search" style="position: absolute; left: 12px; top: 12px; color: #999;"></i>
-                    <input type="text" id="inventorySearch" placeholder="Search by name..." onkeyup="filterInventory()" style="padding-left: 35px; margin-bottom: 0;">
+                <div style="position:relative; margin-bottom:10px;">
+                    <i class="fas fa-search" style="position:absolute; left:12px; top:12px; color:#999;"></i>
+                    <input type="text" id="inventorySearch" placeholder="Search..." onkeyup="filterInventory()" style="padding-left:35px;">
                 </div>
                 <div class="filter-grid">
-                    <div><select id="filterType" onchange="filterInventory()" style="margin-bottom:0;"><option value="all">All Categories</option></select></div>
-                    <div><input type="number" id="filterMin" placeholder="Min Price" oninput="filterInventory()" style="margin-bottom:0;"></div>
-                    <div><input type="number" id="filterMax" placeholder="Max Price" oninput="filterInventory()" style="margin-bottom:0;"></div>
+                    <div><select id="filterType" onchange="filterInventory()"><option value="all">All</option></select></div>
+                    <div><input type="number" id="filterMin" placeholder="Min" oninput="filterInventory()"></div>
+                    <div><input type="number" id="filterMax" placeholder="Max" oninput="filterInventory()"></div>
                 </div>
             </div>
+            <div style="margin-bottom:10px;"><label style="display:flex; align-items:center; cursor:pointer;"><input type="checkbox" id="selectAllBox" onchange="toggleSelectAll()" style="width:18px; margin-right:8px;"> Select All</label></div>
+            <div id="phoneList">Loading...</div>
+        </div>
 
-            <div style="margin-bottom: 10px;">
-                <label style="margin:0; display:flex; align-items:center; cursor:pointer;">
-                    <input type="checkbox" id="selectAllBox" onchange="toggleSelectAll()" style="width:18px; height:18px; margin-right:8px;">
-                    Select All
-                </label>
+        <div id="view-staff" class="hidden">
+            <div style="background:#e8f0fe; padding:15px; border-radius:8px; margin-bottom:20px; border:1px solid #b8daff;">
+                <h4 style="margin:0 0 10px 0; color: #004085;"><i class="fas fa-user-plus"></i> Add New Staff</h4>
+                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr auto; gap: 10px;">
+                    <input type="text" id="newStaffId" placeholder="User ID" style="margin:0;">
+                    <input type="text" id="newStaffName" placeholder="Full Name" style="margin:0;">
+                    <input type="text" id="newStaffBranch" placeholder="Branch" style="margin:0;">
+                    <input type="text" id="newStaffPass" placeholder="Pass (6 char)" maxlength="6" style="margin:0;">
+                    <button onclick="addStaff()" style="width:auto;"><i class="fas fa-plus"></i></button>
+                </div>
+            </div>
+            <div style="border:1px solid #ddd; border-radius:8px; overflow:hidden;">
+                <div style="padding:10px; background:#f1f3f4; font-weight:bold;">Existing Staff</div>
+                <div id="staffList" style="max-height:400px; overflow-y:auto; background:white;">Loading...</div>
             </div>
         </div>
 
-        <div id="phoneList">Loading...</div>
-        <br><br>
-        <a href="index.html" style="display:block; text-align:center; color:var(--primary); text-decoration:none; font-weight:600;"><i class="fas fa-arrow-left"></i> Back to Sales Portal</a>
+        <div id="view-audits" class="hidden">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+                <h3 style="margin:0;">Recent Phone Audits</h3>
+                <button onclick="loadAudits()" style="width:auto;"><i class="fas fa-sync"></i> Refresh</button>
+            </div>
+            <div style="overflow-x:auto; border:1px solid #ddd; border-radius:8px;">
+                <table class="audit-table">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Staff (Branch)</th>
+                            <th>Model</th>
+                            <th>IMEI</th>
+                            <th>Grade</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="auditList">
+                        <tr><td colspan="6" style="text-align:center;">Loading...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
     </div>
 
     <div id="bulkBar" class="bulk-bar inactive">
         <span id="selectedCount">0 Selected</span>
-        <button onclick="applyAutoChargesToSelected()" class="bulk-btn btn-purple"><i class="fas fa-magic"></i> Auto-Apply Logic</button>
-        <button onclick="executeBulkDelete()" class="bulk-btn btn-delete"><i class="fas fa-trash"></i> Delete Selected</button>
+        <button onclick="applyAutoChargesToSelected()" class="bulk-btn btn-purple">Auto-Apply Logic</button>
+        <button onclick="executeBulkDelete()" class="bulk-btn btn-delete">Delete</button>
     </div>
 
     <script>
         const API_URL = "/api"; 
-        let secretKey = "";
+        let secretKey = localStorage.getItem("adminKey");
         let allInventory = [];
         let selectedIds = new Set();
         let globalWorkbook = null;
         let currentSheetData = []; 
 
-        if (localStorage.getItem("adminKey")) {
-            secretKey = localStorage.getItem("adminKey");
-            showPanel();
+        if (secretKey) {
+            document.getElementById('loginScreen').classList.add('hidden');
+            document.getElementById('adminPanel').classList.remove('hidden');
+            init();
         }
 
         function attemptLogin() {
@@ -249,69 +205,60 @@
             if(!val) return alert("Enter password");
             secretKey = val;
             localStorage.setItem("adminKey", val);
-            showPanel();
-        }
-
-        function showPanel() {
             document.getElementById('loginScreen').classList.add('hidden');
             document.getElementById('adminPanel').classList.remove('hidden');
             init();
         }
 
-        function logout() {
-            localStorage.removeItem("adminKey");
-            location.reload();
+        function logout() { localStorage.removeItem("adminKey"); location.reload(); }
+
+        async function init() {
+            await loadTypes();
+            loadStaff();
+            loadPhones();
+            loadAudits();
         }
 
-        // --- NEW STAFF MANAGEMENT ---
-        // --- STAFF MANAGEMENT LOGIC ---
+        // --- NAVIGATION ---
+        function switchTab(tabName) {
+            // Hide all views
+            ['inventory', 'staff', 'audits'].forEach(t => {
+                document.getElementById('view-'+t).classList.add('hidden');
+            });
+            // Show selected
+            document.getElementById('view-'+tabName).classList.remove('hidden');
+            
+            // Update buttons
+            document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+        }
 
+        // --- STAFF LOGIC ---
         async function loadStaff() {
             try {
                 const res = await fetch(`${API_URL}/users`, { headers: { 'admin-secret': secretKey } });
-                
-                if (!res.ok) {
-                    if(res.status === 401) { logout(); return; }
-                    throw new Error("Server Error");
-                }
-                
+                if (!res.ok) { if(res.status === 401) logout(); return; }
                 const users = await res.json();
                 const list = document.getElementById('staffList');
                 list.innerHTML = "";
-
-                if (!Array.isArray(users) || users.length === 0) {
-                    list.innerHTML = `<div style="padding:15px; text-align:center; color:#999;">No staff accounts found.</div>`;
-                    return;
-                }
-
+                
                 users.forEach(u => {
                     if(u.role === 'admin') return; 
-                    
-                    // Display: Name (Branch) - [ID]
-                    const displayName = u.name ? `<b>${u.name}</b>` : `<i>Unknown</i>`;
-                    const displayBranch = u.branch ? `(${u.branch})` : ``;
-                    const displayID = `<span style="color:#666; font-size:0.85em;">ID: ${u.username}</span>`;
-
+                    const name = u.name || 'Unknown';
+                    const branch = u.branch ? `(${u.branch})` : '';
                     list.innerHTML += `
                         <div class="staff-item">
                             <div>
-                                <div><i class="fas fa-user-circle" style="color:#0056b3;"></i> ${displayName} ${displayBranch}</div>
-                                ${displayID}
+                                <b>${name}</b> ${branch} <br>
+                                <span style="color:#666; font-size:0.85em;">ID: ${u.username}</span>
                             </div>
-                            <div class="staff-actions">
-                                <button onclick="editStaffPass(${u.id}, '${u.username}')" class="btn-edit" style="width:auto; padding:4px 8px; font-size:0.8rem;" title="Change Password">
-                                    <i class="fas fa-key"></i>
-                                </button>
-                                <button onclick="deleteStaff(${u.id})" class="btn-delete" style="width:auto; padding:4px 8px; font-size:0.8rem;" title="Delete User">
-                                    <i class="fas fa-trash"></i>
-                                </button>
+                            <div style="display:flex; gap:5px;">
+                                <button onclick="editStaffPass(${u.id}, '${u.username}')" class="btn-edit" style="width:auto; padding:4px 8px;"><i class="fas fa-key"></i></button>
+                                <button onclick="deleteStaff(${u.id})" class="btn-delete" style="width:auto; padding:4px 8px;"><i class="fas fa-trash"></i></button>
                             </div>
                         </div>`;
                 });
-            } catch(e) { 
-                console.error(e);
-                document.getElementById('staffList').innerHTML = `<div style="padding:15px; text-align:center; color:red;">Failed to load staff.</div>`;
-            }
+            } catch(e) { console.error(e); }
         }
 
         async function addStaff() {
@@ -320,69 +267,56 @@
             const branch = document.getElementById('newStaffBranch').value;
             const password = document.getElementById('newStaffPass').value;
             
-            if(!username || !name || password.length < 4) return alert("Staff ID, Name and Password (4+ chars) are required.");
+            if(!username || !name || password.length < 4) return alert("All fields required");
 
-            try {
-                const res = await fetch(`${API_URL}/users`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'admin-secret': secretKey },
-                    body: JSON.stringify({ 
-                        username, 
-                        password, 
-                        name, 
-                        branch 
-                    })
-                });
-                
-                if (res.ok) {
-                    alert("✅ Staff Added Successfully");
-                    // Clear inputs
-                    document.getElementById('newStaffId').value = "";
-                    document.getElementById('newStaffName').value = "";
-                    document.getElementById('newStaffBranch').value = "";
-                    document.getElementById('newStaffPass').value = "";
-                    loadStaff();
-                } else {
-                    alert("Error adding staff. Staff ID might be taken.");
-                }
-            } catch(e) { alert("Connection Error"); }
+            await fetch(`${API_URL}/users`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'admin-secret': secretKey },
+                body: JSON.stringify({ username, password, name, branch })
+            });
+            alert("Staff Added");
+            loadStaff();
+            document.querySelectorAll('#view-staff input').forEach(i => i.value = "");
         }
 
         async function editStaffPass(id, name) {
-            const newPass = prompt(`Enter new password for user '${name}':`);
-            if (newPass === null) return; // User cancelled
-            if (newPass.length < 4) return alert("Password too short!");
-
-            try {
-                const res = await fetch(`${API_URL}/users/${id}`, {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json', 'admin-secret': secretKey },
-                    body: JSON.stringify({ password: newPass })
-                });
-
-                if (res.ok) alert(`✅ Password updated for ${name}`);
-                else alert("❌ Update failed");
-            } catch (e) { alert("Connection Error"); }
+            const p = prompt(`New password for ${name}:`);
+            if(p) await fetch(`${API_URL}/users/${id}`, { method: 'PUT', headers: {'Content-Type':'application/json', 'admin-secret':secretKey}, body: JSON.stringify({password:p}) });
         }
 
         async function deleteStaff(id) {
-            if(!confirm("Are you sure you want to remove this user access?")) return;
-            
-            try {
-                await fetch(`${API_URL}/users/${id}`, { 
-                    method: 'DELETE', 
-                    headers: { 'admin-secret': secretKey } 
-                });
+            if(confirm("Remove access?")) {
+                await fetch(`${API_URL}/users/${id}`, { method: 'DELETE', headers: {'admin-secret':secretKey} });
                 loadStaff();
-            } catch (e) { alert("Error deleting user"); }
+            }
         }
-        // --- NEW AUTO CALC LOGIC ---
+
+        // --- AUDIT LOGIC ---
+        async function loadAudits() {
+            try {
+                const res = await fetch(`${API_URL}/audits`, { headers: { 'admin-secret': secretKey } });
+                const audits = await res.json();
+                const list = document.getElementById('auditList');
+                
+                if(audits.length === 0) { list.innerHTML = "<tr><td colspan='6' style='text-align:center;'>No audits found.</td></tr>"; return; }
+                
+                list.innerHTML = audits.map(a => `
+                    <tr>
+                        <td>${new Date(a.created_at).toLocaleDateString()}</td>
+                        <td>${a.staff_name || '-'} <br> <small>${a.staff_branch || '-'}</small></td>
+                        <td>${a.model} <br> <small>${a.storage_color || ''}</small></td>
+                        <td>${a.imei || '-'}</td>
+                        <td><b>${a.grade || '-'}</b></td>
+                        <td><button onclick="alert('Full details view pending implementation')" style="width:auto; font-size:0.8rem; padding:4px;">View</button></td>
+                    </tr>
+                `).join('');
+            } catch(e) { console.error(e); }
+        }
+
+        // --- INVENTORY LOGIC (Keep existing functions) ---
         function getLcdCharge(price, typeName) {
             const lowerType = (typeName || "").toLowerCase();
-            if (lowerType.includes('laptop') || lowerType.includes('ipad')) {
-                return 1200;
-            }
-            // Standard Range
+            if (lowerType.includes('laptop') || lowerType.includes('ipad')) return 1200;
             if (price >= 300 && price <= 1000) return 359;
             if (price > 1000 && price <= 2500) return 499;
             if (price > 2500 && price <= 3500) return 599;
@@ -393,27 +327,17 @@
 
         function performAutoCalc() {
             const base = parseFloat(document.getElementById('basePrice').value) || 0;
-            
-            // Get Category Name for Laptop detection
             const typeSel = document.getElementById('typeSelect');
             const typeName = typeSel.options[typeSel.selectedIndex]?.text || "";
-
-            // 1. Auto Set LCD
+            
             const lcd = getLcdCharge(base, typeName);
             document.getElementById('lcdAmt').value = lcd;
-
-            // 2. Auto Set Admin (Default 50)
+            
             let admin = parseFloat(document.getElementById('aeonCharge').value);
-            if (isNaN(admin) || admin === 0) {
-                admin = 50;
-                document.getElementById('aeonCharge').value = 50;
-            }
-
-            // 3. Calculate Stamping (0.5% of Base + LCD) rounded up to 5
-            const subTotalForStamp = base + lcd;
-            const stamp = Math.ceil((subTotalForStamp * 0.005) / 5) * 5;
+            if (isNaN(admin) || admin === 0) { admin = 50; document.getElementById('aeonCharge').value = 50; }
+            
+            const stamp = Math.ceil(((base + lcd) * 0.005) / 5) * 5;
             document.getElementById('stampFee').value = stamp;
-
             calcTotal();
         }
 
@@ -422,77 +346,20 @@
             const lcd = parseFloat(document.getElementById('lcdAmt').value) || 0;
             const admin = parseFloat(document.getElementById('aeonCharge').value) || 0;
             const stamp = parseFloat(document.getElementById('stampFee').value) || 0;
-            
             const total = base + lcd + admin + stamp;
             document.getElementById('displayTotal').innerText = `RM ${total.toFixed(2)}`;
             return total;
         }
-
-        // --- BULK AUTO APPLY ---
-        async function applyAutoChargesToAll() {
-            if(!confirm("AUTO-CALCULATE ALL items?\n(Base Price will be used to set LCD, Admin=50, and Stamping based on Base+LCD).")) return;
-            await processAutoCalcList(allInventory);
-        }
-
-        async function applyAutoChargesToSelected() {
-            if(!confirm(`AUTO-CALCULATE for ${selectedIds.size} selected items?`)) return;
-            const itemsToProcess = allInventory.filter(p => selectedIds.has(p.id));
-            await processAutoCalcList(itemsToProcess);
-        }
-
-        async function processAutoCalcList(items) {
-            let count = 0;
-            const oldBtnText = document.querySelector('.btn-purple').innerHTML;
-            document.querySelector('.btn-purple').innerHTML = `<i class="fas fa-spinner fa-spin"></i> Processing...`;
-
-            for (let item of items) {
-                const base = parseFloat(item.base_price) || parseFloat(item.rrp) || 0; 
-                const typeName = item.type_name || "";
-                
-                // Pricing Logic
-                const lcd = getLcdCharge(base, typeName);
-                const admin = 50;
-                const subForStamp = base + lcd;
-                const stamp = Math.ceil((subForStamp * 0.005) / 5) * 5;
-                const finalRrp = base + lcd + admin + stamp;
-
-                try {
-                    await fetch(`${API_URL}/phones/${item.id}`, {
-                        method: 'PUT',
-                        headers: { 'Content-Type': 'application/json', 'admin-secret': secretKey },
-                        body: JSON.stringify({ 
-                            model: item.model, 
-                            rrp: finalRrp.toFixed(2),
-                            type_id: item.type_id,
-                            base_price: base,
-                            lcd_amt: lcd,
-                            aeon_rate: admin, 
-                            stamping_rate: stamp 
-                        })
-                    });
-                    count++;
-                } catch(e) { console.error(e); }
-            }
-            alert(`Updated ${count} items!`);
-            document.querySelector('.btn-purple').innerHTML = oldBtnText;
-            selectedIds.clear();
-            updateBulkBar();
-            loadPhones();
-        }
-
-        // --- STANDARD CRUD ---
-        async function init() { await loadTypes(); loadStaff(); loadPhones(); }
 
         async function loadTypes() {
             try {
                 const res = await fetch(`${API_URL}/types`);
                 const types = await res.json();
                 const selects = [document.getElementById('typeSelect'), document.getElementById('importTypeSelect'), document.getElementById('filterType')];
-                
                 selects.forEach(sel => {
-                    if (sel.id === 'filterType') sel.innerHTML = '<option value="all">All Categories</option>';
+                    if (sel.id === 'filterType') sel.innerHTML = '<option value="all">All</option>';
                     else sel.innerHTML = "";
-                    types.forEach(t => sel.innerHTML += `<option value="${t.id}">${t.name}</option>`);
+                    if(Array.isArray(types)) types.forEach(t => sel.innerHTML += `<option value="${t.id}">${t.name}</option>`);
                 });
             } catch (e) { console.error(e); }
         }
@@ -501,31 +368,27 @@
             try {
                 const res = await fetch(`${API_URL}/phones`);
                 const data = await res.json();
+                if(data.error) { document.getElementById('phoneList').innerHTML = "Error"; return; }
                 allInventory = Array.isArray(data) ? data : [];
-                
                 const list = document.getElementById('phoneList');
                 list.innerHTML = "";
-                if(data.error) return list.innerHTML = `<div style="text-align:center; padding:20px;">Error loading data</div>`;
-
-                data.forEach(p => {
+                
+                allInventory.forEach(p => {
                     const div = document.createElement('div');
                     div.className = "phone-item";
                     div.setAttribute('data-price', p.rrp);
                     div.setAttribute('data-type', p.type_id);
                     const checked = selectedIds.has(p.id) ? "checked" : "";
-                    
                     div.innerHTML = `
                         <input type="checkbox" class="item-checkbox" value="${p.id}" onchange="toggleItem(${p.id})" ${checked}>
                         <div style="flex-grow:1;">
-                            <span style="font-size:0.8rem; background:#eee; padding:2px 6px; border-radius:4px; margin-right:5px;">${p.type_name || 'Item'}</span>
-                            <b>${p.model}</b> (Total: RM ${p.rrp})
-                            <div style="font-size:0.8rem; color:#666;">Base: ${p.base_price} | LCD: ${p.lcd_amt} | Admin: ${p.aeon_rate} | Stamp: ${p.stamping_rate}</div>
+                            <b>${p.model}</b> <span style="background:#eee; padding:2px 6px; border-radius:4px; font-size:0.8rem;">${p.type_name || ''}</span>
+                            <div style="font-size:0.8rem; color:#666;">Base: ${p.base_price} | LCD: ${p.lcd_amt} | Total: RM ${p.rrp}</div>
                         </div>
                         <div style="display:flex; gap:5px;">
                             <button class="btn-edit" onclick="startEdit(${p.id}, '${p.model}', ${p.type_id}, ${p.base_price}, ${p.lcd_amt}, ${p.aeon_rate}, ${p.stamping_rate})"><i class="fas fa-edit"></i></button>
-                            <button class="btn-delete" onclick="deletePhone(${p.id})"><i class="fas fa-trash-alt"></i></button>
-                        </div>
-                    `;
+                            <button class="btn-delete" onclick="deletePhone(${p.id})"><i class="fas fa-trash"></i></button>
+                        </div>`;
                     list.appendChild(div);
                 });
                 filterInventory();
@@ -757,5 +620,6 @@
     </script>
 </body>
 </html>
+
 
 

@@ -61,8 +61,19 @@
 
         h2, h3, h4 { display: flex; align-items: center; gap: 10px; }
         
-        /* Staff List */
-        .staff-item { display: flex; justify-content: space-between; padding: 8px; background: #fff; border-bottom: 1px solid #eee; }
+        /* Staff List Styles */
+        .staff-item { 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            padding: 12px; 
+            background: #fff; 
+            border-bottom: 1px solid #eee; 
+            transition: background 0.2s;
+        }
+        .staff-item:hover { background: #f9f9f9; }
+        .staff-item span { font-weight: 500; color: #333; }
+        .staff-actions { display: flex; gap: 8px; }
     </style>
 </head>
 <body>
@@ -81,12 +92,21 @@
 
         <div style="background:#e8f0fe; padding:15px; border-radius:8px; margin-bottom:20px; border:1px solid #b8daff;">
             <h4 style="margin:0 0 10px 0; color: #004085;"><i class="fas fa-user-shield"></i> Manage Staff</h4>
+            
             <div class="row">
                 <input type="text" id="newStaffId" placeholder="User ID" style="margin:0;">
                 <input type="text" id="newStaffPass" placeholder="Password (6 char)" maxlength="6" style="margin:0;">
                 <button onclick="addStaff()" style="width:auto;"><i class="fas fa-plus"></i> Add</button>
             </div>
-            <div id="staffList" style="margin-top:10px; max-height:100px; overflow-y:auto; background:white; border-radius:4px;"></div>
+
+            <div style="margin-top:15px; background:white; border-radius:8px; border:1px solid #ddd; overflow:hidden;">
+                <div style="padding:10px; background:#f1f3f4; border-bottom:1px solid #ddd; font-size:0.85rem; font-weight:bold; color:#666;">
+                    EXISTING USERS
+                </div>
+                <div id="staffList" style="max-height:150px; overflow-y:auto;">
+                    <div style="padding:15px; text-align:center; color:#999;">Loading...</div>
+                </div>
+            </div>
         </div>
 
         <div style="background:#f8f9fa; padding:15px; border-radius:8px; margin-bottom:20px; border:1px solid #eee;">
@@ -241,18 +261,35 @@
         }
 
         // --- NEW STAFF MANAGEMENT ---
+        // --- STAFF MANAGEMENT LOGIC ---
+
         async function loadStaff() {
             try {
                 const res = await fetch(`${API_URL}/users`, { headers: { 'admin-secret': secretKey } });
                 const users = await res.json();
                 const list = document.getElementById('staffList');
                 list.innerHTML = "";
+
+                if (users.length === 0) {
+                    list.innerHTML = `<div style="padding:15px; text-align:center; color:#999;">No staff accounts found.</div>`;
+                    return;
+                }
+
                 users.forEach(u => {
+                    // Don't show the main admin/boss account if you want to hide it
                     if(u.role === 'admin') return; 
+
                     list.innerHTML += `
                         <div class="staff-item">
-                            <span><i class="fas fa-user"></i> ${u.username}</span>
-                            <button onclick="deleteStaff(${u.id})" style="background:red; padding:2px 8px; font-size:0.7rem; width:auto;">Delete</button>
+                            <span><i class="fas fa-user" style="color:#666; margin-right:8px;"></i> ${u.username}</span>
+                            <div class="staff-actions">
+                                <button onclick="editStaffPass(${u.id}, '${u.username}')" class="btn-edit" style="width:auto; padding:5px 10px; font-size:0.8rem;" title="Change Password">
+                                    <i class="fas fa-key"></i>
+                                </button>
+                                <button onclick="deleteStaff(${u.id})" class="btn-delete" style="width:auto; padding:5px 10px; font-size:0.8rem;" title="Delete User">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
                         </div>`;
                 });
             } catch(e) { console.error(e); }
@@ -261,25 +298,55 @@
         async function addStaff() {
             const username = document.getElementById('newStaffId').value;
             const password = document.getElementById('newStaffPass').value;
-            if(!username || password.length < 4) return alert("Invalid details");
+            
+            if(!username || password.length < 4) return alert("Username required & Password must be 4+ chars");
 
-            await fetch(`${API_URL}/users`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'admin-secret': secretKey },
-                body: JSON.stringify({ username, password })
-            });
-            loadStaff();
-            document.getElementById('newStaffId').value = "";
-            document.getElementById('newStaffPass').value = "";
-            alert("Staff Added");
+            try {
+                const res = await fetch(`${API_URL}/users`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'admin-secret': secretKey },
+                    body: JSON.stringify({ username, password })
+                });
+                
+                if (res.ok) {
+                    alert("✅ Staff Added Successfully");
+                    document.getElementById('newStaffId').value = "";
+                    document.getElementById('newStaffPass').value = "";
+                    loadStaff();
+                } else {
+                    alert("Error adding staff. Username might be taken.");
+                }
+            } catch(e) { alert("Connection Error"); }
+        }
+
+        async function editStaffPass(id, name) {
+            const newPass = prompt(`Enter new password for user '${name}':`);
+            if (newPass === null) return; // User cancelled
+            if (newPass.length < 4) return alert("Password too short!");
+
+            try {
+                const res = await fetch(`${API_URL}/users/${id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json', 'admin-secret': secretKey },
+                    body: JSON.stringify({ password: newPass })
+                });
+
+                if (res.ok) alert(`✅ Password updated for ${name}`);
+                else alert("❌ Update failed");
+            } catch (e) { alert("Connection Error"); }
         }
 
         async function deleteStaff(id) {
-            if(!confirm("Delete this staff?")) return;
-            await fetch(`${API_URL}/users/${id}`, { method: 'DELETE', headers: { 'admin-secret': secretKey } });
-            loadStaff();
+            if(!confirm("Are you sure you want to remove this user access?")) return;
+            
+            try {
+                await fetch(`${API_URL}/users/${id}`, { 
+                    method: 'DELETE', 
+                    headers: { 'admin-secret': secretKey } 
+                });
+                loadStaff();
+            } catch (e) { alert("Error deleting user"); }
         }
-
         // --- NEW AUTO CALC LOGIC ---
         function getLcdCharge(price, typeName) {
             const lowerType = (typeName || "").toLowerCase();
@@ -661,3 +728,4 @@
     </script>
 </body>
 </html>
+

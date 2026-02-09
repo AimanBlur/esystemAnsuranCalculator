@@ -86,7 +86,7 @@ const app = new Elysia()
             } catch (e: any) { 
                 return { success: false, message: e.message }; 
             }
-        }, { body: t.Object({ password: t.String() }) })g
+        }, { body: t.Object({ password: t.String() }) })
         
         // ROUTE 1: Get All Phones
         .get('/phones', async () => {

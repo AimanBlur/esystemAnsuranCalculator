@@ -67,9 +67,17 @@ const app = new Elysia()
         .post('/login', async ({ body, set }) => {
             if (!sql) { set.status = 500; return { success: false, message: "DB Disconnected" }; }
             try {
-                // We check 'username' (which acts as Staff ID)
                 const users = await sql`SELECT * FROM users WHERE username = ${body.username} AND password = ${body.password}`;
-                if (users.length > 0) return { success: true, role: users[0].role, username: users[0].username, name: users[0].name }; // Return name too
+                if (users.length > 0) {
+                    // FIX: Included 'branch' in the response
+                    return { 
+                        success: true, 
+                        role: users[0].role, 
+                        username: users[0].username, 
+                        name: users[0].name, 
+                        branch: users[0].branch 
+                    }; 
+                }
                 set.status = 401; return { success: false, message: "Invalid ID or Password" };
             } catch (e: any) { return { success: false, message: e.message }; }
         }, { body: t.Object({ username: t.String(), password: t.String() }) })

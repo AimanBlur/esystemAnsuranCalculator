@@ -30,6 +30,40 @@ const app = new Elysia()
     .use(cors())
     .group('/api', app => app
 
+        .post('/audits', async ({ body, set }) => {
+            if (!sql) { set.status = 500; return { success: false, message: "DB Error" }; }
+            const b = body as any;
+            try {
+                await sql`
+                    INSERT INTO audits (
+                        staff_name, staff_branch, date_received, model, storage_color, serial_number, imei,
+                        icloud_lock, device_erased, mdm_lock, imei_status, sim_lock, battery_health,
+                        charging_test, screen_condition, back_glass, frame_condition, biometrics,
+                        camera_condition, audio_condition, connectivity, non_genuine_parts, accessories,
+                        grade, remarks
+                    ) VALUES (
+                        ${b.staff_name}, ${b.staff_branch}, ${b.date_received}, ${b.model}, ${b.storage_color}, ${b.serial_number}, ${b.imei},
+                        ${b.icloud_lock}, ${b.device_erased}, ${b.mdm_lock}, ${b.imei_status}, ${b.sim_lock}, ${b.battery_health},
+                        ${b.charging_test}, ${b.screen_condition}, ${b.back_glass}, ${b.frame_condition}, ${b.biometrics},
+                        ${b.camera_condition}, ${b.audio_condition}, ${b.connectivity}, ${b.non_genuine_parts}, ${b.accessories},
+                        ${b.grade}, ${b.remarks}
+                    )
+                `;
+                return { success: true };
+            } catch (e: any) { return { success: false, message: e.message }; }
+        })
+
+        // 2. Get Audits (Admin Only)
+        .get('/audits', async ({ headers, set }) => {
+            if (!sql) return [];
+            if (headers['admin-secret'] !== process.env.ADMIN_PASSWORD) { set.status = 401; return []; }
+            try {
+                // Get latest 50 audits
+                const audits = await sql`SELECT * FROM audits ORDER BY created_at DESC LIMIT 50`;
+                return [...audits];
+            } catch (e) { return []; }
+        })
+
         .post('/login', async ({ body, set }) => {
             if (!sql) { set.status = 500; return { success: false, message: "DB Disconnected" }; }
             try {

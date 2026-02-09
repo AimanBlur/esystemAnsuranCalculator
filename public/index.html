@@ -426,7 +426,7 @@
 
             document.getElementById('totalRrp').innerText = totalPrincipal.toFixed(2);
 
-            const calc = (m) => totalPrincipal === 0 ? "0.00" : ((totalPrincipal + (totalPrincipal * interestRate * m)) / m).toFixed(2);
+            const calc = (m) => totalPrincipal === 0 ? "0" : Math.floor((totalPrincipal + (totalPrincipal * interestRate * m)) / m).toString();
             document.getElementById('m12').innerText = calc(12);
             document.getElementById('m24').innerText = calc(24);
             document.getElementById('m36').innerText = calc(36);
@@ -506,6 +506,7 @@
     </script>
 </body>
 </html>
+
 
 
 

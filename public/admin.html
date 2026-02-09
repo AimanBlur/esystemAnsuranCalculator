@@ -292,25 +292,76 @@
         }
 
         // --- AUDIT LOGIC ---
+        let loadedAudits = []; // Store audits to access details later
+
         async function loadAudits() {
             try {
                 const res = await fetch(`${API_URL}/audits`, { headers: { 'admin-secret': secretKey } });
-                const audits = await res.json();
+                loadedAudits = await res.json();
                 const list = document.getElementById('auditList');
                 
-                if(audits.length === 0) { list.innerHTML = "<tr><td colspan='6' style='text-align:center;'>No audits found.</td></tr>"; return; }
+                if(loadedAudits.length === 0) { list.innerHTML = "<tr><td colspan='6' style='text-align:center;'>No audits found.</td></tr>"; return; }
                 
-                list.innerHTML = audits.map(a => `
+                list.innerHTML = loadedAudits.map(a => `
                     <tr>
-                        <td>${new Date(a.created_at).toLocaleDateString()}</td>
+                        <td>${new Date(a.date_received).toLocaleDateString()}</td>
                         <td>${a.staff_name || '-'} <br> <small>${a.staff_branch || '-'}</small></td>
                         <td>${a.model} <br> <small>${a.storage_color || ''}</small></td>
                         <td>${a.imei || '-'}</td>
                         <td><b>${a.grade || '-'}</b></td>
-                        <td><button onclick="alert('Full details view pending implementation')" style="width:auto; font-size:0.8rem; padding:4px;">View</button></td>
+                        <td><button class="btn-primary" onclick="viewAuditDetails(${a.id})" style="padding:4px 8px; font-size:0.8rem;">View Full</button></td>
                     </tr>
                 `).join('');
             } catch(e) { console.error(e); }
+        }
+
+        function viewAuditDetails(id) {
+            const audit = loadedAudits.find(a => a.id === id);
+            if (!audit) return;
+
+            const fields = {
+                "Model": audit.model,
+                "Storage/Color": audit.storage_color,
+                "Serial Number": audit.serial_number,
+                "IMEI": audit.imei,
+                "iCloud Lock": audit.icloud_lock,
+                "Device Erased": audit.device_erased,
+                "MDM Lock": audit.mdm_lock,
+                "IMEI Status": audit.imei_status,
+                "SIM Lock": audit.sim_lock,
+                "Battery Health": audit.battery_health + "%",
+                "Charging": audit.charging_test,
+                "Screen": audit.screen_condition,
+                "Back Glass": audit.back_glass,
+                "Frame": audit.frame_condition,
+                "Biometrics": audit.biometrics,
+                "Cameras": audit.camera_condition,
+                "Audio": audit.audio_condition,
+                "Connectivity": audit.connectivity,
+                "Non-Genuine": audit.non_genuine_parts,
+                "Accessories": audit.accessories,
+                "Grade": audit.grade,
+                "Remarks": audit.remarks
+            };
+
+            let html = "";
+            for (const [key, val] of Object.entries(fields)) {
+                // Highlight "Not OK" or issues in red for easy spotting
+                const color = (val === 'Not OK' || val === 'Fail' || val === 'Present' || val === 'Blocked') ? 'color:red; font-weight:bold;' : '';
+                html += `
+                    <div style="border-bottom:1px solid #f0f0f0; padding-bottom:5px;">
+                        <span style="color:#888; display:block; font-size:0.8rem;">${key}</span>
+                        <span style="color:#333; ${color}">${val || '-'}</span>
+                    </div>
+                `;
+            }
+
+            document.getElementById('auditModalBody').innerHTML = html;
+            document.getElementById('auditModal').classList.remove('hidden');
+        }
+
+        function closeAuditModal() {
+            document.getElementById('auditModal').classList.add('hidden');
         }
 
         // --- INVENTORY LOGIC (Keep existing functions) ---
@@ -618,8 +669,23 @@
             });
         }
     </script>
+
+    <div id="auditModal" class="modal-overlay hidden">
+        <div class="modal-content" style="max-width:600px; max-height:80vh; overflow-y:auto;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; border-bottom:1px solid #eee; padding-bottom:10px;">
+                <h3 style="margin:0;"><i class="fas fa-mobile-alt"></i> Audit Details</h3>
+                <button onclick="closeAuditModal()" style="background:none; border:none; color:#666; font-size:1.2rem; cursor:pointer;">&times;</button>
+            </div>
+            <div id="auditModalBody" style="display:grid; grid-template-columns: 1fr 1fr; gap:15px; font-size:0.9rem;">
+                </div>
+            <div style="margin-top:20px; text-align:right;">
+                <button class="btn btn-primary" onclick="closeAuditModal()">Close</button>
+            </div>
+        </div>
+    </div>
 </body>
 </html>
+
 
 
 

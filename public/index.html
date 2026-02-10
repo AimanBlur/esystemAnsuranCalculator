@@ -59,11 +59,21 @@
     <div id="mainApp" class="hidden">
         
         <header>
-            <div style="flex-grow:1; text-align:center;">Esystem Ansuran Portal</div>
-            <button onclick="doLogout()" style="width:auto; padding:5px 10px; font-size:0.8rem; background:rgba(255,255,255,0.2); border:1px solid rgba(255,255,255,0.4);">
-                <i class="fas fa-sign-out-alt"></i> Logout
-            </button>
+            <div class="user-menu" onclick="toggleDropdown()">
+                <i class="fas fa-user-circle" style="font-size:1.5rem;"></i>
+                <div style="text-align:left; line-height:1.2;">
+                    <div id="headerName" style="font-size:0.9rem;">User</div>
+                    <div id="headerBranch" style="font-size:0.75rem; opacity:0.8;">Branch</div>
+                </div>
+                <i class="fas fa-caret-down" style="font-size:0.8rem; margin-left:5px;"></i>
+            </div>
+            <div style="font-weight:bold;">Esystem Portal</div>
         </header>
+
+        <div id="userDropdown" class="dropdown">
+            <button class="dropdown-item" onclick="changePassword()"><i class="fas fa-key"></i> Change Password</button>
+            <button class="dropdown-item" onclick="doLogout()"><i class="fas fa-sign-out-alt"></i> Logout</button>
+        </div>
 
         <div class="tabs">
             <button class="tab-btn active-tab" onclick="openTab('calc', this)">Calculator</button>
@@ -72,6 +82,8 @@
             <button class="tab-btn" onclick="openTab('plist', this)">Price List</button>
             <button class="tab-btn" onclick="openTab('requests', this)">Requests</button>
         </div>
+
+        <div class="container" onclick="closeDropdown()">
 
         <div class="container">
             <div id="calc" class="tab-content active-content">
@@ -672,6 +684,7 @@
     </script>
 </body>
 </html>
+
 
 
 

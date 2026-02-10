@@ -41,6 +41,12 @@
         .login-box h2 { margin-top: 0; color: var(--primary); }
 
         .audit-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+
+        .dropdown { position:absolute; right:15px; top:60px; background:#fff; border:1px solid #ddd; border-radius:8px; display:none; z-index:1000; }
+        .dropdown.show { display:block; }
+        .dropdown-item { width:100%; padding:10px 15px; background:none; border:none; text-align:left; cursor:pointer; }
+
+        
     </style>
 </head>
 <body>
@@ -82,8 +88,6 @@
             <button class="tab-btn" onclick="openTab('plist', this)">Price List</button>
             <button class="tab-btn" onclick="openTab('requests', this)">Requests</button>
         </div>
-
-        <div class="container" onclick="closeDropdown()">
 
         <div class="container">
             <div id="calc" class="tab-content active-content">
@@ -228,13 +232,13 @@
                     <h3 class="section-title">Reference 1 (Parent)</h3>
                     <input type="text" id="ref1_nama" placeholder="Name">
                     <input type="text" id="ref1_hub" placeholder="Relationship (Hubungan)">
-                    <textarea id="ref1_alamt" placeholder="Ref 1 Address" rows="3"></textarea>
+                    <textarea id="ref1_alamat" placeholder="Ref 1 Address" rows="3"></textarea>
                     <input type="tel" id="ref1_hp" placeholder="Phone No.">
 
                     <h3 class="section-title">Reference 2 (Relative)</h3>
                     <input type="text" id="ref2_nama" placeholder="Name">
                     <input type="text" id="ref2_hub" placeholder="Relationship (Hubungan)">
-                    <textarea id="ref2_alamt" placeholder="Ref 2 Address" rows="3"></textarea>
+                    <textarea id="ref2_alamat" placeholder="Ref 2 Address" rows="3"></textarea>
                     <input type="tel" id="ref2_hp" placeholder="Phone No.">
 
                     <h3 class="section-title">Bank Details</h3>
@@ -684,3 +688,4 @@
     </script>
 </body>
 </html>
+

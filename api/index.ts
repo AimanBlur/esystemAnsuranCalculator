@@ -19,10 +19,12 @@ try {
 }
 
 const transporter = nodemailer.createTransport({
-    service: 'gmail',
+    host: process.env.SMTP_HOST, // e.g., mail.yourdomain.com
+    port: 465,                   // Standard cPanel SSL port
+    secure: true,                // True for 465, false for 587
     auth: {
-        user: process.env.GMAIL_USER,
-        pass: process.env.GMAIL_PASS
+        user: process.env.SMTP_USER, // Your new webmail address
+        pass: process.env.SMTP_PASS  // Your webmail password
     }
 });
 

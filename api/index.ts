@@ -270,7 +270,7 @@ const app = new Elysia()
             `;
 
             const mailOptions = {
-                from: process.env.GMAIL_USER,
+                from: process.env.SMTP_USER,
                 to: process.env.GMAIL_BOSS,
                 replyTo: body.email_user,
                 subject: `PERMOHONAN BARU - ${body.nama}`,

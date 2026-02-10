@@ -215,11 +215,13 @@
                     <h3 class="section-title">Reference 1 (Parent)</h3>
                     <input type="text" id="ref1_nama" placeholder="Name">
                     <input type="text" id="ref1_hub" placeholder="Relationship (Hubungan)">
+                    <textarea id="ref1_alamt" placeholder="Ref 1 Address" rows="3"></textarea>
                     <input type="tel" id="ref1_hp" placeholder="Phone No.">
 
                     <h3 class="section-title">Reference 2 (Relative)</h3>
                     <input type="text" id="ref2_nama" placeholder="Name">
                     <input type="text" id="ref2_hub" placeholder="Relationship (Hubungan)">
+                    <textarea id="ref2_alamt" placeholder="Ref 2 Address" rows="3"></textarea>
                     <input type="tel" id="ref2_hp" placeholder="Phone No.">
 
                     <h3 class="section-title">Bank Details</h3>
@@ -508,8 +510,8 @@
             const fields = [
                 'nama', 'ic', 'alamat', 'tahun_tinggal', 'jenis_rumah', 'status', 
                 'anak', 'hp', 'email_user', 'tarikh_gaji', 'syarikat', 'alamat_kerja', 
-                'tahun_kerja', 'no_pejabat', 'jawatan', 'ref1_nama', 'ref1_hub', 
-                'ref1_hp', 'ref2_nama', 'ref2_hub', 'ref2_hp', 'bank_nama', 'bank_acc'
+                'tahun_kerja', 'no_pejabat', 'jawatan', 'ref1_nama', 'ref1_hub', 'ref1_alamat',
+                'ref1_hp', 'ref2_nama', 'ref2_hub', 'ref2_alamat', 'ref2_hp', 'bank_nama', 'bank_acc'
             ];
 
             fields.forEach(field => {
@@ -554,6 +556,7 @@
     </script>
 </body>
 </html>
+
 
 
 

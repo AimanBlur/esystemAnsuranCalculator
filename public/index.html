@@ -394,6 +394,14 @@
             `).join('');
         }
 
+        function updateSelects() {
+            const dropdowns = [document.getElementById('phone1'), document.getElementById('phone2')];
+            dropdowns.forEach(select => {
+                select.innerHTML = '<option value="0">-- Select Item --</option>';
+                allPhones.forEach(p => select.innerHTML += `<option value="${p.id}">${p.model}</option>`);
+            });
+        }
+
         function updateDropdowns(list) {
             const dropdowns = [document.getElementById('phone1'), document.getElementById('phone2')];
             dropdowns.forEach(select => {
@@ -546,6 +554,7 @@
     </script>
 </body>
 </html>
+
 
 
 

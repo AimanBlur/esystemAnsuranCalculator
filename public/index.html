@@ -70,6 +70,7 @@
             <button class="tab-btn" onclick="openTab('apply', this)">Application</button>
             <button class="tab-btn" onclick="openTab('audit', this)">Used Phone Audit</button>
             <button class="tab-btn" onclick="openTab('plist', this)">Price List</button>
+            <button class="tab-btn" onclick="openTab('requests', this)">Requests</button>
         </div>
 
         <div class="container">
@@ -255,6 +256,27 @@
                     </div>
                 </div>
             </div>
+
+            <div id="requests" class="tab-content">
+                <div class="card">
+                    <h3><i class="fas fa-paper-plane"></i> Send Request</h3>
+                    <label>Request From:</label>
+                    <select id="reqReceiver"><option>Loading users...</option></select>
+                    <label>What do you need?</label>
+                    <textarea id="reqContent" rows="2"></textarea>
+                    <button class="btn-primary" onclick="sendRequest()">Send Request</button>
+                </div>
+
+                <div class="card">
+                    <h3><i class="fas fa-inbox"></i> Incoming Requests</h3>
+                    <div id="incomingList"><p style="color:#888;">No pending requests.</p></div>
+                </div>
+
+                <div class="card">
+                    <h3><i class="fas fa-history"></i> My Sent Requests</h3>
+                    <div id="sentList"><p style="color:#888;">No history.</p></div>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -342,6 +364,100 @@
                 if(res.ok) { alert("Audit Saved!"); form.reset(); }
                 else { alert("Failed to save audit."); }
             } catch(e) { alert("Network Error"); }
+        }
+
+        function updateHeader() {
+            document.getElementById('headerName').innerText = currentUser.name;
+            document.getElementById('headerBranch').innerText = currentUser.branch;
+        }
+
+        function toggleDropdown() {
+            document.getElementById('userDropdown').classList.toggle('show');
+            event.stopPropagation();
+        }
+        function closeDropdown() { document.getElementById('userDropdown').classList.remove('show'); }
+
+        async function changePassword() {
+            const p = prompt("Enter new password:");
+            if(p) {
+                await fetch(`${API_URL}/users/${currentUser.id}/password`, {
+                    method: 'PUT', headers: {'Content-Type':'application/json'},
+                    body: JSON.stringify({password:p})
+                });
+                alert("Password Updated");
+            }
+        }
+
+        async function loadRequests() {
+            try {
+                // Load Users for Dropdown
+                const uRes = await fetch(`${API_URL}/users`);
+                const users = await uRes.json();
+                const sel = document.getElementById('reqReceiver');
+                sel.innerHTML = '<option value="">-- Select Staff --</option>';
+                users.forEach(u => {
+                    if(u.id != currentUser.id) sel.innerHTML += `<option value="${u.id}">${u.name} (${u.branch})</option>`;
+                });
+
+                // Load Requests
+                const rRes = await fetch(`${API_URL}/requests/${currentUser.id}`);
+                const data = await rRes.json();
+                
+                // Render Incoming
+                const inList = document.getElementById('incomingList');
+                if(data.received.length === 0) inList.innerHTML = `<p style="color:#888;">No incoming requests.</p>`;
+                else {
+                    inList.innerHTML = data.received.map(r => `
+                        <div class="req-card">
+                            <span class="req-status status-${r.status}">${r.status}</span>
+                            <b>From: ${r.sender_name}</b> <br>
+                            <p style="margin:5px 0;">${r.content}</p>
+                            <small style="color:#888;">${new Date(r.created_at).toLocaleDateString()}</small>
+                            ${r.status === 'pending' ? `
+                                <div style="margin-top:8px;">
+                                    <button onclick="updateReq(${r.id}, 'completed')" class="btn-success">Accept</button>
+                                    <button onclick="updateReq(${r.id}, 'rejected')" class="btn-danger">Reject</button>
+                                </div>` : ''}
+                        </div>
+                    `).join('');
+                }
+
+                // Render Sent
+                const outList = document.getElementById('sentList');
+                if(data.sent.length === 0) outList.innerHTML = `<p style="color:#888;">No sent requests.</p>`;
+                else {
+                    outList.innerHTML = data.sent.map(r => `
+                        <div class="req-card">
+                            <span class="req-status status-${r.status}">${r.status}</span>
+                            <b>To: ${r.receiver_name || 'Unknown'}</b>
+                            <p style="margin:5px 0;">${r.content}</p>
+                            <small style="color:#888;">${new Date(r.created_at).toLocaleDateString()}</small>
+                        </div>
+                    `).join('');
+                }
+            } catch(e) { console.error(e); }
+        }
+
+        async function sendRequest() {
+            const receiver = document.getElementById('reqReceiver').value;
+            const content = document.getElementById('reqContent').value;
+            if(!receiver || !content) return alert("Fill all fields");
+
+            await fetch(`${API_URL}/requests`, {
+                method: 'POST', headers: {'Content-Type':'application/json'},
+                body: JSON.stringify({ sender_id: parseInt(currentUser.id), sender_name: currentUser.name, receiver_id: parseInt(receiver), content })
+            });
+            alert("Request Sent!");
+            document.getElementById('reqContent').value = "";
+            loadRequests();
+        }
+
+        async function updateReq(id, status) {
+            await fetch(`${API_URL}/requests/${id}/status`, {
+                method: 'PUT', headers: {'Content-Type':'application/json'},
+                body: JSON.stringify({ status })
+            });
+            loadRequests();
         }
 
         // --- APP LOGIC (EXISTING) ---
@@ -556,6 +672,7 @@
     </script>
 </body>
 </html>
+
 
 
 

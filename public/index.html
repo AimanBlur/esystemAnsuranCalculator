@@ -69,6 +69,7 @@
             <button class="tab-btn active-tab" onclick="openTab('calc', this)">Calculator</button>
             <button class="tab-btn" onclick="openTab('apply', this)">Application</button>
             <button class="tab-btn" onclick="openTab('audit', this)">Used Phone Audit</button>
+            <button class="tab-btn" onclick="openTab('plist', this)">Price List</button>
         </div>
 
         <div class="container">
@@ -235,6 +236,23 @@
                     <button type="submit" id="submitBtn" class="btn-primary" style="margin-top:25px;">Submit Application</button>
                 </form>
             </div>
+
+            <div id="plist" class="tab-content">
+                <div class="card">
+                    <h3 style="margin-top:0; color:var(--primary);"><i class="fas fa-tags"></i> Device Price List</h3>
+                    
+                    <div style="display:flex; gap:10px; margin-bottom:15px; flex-wrap:wrap;">
+                        <select id="priceTypeFilter" onchange="filterPriceList()" style="width:130px; margin:0;">
+                            <option value="all">All Types</option>
+                        </select>
+                        <input type="text" id="priceSearch" placeholder="Search model..." onkeyup="filterPriceList()" style="margin:0; flex-grow:1;">
+                    </div>
+
+                    <div id="priceListItems" style="max-height:500px; overflow-y:auto; border:1px solid #eee; border-radius:8px;">
+                        <div style="padding:20px; text-align:center;">Loading...</div>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -338,16 +356,42 @@
                     fetch(`${API_URL}/phones`),
                     fetch(`${API_URL}/types`)
                 ]);
-                
                 allPhones = await phonesRes.json();
                 const types = await typesRes.json();
 
-                const typeFilter = document.getElementById('typeFilter');
-                typeFilter.innerHTML = '<option value="all">All Types</option>';
-                types.forEach(t => typeFilter.innerHTML += `<option value="${t.id}">${t.name}</option>`);
+                const filters = [document.getElementById('typeFilter'), document.getElementById('priceTypeFilter')];
+                filters.forEach(sel => {
+                    sel.innerHTML = '<option value="all">All Types</option>';
+                    types.forEach(t => sel.innerHTML += `<option value="${t.id}">${t.name}</option>`);
+                });
 
-                updateDropdowns(allPhones);
+                updateSelects();
+                filterPriceList();
             } catch (error) { console.error("Error:", error); }
+        }
+
+        function filterPriceList() {
+            const q = document.getElementById('priceSearch').value.toLowerCase();
+            const type = document.getElementById('priceTypeFilter').value;
+            const list = document.getElementById('priceListItems');
+            
+            const matches = allPhones.filter(p => {
+                const nameMatch = p.model.toLowerCase().includes(q);
+                const typeMatch = type === 'all' || String(p.type_id) === String(type);
+                return nameMatch && typeMatch;
+            });
+
+            if(matches.length === 0) { list.innerHTML = '<div style="padding:20px; text-align:center; color:#888;">No items found</div>'; return; }
+
+            list.innerHTML = matches.map(p => `
+                <div style="display:flex; justify-content:space-between; align-items:center; padding:12px; border-bottom:1px solid #eee;">
+                    <div>
+                        <div style="font-weight:600; color:#333;">${p.model}</div>
+                        <div style="font-size:0.8rem; color:#666;">${p.type_name || 'Device'}</div>
+                    </div>
+                    <div style="font-weight:bold; color:var(--primary); font-size:1rem;">RM ${p.rrp}</div>
+                </div>
+            `).join('');
         }
 
         function updateDropdowns(list) {
@@ -502,6 +546,7 @@
     </script>
 </body>
 </html>
+
 
 
 

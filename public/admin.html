@@ -10,7 +10,7 @@
     <style>
         :root { --primary: #0056b3; --danger: #d32f2f; --success: #28a745; --warning: #ffc107; --purple: #6f42c1; --text: #333; }
         body { font-family: "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background: #f0f2f5; padding: 20px; color: var(--text); padding-bottom: 80px; }
-        .container { max-width: 900px; margin: 20px auto; background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+        .container { max-width: 800px; margin: 20px auto; background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
         input, select { width: 100%; padding: 12px; margin: 5px 0 15px; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; }
         label { font-size: 0.9rem; font-weight: bold; color: #555; }
         
@@ -25,6 +25,7 @@
         
         .row { display: flex; gap: 10px; }
         .phone-item { padding: 15px; border-bottom: 1px solid #eee; display: flex; align-items: center; gap: 10px; }
+        .phone-item:last-child { border-bottom: none; }
         .hidden { display: none !important; }
         .item-checkbox { width: 20px; height: 20px; margin: 0; cursor: pointer; }
         .total-box { background: #e3f2fd; padding: 15px; border-radius: 8px; margin-bottom: 20px; text-align: center; border: 1px solid #bbdefb; }
@@ -67,7 +68,7 @@
         </div>
 
         <div class="nav-tabs">
-            <button class="nav-btn active" onclick="switchTab('inventory')"><i class="fas fa-boxes"></i> Ansuran</button>
+            <button class="nav-btn active" onclick="switchTab('inventory')"><i class="fas fa-boxes"></i> Inventory</button>
             <button class="nav-btn" onclick="switchTab('staff')"><i class="fas fa-users-cog"></i> Staff</button>
             <button class="nav-btn" onclick="switchTab('audits')"><i class="fas fa-clipboard-check"></i> Audits</button>
         </div>
@@ -88,11 +89,20 @@
 
             <div id="importSection" class="import-box hidden">
                 <h3 style="margin-top:0; color:#856404;">Bulk Import</h3>
+                <p style="font-size:0.9rem; color:#555;">Smart Import: Existing models will be replaced. Charges will be auto-calculated.</p>
+                
                 <label>1. Category</label><select id="importTypeSelect"></select>
                 <label>2. Upload File</label><input type="file" id="excelFile" accept=".xlsx, .xls" class="file-upload" onchange="processExcelFile()">
+                
                 <div id="sheetSection" class="hidden"><label>3. Select Sheet</label><select id="sheetSelect" onchange="loadSelectedSheet()"></select></div>
+                
                 <div id="columnMapping" class="hidden">
-                    <div style="background:rgba(255,255,255,0.6); padding:10px; margin-bottom:15px;"><label>Row Range</label><div class="row"><input type="number" id="startRow" placeholder="Start"><input type="number" id="endRow" placeholder="End"></div></div>
+                    <div style="background:rgba(255,255,255,0.6); padding:10px; margin-bottom:15px; border-radius:8px;">
+                        <label><i class="fas fa-list-ol"></i> Row Ranges</label>
+                        <input type="text" id="rowRanges" placeholder="e.g. 4-10, 15, 20-35" style="margin-top:5px;">
+                        <small style="color:#666;">Enter multiple ranges separated by commas. Leave blank for all.</small>
+                    </div>
+                    
                     <label>4. Map Columns</label>
                     <div class="col-mapping">
                         <div><label>Brand</label><select id="colBrand"></select></div>
@@ -100,7 +110,7 @@
                         <div><label>Specs</label><select id="colSpecs"></select></div>
                         <div><label>Price</label><select id="colRRP"></select></div>
                     </div>
-                    <button onclick="runImport()" class="btn-success">Import Items</button>
+                    <button onclick="runImport()" class="btn-success">Import & Auto-Calc</button>
                 </div>
             </div>
 
@@ -186,6 +196,17 @@
         <button onclick="executeBulkDelete()" class="bulk-btn btn-delete">Delete</button>
     </div>
 
+    <div id="auditModal" class="modal-overlay hidden">
+        <div class="modal-content" style="max-width:600px; max-height:80vh; overflow-y:auto;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; border-bottom:1px solid #eee; padding-bottom:10px;">
+                <h3 style="margin:0;">Audit Details</h3>
+                <button onclick="closeAuditModal()" style="background:none; border:none; color:#666; font-size:1.2rem; cursor:pointer;">&times;</button>
+            </div>
+            <div id="auditModalBody" style="display:grid; grid-template-columns: 1fr 1fr; gap:15px; font-size:0.9rem;"></div>
+            <div style="margin-top:20px; text-align:right;"><button class="btn-success" onclick="closeAuditModal()">Close</button></div>
+        </div>
+    </div>
+
     <script>
         const API_URL = "/api"; 
         let secretKey = localStorage.getItem("adminKey");
@@ -193,6 +214,7 @@
         let selectedIds = new Set();
         let globalWorkbook = null;
         let currentSheetData = []; 
+        let loadedAudits = [];
 
         if (secretKey) {
             document.getElementById('loginScreen').classList.add('hidden');
@@ -221,16 +243,152 @@
 
         // --- NAVIGATION ---
         function switchTab(tabName) {
-            // Hide all views
-            ['inventory', 'staff', 'audits'].forEach(t => {
-                document.getElementById('view-'+t).classList.add('hidden');
-            });
-            // Show selected
+            ['inventory', 'staff', 'audits'].forEach(t => document.getElementById('view-'+t).classList.add('hidden'));
             document.getElementById('view-'+tabName).classList.remove('hidden');
-            
-            // Update buttons
             document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active'));
             event.target.classList.add('active');
+        }
+
+        // --- IMPORT LOGIC (NEW FEATURES) ---
+        function toggleImport() {
+            const s = document.getElementById('importSection');
+            const f = document.getElementById('singleEntryForm');
+            s.classList.toggle('hidden'); f.classList.toggle('hidden');
+        }
+
+        function processExcelFile() {
+            const file = document.getElementById('excelFile').files[0];
+            if(!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                globalWorkbook = XLSX.read(new Uint8Array(e.target.result), {type: 'array'});
+                const sheetSelect = document.getElementById('sheetSelect');
+                sheetSelect.innerHTML = "";
+                globalWorkbook.SheetNames.forEach(name => sheetSelect.innerHTML += `<option value="${name}">${name}</option>`);
+                document.getElementById('sheetSection').classList.remove('hidden');
+                loadSelectedSheet();
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        function loadSelectedSheet() {
+            const sheet = globalWorkbook.Sheets[document.getElementById('sheetSelect').value];
+            currentSheetData = XLSX.utils.sheet_to_json(sheet, {header: 1});
+            if(currentSheetData.length > 0) {
+                populateColumnSelects(currentSheetData[0]); 
+                document.getElementById('columnMapping').classList.remove('hidden');
+            } else { alert("Sheet empty"); }
+        }
+
+        function populateColumnSelects(headers) {
+            const selects = ['colBrand', 'colModel', 'colSpecs', 'colRRP'];
+            selects.forEach(id => {
+                const sel = document.getElementById(id);
+                sel.innerHTML = '<option value="-1">Select</option>';
+                headers.forEach((h, index) => sel.innerHTML += `<option value="${index}">${h || `Col ${index+1}`}</option>`);
+            });
+        }
+
+        // HELPER: Parse Row Ranges (e.g. "4-10, 15")
+        function getRowIndices(rangeStr, maxRows) {
+            if(!rangeStr) return Array.from({length: maxRows}, (_, i) => i); // All rows if blank
+            const indices = new Set();
+            rangeStr.split(',').forEach(part => {
+                const bounds = part.trim().split('-').map(Number);
+                if (bounds.length === 2 && !isNaN(bounds[0]) && !isNaN(bounds[1])) {
+                    for(let i = bounds[0]; i <= bounds[1]; i++) indices.add(i - 1); // 0-based
+                } else if (!isNaN(bounds[0])) {
+                    indices.add(bounds[0] - 1);
+                }
+            });
+            return Array.from(indices).filter(i => i >= 0 && i < maxRows);
+        }
+
+        async function runImport() {
+            const brandIdx = parseInt(document.getElementById('colBrand').value);
+            const modelIdx = parseInt(document.getElementById('colModel').value);
+            const specsIdx = parseInt(document.getElementById('colSpecs').value);
+            const rrpIdx = parseInt(document.getElementById('colRRP').value);
+            const typeId = document.getElementById('importTypeSelect').value;
+            const typeName = document.getElementById('importTypeSelect').options[document.getElementById('importTypeSelect').selectedIndex].text;
+            const rangeStr = document.getElementById('rowRanges').value;
+
+            if(modelIdx === -1 || rrpIdx === -1) return alert("Model/Price needed");
+
+            const btn = document.querySelector('#importSection button.btn-success');
+            const originalText = btn.innerText;
+            btn.innerText = `Processing...`; btn.disabled = true;
+
+            // Get selected indices
+            const indicesToProcess = getRowIndices(rangeStr, currentSheetData.length);
+            
+            let count = 0;
+            let overwritten = 0;
+
+            for(let i of indicesToProcess) {
+                const row = currentSheetData[i];
+                if(!row || row.length === 0) continue;
+
+                const brand = brandIdx !== -1 && row[brandIdx] ? row[brandIdx] : "";
+                const model = row[modelIdx] ? row[modelIdx] : "";
+                let specsStr = "";
+                let specsRaw = (specsIdx !== -1 && row[specsIdx]) ? String(row[specsIdx]).trim() : "";
+                if (specsRaw && specsRaw !== "-" && specsRaw !== "0") specsStr = `(${specsRaw})`;
+                
+                const finalName = `${brand} ${model} ${specsStr}`.replace(/\s+/g, ' ').trim();
+                let basePrice = parseFloat(String(row[rrpIdx]).replace(/[^0-9.]/g, '')) || 0;
+
+                if(finalName) {
+                    // 1. Check for Duplicate and Delete
+                    const existing = allInventory.find(p => p.model === finalName);
+                    if(existing) {
+                        await fetch(`${API_URL}/phones/${existing.id}`, { method: 'DELETE', headers: { 'admin-secret': secretKey } });
+                        overwritten++;
+                    }
+
+                    // 2. Auto Calculate Fees
+                    const lcd = getLcdCharge(basePrice, typeName);
+                    const admin = 50;
+                    const stamp = getStampingFee(basePrice + lcd + admin);
+                    const finalRrp = basePrice + lcd + admin + stamp;
+
+                    // 3. Insert New
+                    await fetch(`${API_URL}/phones`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'admin-secret': secretKey },
+                        body: JSON.stringify({ 
+                            model: finalName, 
+                            rrp: finalRrp.toFixed(2), 
+                            type_id: typeId, 
+                            base_price: basePrice,
+                            lcd_amt: lcd,
+                            aeon_rate: admin,
+                            stamping_rate: stamp
+                        })
+                    });
+                    count++;
+                }
+            }
+            alert(`Imported ${count} items! (${overwritten} overwritten)`);
+            btn.disabled = false; btn.innerText = originalText;
+            loadPhones();
+        }
+
+        // --- PRICING HELPERS ---
+        function getLcdCharge(price, typeName) {
+            const lowerType = (typeName || "").toLowerCase();
+            if (lowerType.includes('laptop') || lowerType.includes('ipad')) return 1200;
+            if (price >= 300 && price <= 1000) return 359;
+            if (price > 1000 && price <= 2500) return 499;
+            if (price > 2500 && price <= 3500) return 599;
+            if (price > 3500 && price <= 5000) return 799;
+            if (price > 5000) return 899;
+            return 0; 
+        }
+
+        function getStampingFee(total) {
+            const fee = total * 0.005;
+            return Math.ceil(fee / 5) * 5;
         }
 
         // --- STAFF LOGIC ---
@@ -244,12 +402,10 @@
                 
                 users.forEach(u => {
                     if(u.role === 'admin') return; 
-                    const name = u.name || 'Unknown';
-                    const branch = u.branch ? `(${u.branch})` : '';
                     list.innerHTML += `
                         <div class="staff-item">
                             <div>
-                                <b>${name}</b> ${branch} <br>
+                                <b>${u.name || 'Unknown'}</b> ${u.branch ? '('+u.branch+')' : ''} <br>
                                 <span style="color:#666; font-size:0.85em;">ID: ${u.username}</span>
                             </div>
                             <div style="display:flex; gap:5px;">
@@ -292,16 +448,12 @@
         }
 
         // --- AUDIT LOGIC ---
-        let loadedAudits = []; // Store audits to access details later
-
         async function loadAudits() {
             try {
                 const res = await fetch(`${API_URL}/audits`, { headers: { 'admin-secret': secretKey } });
                 loadedAudits = await res.json();
                 const list = document.getElementById('auditList');
-                
                 if(loadedAudits.length === 0) { list.innerHTML = "<tr><td colspan='6' style='text-align:center;'>No audits found.</td></tr>"; return; }
-                
                 list.innerHTML = loadedAudits.map(a => `
                     <tr>
                         <td>${new Date(a.date_received).toLocaleDateString()}</td>
@@ -309,7 +461,7 @@
                         <td>${a.model} <br> <small>${a.storage_color || ''}</small></td>
                         <td>${a.imei || '-'}</td>
                         <td><b>${a.grade || '-'}</b></td>
-                        <td><button class="btn-primary" onclick="viewAuditDetails(${a.id})" style="padding:4px 8px; font-size:0.8rem;">View Full</button></td>
+                        <td><button class="btn-success" onclick="viewAuditDetails(${a.id})" style="padding:4px 8px; font-size:0.8rem;">View</button></td>
                     </tr>
                 `).join('');
             } catch(e) { console.error(e); }
@@ -318,86 +470,31 @@
         function viewAuditDetails(id) {
             const audit = loadedAudits.find(a => a.id === id);
             if (!audit) return;
-
-            const fields = {
-                "Model": audit.model,
-                "Storage/Color": audit.storage_color,
-                "Serial Number": audit.serial_number,
-                "IMEI": audit.imei,
-                "iCloud Lock": audit.icloud_lock,
-                "Device Erased": audit.device_erased,
-                "MDM Lock": audit.mdm_lock,
-                "IMEI Status": audit.imei_status,
-                "SIM Lock": audit.sim_lock,
-                "Battery Health": audit.battery_health + "%",
-                "Charging": audit.charging_test,
-                "Screen": audit.screen_condition,
-                "Back Glass": audit.back_glass,
-                "Frame": audit.frame_condition,
-                "Biometrics": audit.biometrics,
-                "Cameras": audit.camera_condition,
-                "Audio": audit.audio_condition,
-                "Connectivity": audit.connectivity,
-                "Non-Genuine": audit.non_genuine_parts,
-                "Accessories": audit.accessories,
-                "Grade": audit.grade,
-                "Remarks": audit.remarks
-            };
-
+            const fields = { "Model": audit.model, "Color": audit.storage_color, "IMEI": audit.imei, "Grade": audit.grade, "Battery": audit.battery_health, "Remarks": audit.remarks, "Screen": audit.screen_condition, "Body": audit.frame_condition }; // Add more fields as needed
             let html = "";
             for (const [key, val] of Object.entries(fields)) {
-                // Highlight "Not OK" or issues in red for easy spotting
-                const color = (val === 'Not OK' || val === 'Fail' || val === 'Present' || val === 'Blocked') ? 'color:red; font-weight:bold;' : '';
-                html += `
-                    <div style="border-bottom:1px solid #f0f0f0; padding-bottom:5px;">
-                        <span style="color:#888; display:block; font-size:0.8rem;">${key}</span>
-                        <span style="color:#333; ${color}">${val || '-'}</span>
-                    </div>
-                `;
+                html += `<div style="border-bottom:1px solid #eee; padding:5px;"><b style="color:#666;">${key}:</b> ${val || '-'}</div>`;
             }
-
             document.getElementById('auditModalBody').innerHTML = html;
             document.getElementById('auditModal').classList.remove('hidden');
         }
+        function closeAuditModal() { document.getElementById('auditModal').classList.add('hidden'); }
 
-        function closeAuditModal() {
-            document.getElementById('auditModal').classList.add('hidden');
-        }
-
-        // --- INVENTORY LOGIC (Keep existing functions) ---
-        function getLcdCharge(price, typeName) {
-            const lowerType = (typeName || "").toLowerCase();
-            if (lowerType.includes('laptop') || lowerType.includes('ipad')) return 1200;
-            if (price >= 300 && price <= 1000) return 359;
-            if (price > 1000 && price <= 2500) return 499;
-            if (price > 2500 && price <= 3500) return 599;
-            if (price > 3500 && price <= 5000) return 799;
-            if (price > 5000) return 899;
-            return 0; 
-        }
-
+        // --- INVENTORY LOGIC ---
         function performAutoCalc() {
             const base = parseFloat(document.getElementById('basePrice').value) || 0;
-            const typeSel = document.getElementById('typeSelect');
-            const typeName = typeSel.options[typeSel.selectedIndex]?.text || "";
-            
-            const lcd = getLcdCharge(base, typeName);
-            document.getElementById('lcdAmt').value = lcd;
+            const typeName = document.getElementById('typeSelect').options[document.getElementById('typeSelect').selectedIndex]?.text || "";
+            document.getElementById('lcdAmt').value = getLcdCharge(base, typeName);
             
             let admin = parseFloat(document.getElementById('aeonCharge').value);
             if (isNaN(admin) || admin === 0) { admin = 50; document.getElementById('aeonCharge').value = 50; }
             
-            const stamp = Math.ceil(((base + lcd) * 0.005) / 5) * 5;
-            document.getElementById('stampFee').value = stamp;
+            document.getElementById('stampFee').value = getStampingFee(base + parseFloat(document.getElementById('lcdAmt').value) + admin);
             calcTotal();
         }
 
         function calcTotal() {
-            const base = parseFloat(document.getElementById('basePrice').value) || 0;
-            const lcd = parseFloat(document.getElementById('lcdAmt').value) || 0;
-            const admin = parseFloat(document.getElementById('aeonCharge').value) || 0;
-            const stamp = parseFloat(document.getElementById('stampFee').value) || 0;
-            const total = base + lcd + admin + stamp;
+            const total = (parseFloat(document.getElementById('basePrice').value)||0) + (parseFloat(document.getElementById('lcdAmt').value)||0) + (parseFloat(document.getElementById('aeonCharge').value)||0) + (parseFloat(document.getElementById('stampFee').value)||0);
             document.getElementById('displayTotal').innerText = `RM ${total.toFixed(2)}`;
             return total;
         }
@@ -408,9 +505,8 @@
                 const types = await res.json();
                 const selects = [document.getElementById('typeSelect'), document.getElementById('importTypeSelect'), document.getElementById('filterType')];
                 selects.forEach(sel => {
-                    if (sel.id === 'filterType') sel.innerHTML = '<option value="all">All</option>';
-                    else sel.innerHTML = "";
-                    if(Array.isArray(types)) types.forEach(t => sel.innerHTML += `<option value="${t.id}">${t.name}</option>`);
+                    if (sel.id === 'filterType') sel.innerHTML = '<option value="all">All</option>'; else sel.innerHTML = "";
+                    types.forEach(t => sel.innerHTML += `<option value="${t.id}">${t.name}</option>`);
                 });
             } catch (e) { console.error(e); }
         }
@@ -419,12 +515,11 @@
             try {
                 const res = await fetch(`${API_URL}/phones`);
                 const data = await res.json();
-                if(data.error) { document.getElementById('phoneList').innerHTML = "Error"; return; }
-                allInventory = Array.isArray(data) ? data : [];
+                if(data.error) return;
+                allInventory = data;
                 const list = document.getElementById('phoneList');
                 list.innerHTML = "";
-                
-                allInventory.forEach(p => {
+                data.forEach(p => {
                     const div = document.createElement('div');
                     div.className = "phone-item";
                     div.setAttribute('data-price', p.rrp);
@@ -433,12 +528,12 @@
                     div.innerHTML = `
                         <input type="checkbox" class="item-checkbox" value="${p.id}" onchange="toggleItem(${p.id})" ${checked}>
                         <div style="flex-grow:1;">
-                            <b>${p.model}</b> <span style="background:#eee; padding:2px 6px; border-radius:4px; font-size:0.8rem;">${p.type_name || ''}</span>
-                            <div style="font-size:0.8rem; color:#666;">Base: ${p.base_price} | LCD: ${p.lcd_amt} | Total: RM ${p.rrp}</div>
+                            <b>${p.model}</b> <span style="background:#eee; padding:2px 6px; font-size:0.8rem;">${p.type_name || ''}</span>
+                            <div style="font-size:0.8rem; color:#666;">Base: ${p.base_price} | Total: RM ${p.rrp}</div>
                         </div>
                         <div style="display:flex; gap:5px;">
                             <button class="btn-edit" onclick="startEdit(${p.id}, '${p.model}', ${p.type_id}, ${p.base_price}, ${p.lcd_amt}, ${p.aeon_rate}, ${p.stamping_rate})"><i class="fas fa-edit"></i></button>
-                            <button class="btn-delete" onclick="deletePhone(${p.id})"><i class="fas fa-trash"></i></button>
+                            <button class="btn-delete" onclick="deletePhone(${p.id})"><i class="fas fa-trash-alt"></i></button>
                         </div>`;
                     list.appendChild(div);
                 });
@@ -448,79 +543,78 @@
 
         async function savePhone() {
             const id = document.getElementById('editId').value;
-            const type_id = document.getElementById('typeSelect').value;
-            const model = document.getElementById('modelName').value;
-            
-            const base = parseFloat(document.getElementById('basePrice').value) || 0;
-            const lcd = parseFloat(document.getElementById('lcdAmt').value) || 0;
-            const admin = parseFloat(document.getElementById('aeonCharge').value) || 0;
-            const stamp = parseFloat(document.getElementById('stampFee').value) || 0;
-            const rrp = calcTotal(); 
-
-            if(!model || rrp <= 0) return alert("Please fill in fields correctly");
-
             const method = id ? 'PUT' : 'POST';
             const url = id ? `${API_URL}/phones/${id}` : `${API_URL}/phones`;
-
-            const res = await fetch(url, {
+            await fetch(url, {
                 method: method,
                 headers: { 'Content-Type': 'application/json', 'admin-secret': secretKey },
-                body: JSON.stringify({ 
-                    model, rrp, type_id, 
-                    base_price: base, lcd_amt: lcd, aeon_rate: admin, stamping_rate: stamp 
+                body: JSON.stringify({
+                    model: document.getElementById('modelName').value,
+                    rrp: calcTotal(),
+                    type_id: document.getElementById('typeSelect').value,
+                    base_price: parseFloat(document.getElementById('basePrice').value)||0,
+                    lcd_amt: parseFloat(document.getElementById('lcdAmt').value)||0,
+                    aeon_rate: parseFloat(document.getElementById('aeonCharge').value)||0,
+                    stamping_rate: parseFloat(document.getElementById('stampFee').value)||0
                 })
             });
-            
-            if((await res.json()).success) { alert(id ? "Updated!" : "Added!"); resetForm(); loadPhones(); }
-            else { alert("Failed."); logout(); }
+            alert("Saved!"); resetForm(); loadPhones();
         }
 
         async function deletePhone(id) {
-            if(!confirm("Delete?")) return;
-            const res = await fetch(`${API_URL}/phones/${id}`, { method: 'DELETE', headers: { 'admin-secret': secretKey } });
-            if(res.ok) loadPhones();
+            if(confirm("Delete?")) { await fetch(`${API_URL}/phones/${id}`, { method: 'DELETE', headers: { 'admin-secret': secretKey } }); loadPhones(); }
         }
 
-        function startEdit(id, model, typeId, base, lcd, admin, stamp) {
-            document.getElementById('formTitle').innerHTML = `<i class="fas fa-edit"></i> Edit Item`;
-            document.getElementById('saveBtn').innerHTML = `<i class="fas fa-save"></i> Update`;
-            document.getElementById('cancelBtn').classList.remove('hidden');
-            document.getElementById('importSection').classList.add('hidden');
-            document.getElementById('singleEntryForm').classList.remove('hidden');
-            
+        function startEdit(id, model, type, base, lcd, admin, stamp) {
             document.getElementById('editId').value = id;
             document.getElementById('modelName').value = model;
-            document.getElementById('basePrice').value = base || 0;
-            document.getElementById('lcdAmt').value = lcd || 0;
-            document.getElementById('aeonCharge').value = admin || 0;
-            document.getElementById('stampFee').value = stamp || 0;
-            
+            document.getElementById('typeSelect').value = type;
+            document.getElementById('basePrice').value = base;
+            document.getElementById('lcdAmt').value = lcd;
+            document.getElementById('aeonCharge').value = admin;
+            document.getElementById('stampFee').value = stamp;
+            document.getElementById('saveBtn').innerText = "Update";
+            document.getElementById('cancelBtn').classList.remove('hidden');
             calcTotal();
-            if(typeId) document.getElementById('typeSelect').value = typeId;
             window.scrollTo(0,0);
         }
 
         function resetForm() {
-            document.getElementById('formTitle').innerHTML = `<i class="fas fa-plus-circle"></i> Add New Item`;
-            document.getElementById('saveBtn').innerHTML = `<i class="fas fa-save"></i> Add to Database`;
-            document.getElementById('cancelBtn').classList.add('hidden');
             document.getElementById('editId').value = "";
             document.getElementById('modelName').value = "";
             document.getElementById('basePrice').value = "";
             document.getElementById('lcdAmt').value = "";
-            document.getElementById('aeonCharge').value = "50"; // Default
             document.getElementById('stampFee').value = "";
-            calcTotal();
+            document.getElementById('saveBtn').innerText = "Add to Database";
+            document.getElementById('cancelBtn').classList.add('hidden');
+            document.getElementById('displayTotal').innerText = "RM 0.00";
         }
 
-        // --- BULK LOGIC & IMPORT ---
+        function filterInventory() {
+            const q = document.getElementById('inventorySearch').value.toLowerCase();
+            const type = document.getElementById('filterType').value;
+            const min = parseFloat(document.getElementById('filterMin').value) || 0;
+            const max = parseFloat(document.getElementById('filterMax').value) || Infinity;
+            document.querySelectorAll('.phone-item').forEach(item => {
+                const text = item.querySelector('b').innerText.toLowerCase();
+                const price = parseFloat(item.getAttribute('data-price')) || 0;
+                const iType = item.getAttribute('data-type');
+                const visible = text.includes(q) && (type === 'all' || iType === type) && (price >= min && price <= max);
+                item.style.display = visible ? "flex" : "none";
+            });
+        }
+
+        function addType() {
+            const name = document.getElementById('newTypeName').value;
+            if(name) fetch(`${API_URL}/types`, { method: 'POST', headers: {'Content-Type':'application/json', 'admin-secret':secretKey}, body: JSON.stringify({name}) }).then(()=>{ document.getElementById('newTypeName').value=""; loadTypes(); });
+        }
+
         function toggleSelectAll() {
             const check = document.getElementById('selectAllBox').checked;
             document.querySelectorAll('.item-checkbox').forEach(box => {
                 if(box.closest('.phone-item').style.display !== 'none') {
                     box.checked = check;
-                    if(check) selectedIds.add(parseInt(box.value));
-                    else selectedIds.delete(parseInt(box.value));
+                    if(check) selectedIds.add(parseInt(box.value)); else selectedIds.delete(parseInt(box.value));
                 }
             });
             updateBulkBar();
@@ -539,154 +633,36 @@
 
         async function executeBulkDelete() {
             if(!confirm(`Delete ${selectedIds.size} items?`)) return;
-            for (let id of selectedIds) {
-                try { await fetch(`${API_URL}/phones/${id}`, { method: 'DELETE', headers: { 'admin-secret': secretKey } }); } 
-                catch(e) { console.error(e); }
-            }
+            for (let id of selectedIds) { try { await fetch(`${API_URL}/phones/${id}`, { method: 'DELETE', headers: { 'admin-secret': secretKey } }); } catch(e) {} }
             alert("Deleted."); selectedIds.clear(); updateBulkBar(); loadPhones();
         }
 
-        // --- IMPORT LOGIC ---
-        function toggleImport() {
-            const section = document.getElementById('importSection');
-            const single = document.getElementById('singleEntryForm');
-            if(section.classList.contains('hidden')) { section.classList.remove('hidden'); single.classList.add('hidden'); } 
-            else { section.classList.add('hidden'); single.classList.remove('hidden'); }
-        }
-
-        function processExcelFile() {
-            const file = document.getElementById('excelFile').files[0];
-            if(!file) return;
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                globalWorkbook = XLSX.read(new Uint8Array(e.target.result), {type: 'array'});
-                const sheetSelect = document.getElementById('sheetSelect');
-                sheetSelect.innerHTML = "";
-                globalWorkbook.SheetNames.forEach(name => sheetSelect.innerHTML += `<option value="${name}">${name}</option>`);
-                document.getElementById('sheetSection').classList.remove('hidden');
-                loadSelectedSheet();
-            };
-            reader.readAsArrayBuffer(file);
-        }
-
-        function loadSelectedSheet() {
-            const sheet = globalWorkbook.Sheets[document.getElementById('sheetSelect').value];
-            currentSheetData = XLSX.utils.sheet_to_json(sheet, {header: 1});
-            if(currentSheetData.length > 0) {
-                populateColumnSelects(currentSheetData[0]); 
-                document.getElementById('columnMapping').classList.remove('hidden');
-            } else { alert("Sheet empty"); }
-        }
-
-        function populateColumnSelects(headers) {
-            const selects = ['colBrand', 'colModel', 'colSpecs', 'colRRP'];
-            selects.forEach(id => {
-                const sel = document.getElementById(id);
-                sel.innerHTML = '<option value="-1">Select</option>';
-                headers.forEach((h, index) => sel.innerHTML += `<option value="${index}">${h || `Col ${index+1}`}</option>`);
-            });
-        }
-
-        async function runImport() {
-            const brandIdx = parseInt(document.getElementById('colBrand').value);
-            const modelIdx = parseInt(document.getElementById('colModel').value);
-            const specsIdx = parseInt(document.getElementById('colSpecs').value);
-            const rrpIdx = parseInt(document.getElementById('colRRP').value);
-            const typeId = document.getElementById('importTypeSelect').value;
+        async function applyAutoChargesToSelected() {
+            if(!confirm(`Auto-Calc for ${selectedIds.size} items?`)) return;
+            const btn = document.querySelector('.btn-purple');
+            btn.innerText = "Processing...";
+            const items = allInventory.filter(p => selectedIds.has(p.id));
             
-            let startRow = parseInt(document.getElementById('startRow').value);
-            const startIdx = isNaN(startRow) ? 1 : startRow - 1;
-            const endIdx = parseInt(document.getElementById('endRow').value) || currentSheetData.length;
-
-            if(modelIdx === -1 || rrpIdx === -1) return alert("Model/Price needed");
-
-            const btn = document.querySelector('#importSection button.btn-success');
-            btn.innerHTML = `Importing...`; btn.disabled = true;
-
-            let count = 0;
-            for(let i = startIdx; i < endIdx && i < currentSheetData.length; i++) {
-                const row = currentSheetData[i];
-                if(!row || row.length === 0) continue;
-
-                const brand = brandIdx !== -1 && row[brandIdx] ? row[brandIdx] : "";
-                const model = row[modelIdx] ? row[modelIdx] : "";
-                let specsStr = "";
-                let specsRaw = (specsIdx !== -1 && row[specsIdx]) ? String(row[specsIdx]).trim() : "";
-                if (specsRaw && specsRaw !== "-" && specsRaw !== "0") specsStr = `(${specsRaw})`;
-                
-                const finalName = `${brand} ${model} ${specsStr}`.replace(/\s+/g, ' ').trim();
-                let price = parseFloat(String(row[rrpIdx]).replace(/[^0-9.]/g, '')) || 0;
-
-                // Import sets Base Price = RRP initially. Charges are applied via Auto-Apply later.
-                if(finalName) {
-                    await fetch(`${API_URL}/phones`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json', 'admin-secret': secretKey },
-                        body: JSON.stringify({ 
-                            model: finalName, 
-                            rrp: price, 
-                            type_id: typeId, 
-                            base_price: price 
-                        })
-                    });
-                    count++;
-                }
+            for (let item of items) {
+                const base = parseFloat(item.base_price) || parseFloat(item.rrp) || 0;
+                const lcd = getLcdCharge(base, item.type_name);
+                const admin = 50;
+                const stamp = getStampingFee(base + lcd + admin);
+                const total = base + lcd + admin + stamp;
+                await fetch(`${API_URL}/phones/${item.id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json', 'admin-secret': secretKey },
+                    body: JSON.stringify({ model: item.model, rrp: total.toFixed(2), type_id: item.type_id, base_price: base, lcd_amt: lcd, aeon_rate: admin, stamping_rate: stamp })
+                });
             }
-            alert(`Imported ${count} items! Tip: Use 'Auto-Apply Charges' to set fees.`);
-            btn.disabled = false; btn.innerHTML = `<i class="fas fa-check"></i> Import Items`;
-            loadPhones();
+            alert("Done!"); btn.innerText = "Auto-Apply Logic"; selectedIds.clear(); updateBulkBar(); loadPhones();
         }
-
-        function addType() {
-            const name = document.getElementById('newTypeName').value;
-            if(!name) return;
-            fetch(`${API_URL}/types`, {
-                method: 'POST', headers: { 'Content-Type': 'application/json', 'admin-secret': secretKey },
-                body: JSON.stringify({ name })
-            }).then(() => {
-                document.getElementById('newTypeName').value = "";
-                loadTypes();
-            });
-        }
-
-        function filterInventory() {
-            const query = document.getElementById('inventorySearch').value.toLowerCase();
-            const type = document.getElementById('filterType').value;
-            const min = parseFloat(document.getElementById('filterMin').value) || 0;
-            const max = parseFloat(document.getElementById('filterMax').value) || Infinity;
-
-            document.querySelectorAll('.phone-item').forEach(item => {
-                const text = item.querySelector('b').innerText.toLowerCase();
-                const price = parseFloat(item.getAttribute('data-price')) || 0;
-                const itemType = item.getAttribute('data-type');
-
-                const matchText = text.includes(query);
-                const matchType = type === 'all' || itemType === type;
-                const matchPrice = price >= min && price <= max;
-
-                if(matchText && matchType && matchPrice) item.style.display = "flex";
-                else item.style.display = "none";
-            });
+        
+        async function applyAutoChargesToAll() {
+            if(!confirm("Auto-Calc ALL?")) return;
+            selectedIds = new Set(allInventory.map(p => p.id));
+            await applyAutoChargesToSelected();
         }
     </script>
-
-    <div id="auditModal" class="modal-overlay hidden">
-        <div class="modal-content" style="max-width:600px; max-height:80vh; overflow-y:auto;">
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; border-bottom:1px solid #eee; padding-bottom:10px;">
-                <h3 style="margin:0;"><i class="fas fa-mobile-alt"></i> Audit Details</h3>
-                <button onclick="closeAuditModal()" style="background:none; border:none; color:#666; font-size:1.2rem; cursor:pointer;">&times;</button>
-            </div>
-            <div id="auditModalBody" style="display:grid; grid-template-columns: 1fr 1fr; gap:15px; font-size:0.9rem;">
-                </div>
-            <div style="margin-top:20px; text-align:right;">
-                <button class="btn btn-primary" onclick="closeAuditModal()">Close</button>
-            </div>
-        </div>
-    </div>
 </body>
 </html>
-
-
-
-
-

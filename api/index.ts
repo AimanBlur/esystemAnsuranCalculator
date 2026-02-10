@@ -94,6 +94,39 @@ const app = new Elysia()
             } catch (e) { return []; }
         })
 
+        .put('/users/:id/password', async ({ params, body }) => {
+            if (!sql) return { success: false };
+            await sql`UPDATE users SET password = ${body.password} WHERE id = ${params.id}`;
+            return { success: true };
+        }, { body: t.Object({ password: t.String() }) })
+
+        // --- REQUESTS SYSTEM ---
+        
+        // Get Requests (Sent & Received)
+        .get('/requests/:userId', async ({ params }) => {
+            if (!sql) return { received: [], sent: [] };
+            const received = await sql`SELECT * FROM requests WHERE receiver_id = ${params.userId} ORDER BY created_at DESC`;
+            const sent = await sql`SELECT r.*, u.name as receiver_name FROM requests r LEFT JOIN users u ON r.receiver_id = u.id WHERE sender_id = ${params.userId} ORDER BY created_at DESC`;
+            return { received: [...received], sent: [...sent] };
+        })
+
+        // Create Request
+        .post('/requests', async ({ body }) => {
+            if (!sql) return { success: false };
+            await sql`
+                INSERT INTO requests (sender_id, sender_name, receiver_id, content) 
+                VALUES (${body.sender_id}, ${body.sender_name}, ${body.receiver_id}, ${body.content})
+            `;
+            return { success: true };
+        }, { body: t.Object({ sender_id: t.Number(), sender_name: t.String(), receiver_id: t.Number(), content: t.String() }) })
+
+        // Update Request Status
+        .put('/requests/:id/status', async ({ params, body }) => {
+            if (!sql) return { success: false };
+            await sql`UPDATE requests SET status = ${body.status} WHERE id = ${params.id}`;
+            return { success: true };
+        }, { body: t.Object({ status: t.String() }) })
+
         // CREATE STAFF (Updated to accept name and branch)
         .post('/users', async ({ body, headers, set }) => {
             if (!sql) return { success: false, message: "DB Error" };

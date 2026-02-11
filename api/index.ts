@@ -3,21 +3,26 @@ import { cors } from '@elysiajs/cors';
 import nodemailer from 'nodemailer';
 import postgres from 'postgres';
 
-let sql: any;
-try {
+// For Vercel serverless, we need to create connection per request or use connection pooling
+const getDb = () => {
     if (!process.env.DATABASE_URL) {
-        console.error("❌ ERROR: DATABASE_URL is missing!");
-    } else {
-        console.log("🔌 Connecting to database...");
-        sql = postgres(process.env.DATABASE_URL, { 
-            ssl: 'require', 
-            prepare: false 
-        });
-        console.log("✅ Database connected successfully");
+        console.error("❌ DATABASE_URL missing");
+        return null;
     }
-} catch (err) {
-    console.error("❌ Database Connection Failed:", err);
-}
+    
+    try {
+        return postgres(process.env.DATABASE_URL, { 
+            ssl: 'require',
+            prepare: false,
+            max: 1, // Serverless needs minimal connections
+            idle_timeout: 20,
+            connect_timeout: 10
+        });
+    } catch (err) {
+        console.error("❌ DB Connection Error:", err);
+        return null;
+    }
+};
 
 const transporter = nodemailer.createTransport({
     host: process.env.SMTP_HOST,
@@ -34,6 +39,7 @@ const app = new Elysia()
     .group('/api', app => app
 
         .post('/audits', async ({ body, set }) => {
+            const sql = getDb();
             if (!sql) { 
                 console.error("Audit POST - DB not connected");
                 set.status = 500; 
@@ -56,32 +62,39 @@ const app = new Elysia()
                         ${b.grade}, ${b.remarks}
                     )
                 `;
+                await sql.end();
                 return { success: true };
             } catch (e: any) { 
                 console.error("Audit POST error:", e);
+                await sql.end();
                 return { success: false, message: e.message }; 
             }
         })
 
         .get('/audits', async ({ headers, set }) => {
+            const sql = getDb();
             if (!sql) {
                 console.error("Audits GET - DB not connected");
                 return [];
             }
             if (headers['admin-secret'] !== process.env.ADMIN_PASSWORD) { 
                 set.status = 401; 
+                await sql.end();
                 return []; 
             }
             try {
                 const audits = await sql`SELECT * FROM audits ORDER BY created_at DESC LIMIT 50`;
+                await sql.end();
                 return [...audits];
             } catch (e) { 
                 console.error("Audits GET error:", e);
+                await sql.end();
                 return []; 
             }
         })
 
         .post('/login', async ({ body, set }) => {
+            const sql = getDb();
             if (!sql) { 
                 console.error("Login - DB not connected");
                 set.status = 500; 
@@ -89,6 +102,8 @@ const app = new Elysia()
             }
             try {
                 const users = await sql`SELECT * FROM users WHERE username = ${body.username} AND password = ${body.password}`;
+                await sql.end();
+                
                 if (users.length > 0) {
                     return { 
                         success: true, 
@@ -103,12 +118,13 @@ const app = new Elysia()
                 return { success: false, message: "Invalid ID or Password" };
             } catch (e: any) { 
                 console.error("Login error:", e);
+                await sql.end();
                 return { success: false, message: e.message }; 
             }
         }, { body: t.Object({ username: t.String(), password: t.String() }) })
 
-        // GET USERS - PUBLIC (for request dropdown)
         .get('/users', async ({ set }) => {
+            const sql = getDb();
             if (!sql) {
                 console.error("Users GET - DB not connected");
                 set.status = 500;
@@ -116,48 +132,55 @@ const app = new Elysia()
             }
             try {
                 const users = await sql`SELECT id, name, branch FROM users ORDER BY name ASC`;
+                await sql.end();
                 return [...users];
             } catch (e) { 
                 console.error("Users GET error:", e);
+                await sql.end();
                 set.status = 500;
                 return []; 
             }
         })
 
-        // GET ALL USERS (Admin Only)
         .get('/users/admin', async ({ headers, set }) => {
+            const sql = getDb();
             if (!sql) return [];
             if (headers['admin-secret'] !== process.env.ADMIN_PASSWORD) { 
-                set.status = 401; 
+                set.status = 401;
+                await sql.end();
                 return []; 
             }
             try {
                 const users = await sql`SELECT id, username, role, name, branch FROM users ORDER BY id ASC`;
+                await sql.end();
                 return [...users];
             } catch (e) { 
                 console.error("Users Admin GET error:", e);
+                await sql.end();
                 return []; 
             }
         })
 
         .put('/users/:id/password', async ({ params, body, set }) => {
+            const sql = getDb();
             if (!sql) {
                 set.status = 500;
                 return { success: false };
             }
             try {
                 await sql`UPDATE users SET password = ${body.password} WHERE id = ${params.id}`;
+                await sql.end();
                 return { success: true };
             } catch (e: any) {
                 console.error("Password update error:", e);
+                await sql.end();
                 set.status = 500;
                 return { success: false, message: e.message };
             }
         }, { body: t.Object({ password: t.String() }) })
 
-        // --- REQUESTS SYSTEM ---
-        
         .get('/requests/:userId', async ({ params, set }) => {
+            const sql = getDb();
             if (!sql) {
                 console.error("Requests GET - DB not connected");
                 set.status = 500;
@@ -166,29 +189,35 @@ const app = new Elysia()
             try {
                 const received = await sql`SELECT * FROM requests WHERE receiver_id = ${params.userId} ORDER BY created_at DESC`;
                 const sent = await sql`SELECT r.*, u.name as receiver_name FROM requests r LEFT JOIN users u ON r.receiver_id = u.id WHERE sender_id = ${params.userId} ORDER BY created_at DESC`;
+                await sql.end();
                 return { received: [...received], sent: [...sent] };
             } catch (e) {
                 console.error("Requests GET error:", e);
+                await sql.end();
                 set.status = 500;
                 return { received: [], sent: [] };
             }
         })
 
         .get('/requests/:userId/pending-count', async ({ params, set }) => {
+            const sql = getDb();
             if (!sql) {
                 set.status = 500;
                 return { count: 0 };
             }
             try {
                 const result = await sql`SELECT COUNT(*) as count FROM requests WHERE receiver_id = ${params.userId} AND status = 'pending'`;
+                await sql.end();
                 return { count: parseInt(result[0]?.count) || 0 };
             } catch (e) {
                 console.error("Pending count error:", e);
+                await sql.end();
                 return { count: 0 };
             }
         })
 
         .post('/requests', async ({ body, set }) => {
+            const sql = getDb();
             if (!sql) {
                 set.status = 500;
                 return { success: false };
@@ -198,36 +227,43 @@ const app = new Elysia()
                     INSERT INTO requests (sender_id, sender_name, receiver_id, content) 
                     VALUES (${body.sender_id}, ${body.sender_name}, ${body.receiver_id}, ${body.content})
                 `;
+                await sql.end();
                 return { success: true };
             } catch (e: any) {
                 console.error("Request POST error:", e);
+                await sql.end();
                 set.status = 500;
                 return { success: false, message: e.message };
             }
         }, { body: t.Object({ sender_id: t.Number(), sender_name: t.String(), receiver_id: t.Number(), content: t.String() }) })
 
         .put('/requests/:id/status', async ({ params, body, set }) => {
+            const sql = getDb();
             if (!sql) {
                 set.status = 500;
                 return { success: false };
             }
             try {
                 await sql`UPDATE requests SET status = ${body.status} WHERE id = ${params.id}`;
+                await sql.end();
                 return { success: true };
             } catch (e: any) {
                 console.error("Request status update error:", e);
+                await sql.end();
                 set.status = 500;
                 return { success: false, message: e.message };
             }
         }, { body: t.Object({ status: t.String() }) })
 
         .post('/users', async ({ body, headers, set }) => {
+            const sql = getDb();
             if (!sql) {
                 set.status = 500;
                 return { success: false, message: "DB Error" };
             }
             if (headers['admin-secret'] !== process.env.ADMIN_PASSWORD) { 
-                set.status = 401; 
+                set.status = 401;
+                await sql.end();
                 return { success: false }; 
             }
             try {
@@ -236,33 +272,40 @@ const app = new Elysia()
                     INSERT INTO users (username, password, role, name, branch) 
                     VALUES (${b.username}, ${b.password}, 'staff', ${b.name}, ${b.branch})
                 `;
+                await sql.end();
                 return { success: true };
             } catch (e: any) { 
                 console.error("User creation error:", e);
+                await sql.end();
                 return { success: false, message: e.message }; 
             }
         })
 
         .delete('/users/:id', async ({ params, headers, set }) => {
+            const sql = getDb();
             if (!sql) {
                 set.status = 500;
                 return { success: false };
             }
             if (headers['admin-secret'] !== process.env.ADMIN_PASSWORD) { 
-                set.status = 401; 
+                set.status = 401;
+                await sql.end();
                 return { success: false }; 
             }
             try {
                 await sql`DELETE FROM users WHERE id = ${params.id}`;
+                await sql.end();
                 return { success: true };
             } catch (e: any) {
                 console.error("User deletion error:", e);
+                await sql.end();
                 set.status = 500;
                 return { success: false, message: e.message };
             }
         })
 
         .put('/users/:id', async ({ params, body, headers, set }) => {
+            const sql = getDb();
             if (headers['admin-secret'] !== process.env.ADMIN_PASSWORD) { 
                 set.status = 401; 
                 return { success: false, message: "Unauthorized" }; 
@@ -275,15 +318,17 @@ const app = new Elysia()
             const b = body as any;
             try {
                 await sql`UPDATE users SET password = ${b.password} WHERE id = ${params.id}`;
+                await sql.end();
                 return { success: true };
             } catch (e: any) { 
                 console.error("User update error:", e);
+                await sql.end();
                 return { success: false, message: e.message }; 
             }
         }, { body: t.Object({ password: t.String() }) })
         
-        // ROUTE 1: Get All Phones
         .get('/phones', async ({ set }) => {
+            const sql = getDb();
             if (!sql) { 
                 console.error("Phones GET - DB not connected");
                 set.status = 500; 
@@ -296,16 +341,18 @@ const app = new Elysia()
                     LEFT JOIN types ON phones.type_id = types.id 
                     ORDER BY phones.id DESC
                 `;
+                await sql.end();
                 return [...phones];
             } catch (error: any) { 
                 console.error("Phones GET error:", error);
+                await sql.end();
                 set.status = 500;
                 return { error: error.message }; 
             }
         })
 
-        // ROUTE 2: Get All Types
         .get('/types', async ({ set }) => {
+            const sql = getDb();
             if (!sql) {
                 console.error("Types GET - DB not connected");
                 set.status = 500;
@@ -313,39 +360,47 @@ const app = new Elysia()
             }
             try {
                 const types = await sql`SELECT * FROM types ORDER BY name ASC`;
+                await sql.end();
                 return [...types]; 
             } catch (error: any) { 
                 console.error("Types GET error:", error);
+                await sql.end();
                 set.status = 500;
                 return []; 
             }
         })
 
         .post('/types', async ({ body, headers, set }) => {
+            const sql = getDb();
             if (!sql) {
                 set.status = 500;
                 return { success: false, message: "DB Error" };
             }
             if (headers['admin-secret'] !== process.env.ADMIN_PASSWORD) {
-                set.status = 401; 
+                set.status = 401;
+                await sql.end();
                 return { success: false };
             }
             try {
                 await sql`INSERT INTO types (name) VALUES (${(body as any).name})`;
+                await sql.end();
                 return { success: true };
             } catch (e: any) { 
                 console.error("Type creation error:", e);
+                await sql.end();
                 return { success: false, message: e.message }; 
             }
         }, { body: t.Object({ name: t.String() }) })
 
         .post('/phones', async ({ body, headers, set }) => {
+            const sql = getDb();
             if (!sql) { 
                 set.status = 500; 
                 return { success: false, message: "DB Error" }; 
             }
             if (headers['admin-secret'] !== process.env.ADMIN_PASSWORD) { 
-                set.status = 401; 
+                set.status = 401;
+                await sql.end();
                 return { success: false }; 
             }
             
@@ -363,20 +418,24 @@ const app = new Elysia()
                         ${b.stamping_rate || 0}
                     )
                 `;
+                await sql.end();
                 return { success: true };
             } catch (e: any) { 
                 console.error("Phone creation error:", e);
+                await sql.end();
                 return { success: false, message: e.message }; 
             }
         })    
         
         .put('/phones/:id', async ({ params, body, headers, set }) => {
+            const sql = getDb();
             if (!sql) {
                 set.status = 500;
                 return { success: false, message: "DB Error" };
             }
             if (headers['admin-secret'] !== process.env.ADMIN_PASSWORD) { 
-                set.status = 401; 
+                set.status = 401;
+                await sql.end();
                 return { success: false }; 
             }
             
@@ -394,29 +453,35 @@ const app = new Elysia()
                         stamping_rate = ${b.stamping_rate || 0}
                     WHERE id = ${params.id}
                 `;
+                await sql.end();
                 return { success: true };
             } catch (e: any) { 
                 console.error("Phone update error:", e);
+                await sql.end();
                 return { success: false, message: e.message }; 
             }
         })
 
         .delete('/phones/:id', async ({ params, headers, set }) => {
+            const sql = getDb();
             if (!sql) {
                 set.status = 500;
                 return { success: false, message: "DB not connected" };
             }
 
             if (headers['admin-secret'] !== process.env.ADMIN_PASSWORD) {
-                set.status = 401; 
+                set.status = 401;
+                await sql.end();
                 return { success: false, message: "Wrong Password" };
             }
 
             try {
                 await sql`DELETE FROM phones WHERE id = ${params.id}`;
+                await sql.end();
                 return { success: true };
             } catch (error: any) {
                 console.error("Phone deletion error:", error);
+                await sql.end();
                 set.status = 500;
                 return { success: false, message: error.message };
             }
@@ -510,9 +575,6 @@ const app = new Elysia()
                 salarySlip: t.File()
             })
         })
-    )
-    .listen(3000);
-
-console.log(`🦊 Elysia is running at ${app.server?.hostname}:${app.server?.port}`);
+    );
 
 export default app;

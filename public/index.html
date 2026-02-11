@@ -10,8 +10,8 @@
         :root { --primary: #0056b3; --light-blue: #e3f2fd; --white: #ffffff; --text: #333; --border: #ddd; }
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f0f2f5; margin: 0; padding: 0; color: var(--text); }
         
-        /* -- STRUCTURE UNCHANGED -- */
         header { background: var(--primary); color: white; padding: 15px; text-align: center; font-size: 1.25rem; font-weight: 600; display: flex; justify-content: space-between; align-items: center; }
+        .user-menu { cursor: pointer; display: flex; align-items: center; gap: 8px; position: relative; }
         .tabs { display: flex; background: white; position: sticky; top: 0; z-index: 100; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
         .tab-btn { flex: 1; padding: 15px; border: none; background: none; font-size: 1rem; cursor: pointer; color: #666; border-bottom: 3px solid transparent; }
         .tab-btn.active-tab { border-bottom: 3px solid var(--primary); color: var(--primary); font-weight: bold; background: #f8fbff; }
@@ -22,9 +22,11 @@
         input, select, textarea { width: 100%; padding: 12px; margin: 8px 0 16px; border: 1px solid var(--border); border-radius: 8px; box-sizing: border-box; font-size: 16px; }
         button { width: 100%; padding: 14px; border: none; border-radius: 8px; cursor: pointer; font-size: 1rem; font-weight: 600; transition: opacity 0.2s; }
         button:active { opacity: 0.8; }
+        button:disabled { opacity: 0.6; cursor: not-allowed; }
         .btn-primary { background: var(--primary); color: white; }
         .btn-secondary { background: var(--light-blue); color: var(--primary); margin-top: 10px; }
         .btn-danger { background: #ffebee; color: #c62828; width: auto; padding: 8px 12px; font-size: 0.9rem; }
+        .btn-success { background: #4caf50; color: white; width: auto; padding: 8px 16px; font-size: 0.9rem; margin-right: 8px; }
         .btn-copy { background: #e0e0e0; color: #333; width: auto; padding: 6px 12px; font-size: 0.8rem; margin-left: 10px; border-radius: 4px; }
         .results-box { background: #f8f9fa; border: 1px solid #e9ecef; border-radius: 8px; padding: 15px; margin-top: 20px; }
         .result-item { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid #eee; }
@@ -35,18 +37,24 @@
         .remark-box ul { margin: 5px 0 0 20px; padding: 0; }
         .remark-box li { margin-bottom: 4px; }
 
-        /* -- NEW LOGIN STYLES -- */
         #loginOverlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #0056b3; z-index: 9999; display: flex; justify-content: center; align-items: center; }
         .login-box { background: white; padding: 30px; border-radius: 15px; width: 85%; max-width: 350px; text-align: center; box-shadow: 0 10px 25px rgba(0,0,0,0.2); }
         .login-box h2 { margin-top: 0; color: var(--primary); }
 
         .audit-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
 
-        .dropdown { position:absolute; right:15px; top:60px; background:#fff; border:1px solid #ddd; border-radius:8px; display:none; z-index:1000; }
-        .dropdown.show { display:block; }
-        .dropdown-item { width:100%; padding:10px 15px; background:none; border:none; text-align:left; cursor:pointer; }
+        .dropdown { position: absolute; right: 15px; top: 60px; background: #fff; border: 1px solid #ddd; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); display: none; z-index: 1000; min-width: 180px; }
+        .dropdown.show { display: block; }
+        .dropdown-item { width: 100%; padding: 12px 15px; background: none; border: none; text-align: left; cursor: pointer; display: flex; align-items: center; gap: 10px; font-size: 0.95rem; }
+        .dropdown-item:hover { background: #f5f5f5; }
 
-        
+        .section-title { color: var(--primary); font-size: 1rem; margin: 20px 0 10px; border-bottom: 2px solid var(--light-blue); padding-bottom: 5px; }
+
+        .req-card { background: #f9f9f9; padding: 12px; border-radius: 8px; margin-bottom: 10px; border-left: 4px solid var(--primary); }
+        .req-status { display: inline-block; padding: 4px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: bold; margin-bottom: 8px; }
+        .status-pending { background: #fff3cd; color: #856404; }
+        .status-completed { background: #d4edda; color: #155724; }
+        .status-rejected { background: #f8d7da; color: #721c24; }
     </style>
 </head>
 <body>
@@ -55,9 +63,9 @@
         <div class="login-box">
             <h2><i class="fas fa-lock"></i> Staff Login</h2>
             <p>Please log in to access the system.</p>
-            <input type="text" id="staffUser" placeholder="User ID">
-            <input type="password" id="staffPass" placeholder="Password">
-            <button onclick="handleLogin()">Login</button>
+            <input type="text" id="staffUser" placeholder="User ID" autocomplete="username">
+            <input type="password" id="staffPass" placeholder="Password" autocomplete="current-password">
+            <button onclick="handleLogin()" id="loginBtn">Login</button>
             <p id="loginMsg" style="color:red; margin-top:10px; font-size:0.9rem;"></p>
         </div>
     </div>
@@ -74,6 +82,7 @@
                 <i class="fas fa-caret-down" style="font-size:0.8rem; margin-left:5px;"></i>
             </div>
             <div style="font-weight:bold;">Esystem Portal</div>
+            <div style="width: 100px;"></div> <!-- Spacer for centering -->
         </header>
 
         <div id="userDropdown" class="dropdown">
@@ -168,7 +177,7 @@
                             <div><label>MDM/Profile</label><select name="mdm_lock"><option>None</option><option>Present</option></select></div>
                             <div><label>IMEI Status</label><select name="imei_status"><option>Clean</option><option>Blocked</option></select></div>
                             <div><label>SIM Lock</label><select name="sim_lock"><option>Unlocked</option><option>Locked</option></select></div>
-                            <div><label>Batt Health (%)</label><input type="number" name="battery_health"></div>
+                            <div><label>Batt Health (%)</label><input type="number" name="battery_health" min="0" max="100"></div>
                         </div>
 
                         <label>Diagnostics Check</label>
@@ -211,13 +220,13 @@
                     <input type="text" id="nama" placeholder="Full Name (Nama Penuh)" required>
                     <input type="text" id="ic" placeholder="IC Number" required>
                     <textarea id="alamat" placeholder="Current Address" rows="3"></textarea>
-                    <input type="number" id="tahun_tinggal" placeholder="Years Staying (Tahun Tinggal)">
+                    <input type="number" id="tahun_tinggal" placeholder="Years Staying (Tahun Tinggal)" min="0">
                     <select id="jenis_rumah">
                         <option value="Sendiri">Own House (Rumah Sendiri)</option>
                         <option value="Sewa">Rented (Rumah Sewa)</option>
                     </select>
                     <input type="text" id="status" placeholder="Marital Status">
-                    <input type="number" id="anak" placeholder="No. of Children">
+                    <input type="number" id="anak" placeholder="No. of Children" min="0">
                     <input type="tel" id="hp" placeholder="Phone Number (H/P)" required>
                     <input type="email" id="email_user" placeholder="Email Address">
                     <input type="text" id="tarikh_gaji" placeholder="Salary Date (e.g., 28hb)">
@@ -225,7 +234,7 @@
                     <h3 class="section-title">Employment</h3>
                     <input type="text" id="syarikat" placeholder="Company Name">
                     <textarea id="alamat_kerja" placeholder="Company Address" rows="3"></textarea>
-                    <input type="number" id="tahun_kerja" placeholder="Years Working">
+                    <input type="number" id="tahun_kerja" placeholder="Years Working" min="0">
                     <input type="tel" id="no_pejabat" placeholder="Office Phone No.">
                     <input type="text" id="jawatan" placeholder="Position (Jawatan)">
 
@@ -276,10 +285,10 @@
             <div id="requests" class="tab-content">
                 <div class="card">
                     <h3><i class="fas fa-paper-plane"></i> Send Request</h3>
-                    <label>Request From:</label>
+                    <label>Request To:</label>
                     <select id="reqReceiver"><option>Loading users...</option></select>
                     <label>What do you need?</label>
-                    <textarea id="reqContent" rows="2"></textarea>
+                    <textarea id="reqContent" rows="2" placeholder="Describe your request..."></textarea>
                     <button class="btn-primary" onclick="sendRequest()">Send Request</button>
                 </div>
 
@@ -299,22 +308,34 @@
     <script>
         const API_URL = "/api";
         let allPhones = [];
+        let currentUser = null;
 
-        // --- AUTH LOGIC (NEW) ---
-        // --- AUTH LOGIC ---
+        // Initialize on page load
         if (localStorage.getItem("staffUser")) {
             document.getElementById('loginOverlay').classList.add('hidden');
             document.getElementById('mainApp').classList.remove('hidden');
-            initApp(); // CHANGED: Call initApp instead of just loadData
+            initApp();
         }
 
+        // Allow Enter key to submit login
+        document.getElementById('staffPass')?.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') handleLogin();
+        });
+
         async function handleLogin() {
-            const u = document.getElementById('staffUser').value;
+            const u = document.getElementById('staffUser').value.trim();
             const p = document.getElementById('staffPass').value;
-            const btn = document.querySelector('#loginOverlay button');
+            const btn = document.getElementById('loginBtn');
+            const msg = document.getElementById('loginMsg');
             
-            if(!u || !p) return;
+            if(!u || !p) {
+                msg.innerText = "Please enter both User ID and Password";
+                return;
+            }
+            
             btn.innerText = "Checking...";
+            btn.disabled = true;
+            msg.innerText = "";
 
             try {
                 const res = await fetch(`${API_URL}/login`, {
@@ -322,64 +343,62 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ username: u, password: p })
                 });
+                
+                if (!res.ok) throw new Error('Login failed');
+                
                 const data = await res.json();
                 
                 if (data.success) {
                     localStorage.setItem("staffUser", u);
-                    // FIX: Save Name and Branch from response
                     localStorage.setItem("staffName", data.name || u);
                     localStorage.setItem("staffBranch", data.branch || "-");
+                    localStorage.setItem("staffId", data.id || "");
                     
                     document.getElementById('loginOverlay').classList.add('hidden');
                     document.getElementById('mainApp').classList.remove('hidden');
-                    initApp(); // Load data and populate text
+                    initApp();
                 } else {
-                    document.getElementById('loginMsg').innerText = "Invalid ID or Password";
+                    msg.innerText = data.message || "Invalid ID or Password";
                 }
             } catch (e) { 
-                document.getElementById('loginMsg').innerText = "Server Error"; 
+                console.error('Login error:', e);
+                msg.innerText = "Server Error. Please try again."; 
             }
+            
             btn.innerText = "Login";
+            btn.disabled = false;
         }
 
         function doLogout() {
             if(confirm("Logout from system?")) {
-                localStorage.removeItem("staffUser");
+                localStorage.clear();
                 location.reload();
             }
         }
 
         function initApp() {
-            loadData();
+            // Set current user
+            currentUser = {
+                id: localStorage.getItem("staffId"),
+                name: localStorage.getItem("staffName") || "Staff",
+                branch: localStorage.getItem("staffBranch") || "Main"
+            };
+            
+            // Update UI
+            updateHeader();
+            
             // Populate Audit Header
-            document.getElementById('auditStaffName').innerText = localStorage.getItem("staffName") || "Staff";
-            document.getElementById('auditStaffBranch').innerText = localStorage.getItem("staffBranch") || "Main";
+            document.getElementById('auditStaffName').innerText = currentUser.name;
+            document.getElementById('auditStaffBranch').innerText = currentUser.branch;
             
             // Set Today's Date
             const today = new Date().toISOString().split('T')[0];
-            document.querySelector('input[name="date_received"]').value = today;
-        }
-
-        async function submitAudit() {
-            const form = document.getElementById('auditForm');
-            if(!form.checkValidity()) { alert("Please fill required fields"); return; }
+            const dateInput = document.querySelector('input[name="date_received"]');
+            if (dateInput) dateInput.value = today;
             
-            const formData = new FormData(form);
-            const data = Object.fromEntries(formData.entries());
-            
-            // Add Staff Info
-            data.staff_name = localStorage.getItem("staffName");
-            data.staff_branch = localStorage.getItem("staffBranch");
-
-            try {
-                const res = await fetch(`${API_URL}/audits`, {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify(data)
-                });
-                if(res.ok) { alert("Audit Saved!"); form.reset(); }
-                else { alert("Failed to save audit."); }
-            } catch(e) { alert("Network Error"); }
+            // Load data
+            loadData();
+            loadRequests();
         }
 
         function updateHeader() {
@@ -387,24 +406,90 @@
             document.getElementById('headerBranch').innerText = currentUser.branch;
         }
 
-        function toggleDropdown() {
-            document.getElementById('userDropdown').classList.toggle('show');
-            event.stopPropagation();
-        }
-        function closeDropdown() { document.getElementById('userDropdown').classList.remove('show'); }
+        async function submitAudit() {
+            const form = document.getElementById('auditForm');
+            if(!form.checkValidity()) { 
+                alert("Please fill all required fields"); 
+                form.reportValidity();
+                return; 
+            }
+            
+            const formData = new FormData(form);
+            const data = Object.fromEntries(formData.entries());
+            
+            // Add Staff Info
+            data.staff_name = currentUser.name;
+            data.staff_branch = currentUser.branch;
 
-        async function changePassword() {
-            const p = prompt("Enter new password:");
-            if(p) {
-                await fetch(`${API_URL}/users/${currentUser.id}/password`, {
-                    method: 'PUT', headers: {'Content-Type':'application/json'},
-                    body: JSON.stringify({password:p})
+            try {
+                const res = await fetch(`${API_URL}/audits`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(data)
                 });
-                alert("Password Updated");
+                
+                if(res.ok) { 
+                    alert("✅ Audit Saved Successfully!"); 
+                    form.reset();
+                    // Reset date to today
+                    const today = new Date().toISOString().split('T')[0];
+                    document.querySelector('input[name="date_received"]').value = today;
+                }
+                else { 
+                    alert("❌ Failed to save audit. Please try again."); 
+                }
+            } catch(e) { 
+                console.error('Audit error:', e);
+                alert("❌ Network Error. Please check your connection."); 
             }
         }
 
+        function toggleDropdown(event) {
+            const dropdown = document.getElementById('userDropdown');
+            dropdown.classList.toggle('show');
+            if (event) event.stopPropagation();
+        }
+
+        // Close dropdown when clicking outside
+        document.addEventListener('click', function(event) {
+            const dropdown = document.getElementById('userDropdown');
+            const userMenu = document.querySelector('.user-menu');
+            if (!userMenu.contains(event.target)) {
+                dropdown.classList.remove('show');
+            }
+        });
+
+        async function changePassword() {
+            closeDropdown();
+            const p = prompt("Enter new password:");
+            if(p && p.length >= 6) {
+                try {
+                    const res = await fetch(`${API_URL}/users/${currentUser.id}/password`, {
+                        method: 'PUT', 
+                        headers: {'Content-Type':'application/json'},
+                        body: JSON.stringify({password: p})
+                    });
+                    if (res.ok) {
+                        alert("✅ Password Updated Successfully");
+                    } else {
+                        alert("❌ Failed to update password");
+                    }
+                } catch(e) {
+                    console.error('Password change error:', e);
+                    alert("❌ Network Error");
+                }
+            } else if (p !== null) {
+                alert("Password must be at least 6 characters");
+            }
+        }
+
+        function closeDropdown() { 
+            document.getElementById('userDropdown').classList.remove('show'); 
+        }
+
         async function loadRequests() {
+            if (!currentUser || !currentUser.id) return;
+            
             try {
                 // Load Users for Dropdown
                 const uRes = await fetch(`${API_URL}/users`);
@@ -412,7 +497,9 @@
                 const sel = document.getElementById('reqReceiver');
                 sel.innerHTML = '<option value="">-- Select Staff --</option>';
                 users.forEach(u => {
-                    if(u.id != currentUser.id) sel.innerHTML += `<option value="${u.id}">${u.name} (${u.branch})</option>`;
+                    if(String(u.id) !== String(currentUser.id)) {
+                        sel.innerHTML += `<option value="${u.id}">${u.name} (${u.branch})</option>`;
+                    }
                 });
 
                 // Load Requests
@@ -421,13 +508,14 @@
                 
                 // Render Incoming
                 const inList = document.getElementById('incomingList');
-                if(data.received.length === 0) inList.innerHTML = `<p style="color:#888;">No incoming requests.</p>`;
-                else {
+                if(!data.received || data.received.length === 0) {
+                    inList.innerHTML = `<p style="color:#888;">No incoming requests.</p>`;
+                } else {
                     inList.innerHTML = data.received.map(r => `
                         <div class="req-card">
                             <span class="req-status status-${r.status}">${r.status}</span>
-                            <b>From: ${r.sender_name}</b> <br>
-                            <p style="margin:5px 0;">${r.content}</p>
+                            <b>From: ${r.sender_name || 'Unknown'}</b> <br>
+                            <p style="margin:5px 0;">${escapeHtml(r.content)}</p>
                             <small style="color:#888;">${new Date(r.created_at).toLocaleDateString()}</small>
                             ${r.status === 'pending' ? `
                                 <div style="margin-top:8px;">
@@ -440,48 +528,87 @@
 
                 // Render Sent
                 const outList = document.getElementById('sentList');
-                if(data.sent.length === 0) outList.innerHTML = `<p style="color:#888;">No sent requests.</p>`;
-                else {
+                if(!data.sent || data.sent.length === 0) {
+                    outList.innerHTML = `<p style="color:#888;">No sent requests.</p>`;
+                } else {
                     outList.innerHTML = data.sent.map(r => `
                         <div class="req-card">
                             <span class="req-status status-${r.status}">${r.status}</span>
                             <b>To: ${r.receiver_name || 'Unknown'}</b>
-                            <p style="margin:5px 0;">${r.content}</p>
+                            <p style="margin:5px 0;">${escapeHtml(r.content)}</p>
                             <small style="color:#888;">${new Date(r.created_at).toLocaleDateString()}</small>
                         </div>
                     `).join('');
                 }
-            } catch(e) { console.error(e); }
+            } catch(e) { 
+                console.error('Load requests error:', e); 
+            }
         }
 
         async function sendRequest() {
             const receiver = document.getElementById('reqReceiver').value;
-            const content = document.getElementById('reqContent').value;
-            if(!receiver || !content) return alert("Fill all fields");
+            const content = document.getElementById('reqContent').value.trim();
+            
+            if(!receiver || !content) {
+                alert("Please select a recipient and enter your request");
+                return;
+            }
 
-            await fetch(`${API_URL}/requests`, {
-                method: 'POST', headers: {'Content-Type':'application/json'},
-                body: JSON.stringify({ sender_id: parseInt(currentUser.id), sender_name: currentUser.name, receiver_id: parseInt(receiver), content })
-            });
-            alert("Request Sent!");
-            document.getElementById('reqContent').value = "";
-            loadRequests();
+            try {
+                const res = await fetch(`${API_URL}/requests`, {
+                    method: 'POST', 
+                    headers: {'Content-Type':'application/json'},
+                    body: JSON.stringify({ 
+                        sender_id: parseInt(currentUser.id), 
+                        sender_name: currentUser.name, 
+                        receiver_id: parseInt(receiver), 
+                        content 
+                    })
+                });
+                
+                if (res.ok) {
+                    alert("✅ Request Sent Successfully!");
+                    document.getElementById('reqContent').value = "";
+                    document.getElementById('reqReceiver').value = "";
+                    loadRequests();
+                } else {
+                    alert("❌ Failed to send request");
+                }
+            } catch(e) {
+                console.error('Send request error:', e);
+                alert("❌ Network Error");
+            }
         }
 
         async function updateReq(id, status) {
-            await fetch(`${API_URL}/requests/${id}/status`, {
-                method: 'PUT', headers: {'Content-Type':'application/json'},
-                body: JSON.stringify({ status })
-            });
-            loadRequests();
+            try {
+                const res = await fetch(`${API_URL}/requests/${id}/status`, {
+                    method: 'PUT', 
+                    headers: {'Content-Type':'application/json'},
+                    body: JSON.stringify({ status })
+                });
+                
+                if (res.ok) {
+                    loadRequests();
+                } else {
+                    alert("❌ Failed to update request");
+                }
+            } catch(e) {
+                console.error('Update request error:', e);
+                alert("❌ Network Error");
+            }
         }
 
-        // --- APP LOGIC (EXISTING) ---
         function openTab(tabId, btnElement) {
             document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active-content'));
             document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active-tab'));
             document.getElementById(tabId).classList.add('active-content');
             btnElement.classList.add('active-tab');
+            
+            // Load requests when switching to requests tab
+            if (tabId === 'requests') {
+                loadRequests();
+            }
         }
 
         async function loadData() {
@@ -490,18 +617,26 @@
                     fetch(`${API_URL}/phones`),
                     fetch(`${API_URL}/types`)
                 ]);
+                
+                if (!phonesRes.ok || !typesRes.ok) {
+                    throw new Error('Failed to load data');
+                }
+                
                 allPhones = await phonesRes.json();
                 const types = await typesRes.json();
 
                 const filters = [document.getElementById('typeFilter'), document.getElementById('priceTypeFilter')];
                 filters.forEach(sel => {
                     sel.innerHTML = '<option value="all">All Types</option>';
-                    types.forEach(t => sel.innerHTML += `<option value="${t.id}">${t.name}</option>`);
+                    types.forEach(t => sel.innerHTML += `<option value="${t.id}">${escapeHtml(t.name)}</option>`);
                 });
 
                 updateSelects();
                 filterPriceList();
-            } catch (error) { console.error("Error:", error); }
+            } catch (error) { 
+                console.error("Load data error:", error); 
+                alert("Failed to load device data. Please refresh the page.");
+            }
         }
 
         function filterPriceList() {
@@ -515,15 +650,18 @@
                 return nameMatch && typeMatch;
             });
 
-            if(matches.length === 0) { list.innerHTML = '<div style="padding:20px; text-align:center; color:#888;">No items found</div>'; return; }
+            if(matches.length === 0) { 
+                list.innerHTML = '<div style="padding:20px; text-align:center; color:#888;">No items found</div>'; 
+                return; 
+            }
 
             list.innerHTML = matches.map(p => `
                 <div style="display:flex; justify-content:space-between; align-items:center; padding:12px; border-bottom:1px solid #eee;">
                     <div>
-                        <div style="font-weight:600; color:#333;">${p.model}</div>
-                        <div style="font-size:0.8rem; color:#666;">${p.type_name || 'Device'}</div>
+                        <div style="font-weight:600; color:#333;">${escapeHtml(p.model)}</div>
+                        <div style="font-size:0.8rem; color:#666;">${escapeHtml(p.type_name || 'Device')}</div>
                     </div>
-                    <div style="font-weight:bold; color:var(--primary); font-size:1rem;">RM ${p.rrp}</div>
+                    <div style="font-weight:bold; color:var(--primary); font-size:1rem;">RM ${parseFloat(p.rrp).toFixed(2)}</div>
                 </div>
             `).join('');
         }
@@ -532,22 +670,14 @@
             const dropdowns = [document.getElementById('phone1'), document.getElementById('phone2')];
             dropdowns.forEach(select => {
                 select.innerHTML = '<option value="0">-- Select Item --</option>';
-                allPhones.forEach(p => select.innerHTML += `<option value="${p.id}">${p.model}</option>`);
-            });
-        }
-
-        function updateDropdowns(list) {
-            const dropdowns = [document.getElementById('phone1'), document.getElementById('phone2')];
-            dropdowns.forEach(select => {
-                const currentVal = select.value;
-                select.innerHTML = '<option value="0">-- Select Item --</option>';
-                list.forEach(p => select.innerHTML += `<option value="${p.id}">${p.model}</option>`);
-                select.value = currentVal;
+                allPhones.forEach(p => {
+                    select.innerHTML += `<option value="${p.id}">${escapeHtml(p.model)}</option>`;
+                });
             });
         }
 
         function handleSearch() {
-            const query = document.getElementById('search').value.toLowerCase();
+            const query = document.getElementById('search').value.toLowerCase().trim();
             const typeId = document.getElementById('typeFilter').value;
             const resultBox = document.getElementById('searchResults');
 
@@ -557,17 +687,23 @@
                 return nameMatch && typeMatch;
             });
 
-            if (!query && typeId === 'all') { resultBox.style.display = 'none'; return; }
+            if (!query && typeId === 'all') { 
+                resultBox.style.display = 'none'; 
+                return; 
+            }
 
             resultBox.style.display = 'block';
-            if(matches.length === 0) { resultBox.innerHTML = '<div style="padding:10px;">No items found</div>'; return; }
+            if(matches.length === 0) { 
+                resultBox.innerHTML = '<div style="padding:10px; color:#888;">No items found</div>'; 
+                return; 
+            }
 
             resultBox.innerHTML = matches.map(p => `
                 <div style="padding:10px; border-bottom:1px solid #eee; display:flex; justify-content:space-between; align-items:center;">
-                    <span style="font-weight:500;">${p.model}</span>
+                    <span style="font-weight:500;">${escapeHtml(p.model)}</span>
                     <div>
-                        <button onclick="selectSearchResult(1, '${p.id}')" style="background:#e3f2fd; color:#0056b3; border:none; padding:5px 10px; margin-right:5px; border-radius:4px;">Item 1</button>
-                        <button onclick="selectSearchResult(2, '${p.id}')" style="background:#e3f2fd; color:#0056b3; border:none; padding:5px 10px; border-radius:4px;">Item 2</button>
+                        <button onclick="selectSearchResult(1, ${p.id})" style="background:#e3f2fd; color:#0056b3; border:none; padding:5px 10px; margin-right:5px; border-radius:4px; cursor:pointer;">Item 1</button>
+                        <button onclick="selectSearchResult(2, ${p.id})" style="background:#e3f2fd; color:#0056b3; border:none; padding:5px 10px; border-radius:4px; cursor:pointer;">Item 2</button>
                     </div>
                 </div>
             `).join('');
@@ -586,8 +722,16 @@
             const wrapper = document.getElementById('secondPhoneWrapper');
             const addBtn = document.getElementById('addBtn');
             const phone2 = document.getElementById('phone2');
-            if (show) { wrapper.classList.remove('hidden'); addBtn.classList.add('hidden'); }
-            else { wrapper.classList.add('hidden'); addBtn.classList.remove('hidden'); phone2.value = "0"; calculate(); }
+            
+            if (show) { 
+                wrapper.classList.remove('hidden'); 
+                addBtn.classList.add('hidden'); 
+            } else { 
+                wrapper.classList.add('hidden'); 
+                addBtn.classList.remove('hidden'); 
+                phone2.value = "0"; 
+                calculate(); 
+            }
         }
 
         function getPrice(id) {
@@ -606,9 +750,11 @@
             const totalPrincipal = p1 + p2;
             const interestRate = 0.0125;
 
-            document.getElementById('totalRrp').innerText = totalPrincipal.toFixed(2);
-
-            const calc = (m) => totalPrincipal === 0 ? "0" : Math.floor((totalPrincipal + (totalPrincipal * interestRate * m)) / m).toString();
+            const calc = (m) => {
+                if (totalPrincipal === 0) return "0";
+                return Math.floor((totalPrincipal + (totalPrincipal * interestRate * m)) / m).toString();
+            };
+            
             document.getElementById('m12').innerText = calc(12);
             document.getElementById('m24').innerText = calc(24);
             document.getElementById('m36').innerText = calc(36);
@@ -616,8 +762,12 @@
         }
 
         function copyText(id, label) {
-            navigator.clipboard.writeText("RM " + document.getElementById(id).innerText);
-            alert(label + " copied!");
+            const text = "RM " + document.getElementById(id).innerText;
+            navigator.clipboard.writeText(text).then(() => {
+                alert("✓ " + label + " copied!");
+            }).catch(() => {
+                alert("Failed to copy. Please try again.");
+            });
         }
 
         function copyAll() {
@@ -625,11 +775,17 @@
             const m24 = document.getElementById('m24').innerText;
             const m36 = document.getElementById('m36').innerText;
             const m48 = document.getElementById('m48').innerText;
-            navigator.clipboard.writeText(`Ansuran Plan:\n12mth: RM ${m12}\n24mth: RM ${m24}\n36mth: RM ${m36}\n48mth: RM ${m48}`);
-            alert("Copied!");
+            const text = `Ansuran Plan:\n12mth: RM ${m12}\n24mth: RM ${m24}\n36mth: RM ${m36}\n48mth: RM ${m48}`;
+            
+            navigator.clipboard.writeText(text).then(() => {
+                alert("✓ Full plan copied!");
+            }).catch(() => {
+                alert("Failed to copy. Please try again.");
+            });
         }
 
-        document.getElementById('uploadForm').onsubmit = async (e) => {
+        // Form submission handler
+        document.getElementById('uploadForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const btn = document.getElementById('submitBtn');
             const originalText = btn.innerText;
@@ -664,7 +820,9 @@
                 });
 
                 if (response.ok) {
-                    alert("✅ Permohonan berjaya dihantar! Boss has received the email."); 
+                    alert("✅ Application submitted successfully! Boss has received the email."); 
+                    
+                    // Reset form
                     fields.forEach(field => {
                         const el = document.getElementById(field);
                         if(el) el.value = "";
@@ -674,18 +832,24 @@
                 } else {
                     const errorText = await response.text(); 
                     console.error("Server Error:", errorText);
-                    alert(`❌ Failed to send. Server said: \n${errorText}`);
+                    alert(`❌ Failed to send application.\n${errorText}`);
                 }
             } catch (err) {
-                console.error(err);
-                alert("❌ Error connecting to server. Is the backend running?");
+                console.error('Form submission error:', err);
+                alert("❌ Error connecting to server. Please check your connection.");
             }
 
             btn.innerText = originalText;
             btn.style.backgroundColor = "var(--primary)";
             btn.disabled = false;
-        };
+        });
+
+        // Utility function to escape HTML and prevent XSS
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
     </script>
 </body>
 </html>
-

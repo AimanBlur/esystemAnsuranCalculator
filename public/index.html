@@ -37,10 +37,16 @@
         }
         
         .header-title {
-            font-size: 1.1rem;
+            font-size: 1rem;
             font-weight: 700;
             flex: 1;
             text-align: left;
+        }
+        
+        @media (min-width: 480px) {
+            .header-title {
+                font-size: 1.25rem;
+            }
         }
         
         .user-menu { 
@@ -64,7 +70,7 @@
         }
         
         .user-name {
-            font-size: 0.9rem;
+            font-size: 0.85rem;
             font-weight: 600;
         }
         
@@ -73,78 +79,86 @@
             opacity: 0.9;
         }
         
-        /* Show user info on larger screens */
         @media (min-width: 480px) {
-            .user-info {
-                display: block;
+            .user-name {
+                font-size: 0.95rem;
             }
-            .header-title {
-                font-size: 1.25rem;
+            .user-branch {
+                font-size: 0.75rem;
             }
         }
         
+        /* Mobile dropdown menu for tabs */
+        .mobile-tab-selector {
+            display: block;
+            background: white;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            padding: 12px 15px;
+        }
+        
+        .mobile-tab-selector select {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid var(--primary);
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            color: var(--primary);
+            background: white;
+            cursor: pointer;
+            margin: 0;
+        }
+        
+        .mobile-tab-selector select:focus {
+            outline: none;
+            border-color: #003d82;
+        }
+        
+        /* Desktop tabs - hidden on mobile */
         .tabs { 
-            display: flex; 
-            background: white; 
-            position: sticky; 
-            top: 0; 
-            z-index: 100; 
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1); 
-            overflow-x: auto;
-            overflow-y: hidden;
-            -webkit-overflow-scrolling: touch;
-            scrollbar-width: none; /* Firefox */
+            display: none;
         }
         
-        .tabs::-webkit-scrollbar {
-            display: none; /* Chrome, Safari */
-        }
-        
-        .tab-btn { 
-            flex: 0 0 auto;
-            min-width: 80px;
-            padding: 12px 8px; 
-            border: none; 
-            background: none; 
-            font-size: 0.85rem; 
-            cursor: pointer; 
-            color: #666; 
-            border-bottom: 3px solid transparent;
-            position: relative;
-            white-space: nowrap;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 4px;
-        }
-        
-        .tab-btn i {
-            font-size: 1.1rem;
-        }
-        
-        .tab-btn.active-tab { 
-            border-bottom: 3px solid var(--primary); 
-            color: var(--primary); 
-            font-weight: bold; 
-            background: #f8fbff; 
-        }
-        
-        /* Larger screens - horizontal tabs */
-        @media (min-width: 640px) {
-            .tab-btn {
+        @media (min-width: 768px) {
+            .mobile-tab-selector {
+                display: none;
+            }
+            
+            .tabs { 
+                display: flex; 
+                background: white; 
+                position: sticky; 
+                top: 0; 
+                z-index: 100; 
+                box-shadow: 0 1px 3px rgba(0,0,0,0.1); 
+            }
+            
+            .tab-btn { 
                 flex: 1;
-                min-width: 100px;
-                padding: 15px;
-                font-size: 1rem;
-                flex-direction: row;
-                gap: 8px;
+                padding: 15px; 
+                border: none; 
+                background: none; 
+                font-size: 1rem; 
+                cursor: pointer; 
+                color: #666; 
+                border-bottom: 3px solid transparent;
+                position: relative;
+                white-space: nowrap;
+            }
+            
+            .tab-btn.active-tab { 
+                border-bottom: 3px solid var(--primary); 
+                color: var(--primary); 
+                font-weight: bold; 
+                background: #f8fbff; 
             }
         }
         
         .badge {
-            position: absolute;
-            top: 4px;
-            right: 4px;
+            display: inline-block;
             background: #ff4444;
             color: white;
             border-radius: 10px;
@@ -153,15 +167,7 @@
             font-weight: bold;
             min-width: 16px;
             text-align: center;
-        }
-        
-        @media (min-width: 640px) {
-            .badge {
-                top: 8px;
-                right: 8px;
-                font-size: 0.7rem;
-                min-width: 18px;
-            }
+            margin-left: 6px;
         }
         
         .container { 
@@ -510,6 +516,16 @@
             </button>
         </div>
 
+        <div class="mobile-tab-selector">
+            <select id="mobileTabSelect" onchange="switchTabFromDropdown(this.value)">
+                <option value="calc">📱 Calculator</option>
+                <option value="apply">📝 Application</option>
+                <option value="audit">✅ Audit</option>
+                <option value="plist">🏷️ Price List</option>
+                <option value="requests">📨 Requests <span id="mobileBadgeText"></span></option>
+            </select>
+        </div>
+
         <div class="tabs">
             <button class="tab-btn active-tab" onclick="openTab('calc', this)">
                 <i class="fas fa-calculator"></i> Calculator
@@ -800,6 +816,10 @@
             const dateInput = document.querySelector('input[name="date_received"]');
             if (dateInput) dateInput.value = today;
             
+            // Set initial mobile dropdown value to 'calc'
+            const mobileSelect = document.getElementById('mobileTabSelect');
+            if (mobileSelect) mobileSelect.value = 'calc';
+            
             // Load data
             loadData();
             loadRequests();
@@ -808,7 +828,6 @@
             checkPendingRequests();
             setInterval(checkPendingRequests, 30000); // Check every 30 seconds
         }
-        
         
         // ALSO UPDATE handleLogin to ensure staffId is properly saved
         async function handleLogin() {
@@ -885,12 +904,29 @@
                 const data = await res.json();
                 const count = parseInt(data.count) || 0;
                 
+                // Update desktop badge
                 const badge = document.getElementById('requestBadge');
-                if (count > 0) {
-                    badge.innerText = count;
-                    badge.classList.remove('hidden');
-                } else {
-                    badge.classList.add('hidden');
+                if (badge) {
+                    if (count > 0) {
+                        badge.innerText = count;
+                        badge.classList.remove('hidden');
+                    } else {
+                        badge.classList.add('hidden');
+                    }
+                }
+                
+                // Update mobile dropdown option text
+                const mobileSelect = document.getElementById('mobileTabSelect');
+                const mobileBadgeText = document.getElementById('mobileBadgeText');
+                if (mobileSelect) {
+                    const requestOption = mobileSelect.querySelector('option[value="requests"]');
+                    if (requestOption) {
+                        if (count > 0) {
+                            requestOption.textContent = `📨 Requests (${count})`;
+                        } else {
+                            requestOption.textContent = '📨 Requests';
+                        }
+                    }
                 }
             } catch (e) {
                 console.error('Error checking pending requests:', e);
@@ -1308,6 +1344,26 @@
             }, 2500);
         }
 
+        function switchTabFromDropdown(tabId) {
+            // Hide all tab contents
+            document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active-content'));
+            
+            // Show selected tab
+            document.getElementById(tabId).classList.add('active-content');
+            
+            // Update desktop tabs if visible (for consistency)
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active-tab'));
+            const desktopBtn = document.querySelector(`.tab-btn[data-tab="${tabId}"]`);
+            if (desktopBtn) desktopBtn.classList.add('active-tab');
+            
+            // Load requests when switching to requests tab
+            if (tabId === 'requests') {
+                loadRequests();
+            }
+        }
+
+        
+
         async function sendRequest() {
             const receiver = document.getElementById('reqReceiver').value;
             const content = document.getElementById('reqContent').value.trim();
@@ -1344,10 +1400,21 @@
         }
 
         function openTab(tabId, btnElement) {
+            // Hide all contents
             document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active-content'));
+            
+            // Remove active class from all desktop tabs
             document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active-tab'));
+            
+            // Show selected content
             document.getElementById(tabId).classList.add('active-content');
-            btnElement.classList.add('active-tab');
+            
+            // Add active class to clicked desktop tab
+            if (btnElement) btnElement.classList.add('active-tab');
+            
+            // Sync mobile dropdown
+            const mobileSelect = document.getElementById('mobileTabSelect');
+            if (mobileSelect) mobileSelect.value = tabId;
             
             // Load requests when switching to requests tab
             if (tabId === 'requests') {
@@ -1597,6 +1664,7 @@
     </script>
 </body>
 </html>
+
 
 
 

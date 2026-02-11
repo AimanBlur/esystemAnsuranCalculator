@@ -638,20 +638,53 @@
         }
 
         async function loadRequests() {
-            if (!currentUser || !currentUser.id) return;
+            if (!currentUser || !currentUser.id) {
+                console.error("No current user");
+                return;
+            }
             
             try {
-                // Load Users for Dropdown
-                const uRes = await fetch(`${API_URL}/users`);
+                console.log("Loading users for dropdown...");
+                // Load Users for Dropdown with timeout
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+                
+                const uRes = await fetch(`${API_URL}/users`, {
+                    signal: controller.signal
+                });
+                clearTimeout(timeoutId);
+                
+                console.log("Users response status:", uRes.status);
+                
+                if (!uRes.ok) {
+                    throw new Error(`HTTP error! status: ${uRes.status}`);
+                }
+                
                 const users = await uRes.json();
+                console.log("Users loaded:", users);
+                
                 const sel = document.getElementById('reqReceiver');
+                if (!sel) {
+                    console.error("reqReceiver select element not found");
+                    return;
+                }
+                
+                // Check if users is actually an array
+                if (!Array.isArray(users)) {
+                    console.error("Users response is not an array:", users);
+                    sel.innerHTML = '<option value="">-- Error loading users --</option>';
+                    return;
+                }
+                
                 sel.innerHTML = '<option value="">-- Select Staff --</option>';
                 users.forEach(u => {
                     if(String(u.id) !== String(currentUser.id)) {
                         sel.innerHTML += `<option value="${u.id}">${escapeHtml(u.name)} (${escapeHtml(u.branch)})</option>`;
                     }
                 });
-
+                
+                console.log("Dropdown populated successfully");
+        
                 // Load Requests
                 const rRes = await fetch(`${API_URL}/requests/${currentUser.id}`);
                 const data = await rRes.json();
@@ -675,7 +708,7 @@
                         </div>
                     `).join('');
                 }
-
+        
                 // Render Sent
                 const outList = document.getElementById('sentList');
                 if(!data.sent || data.sent.length === 0) {
@@ -694,7 +727,16 @@
                 // Update badge after loading
                 checkPendingRequests();
             } catch(e) { 
-                console.error('Load requests error:', e); 
+                console.error('Load requests error:', e);
+                const sel = document.getElementById('reqReceiver');
+                if (sel) {
+                    if (e.name === 'AbortError') {
+                        sel.innerHTML = '<option value="">-- Timeout loading users --</option>';
+                    } else {
+                        sel.innerHTML = '<option value="">-- Error loading users --</option>';
+                    }
+                }
+                alert('❌ Error loading users. Please try refreshing the page.');
             }
         }
 
@@ -1006,3 +1048,4 @@
     </script>
 </body>
 </html>
+

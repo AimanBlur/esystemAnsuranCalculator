@@ -10,11 +10,95 @@
         :root { --primary: #0056b3; --light-blue: #e3f2fd; --white: #ffffff; --text: #333; --border: #ddd; }
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f0f2f5; margin: 0; padding: 0; color: var(--text); }
         
-        header { background: var(--primary); color: white; padding: 15px; text-align: center; font-size: 1.25rem; font-weight: 600; display: flex; justify-content: space-between; align-items: center; }
-        .user-menu { cursor: pointer; display: flex; align-items: center; gap: 8px; position: relative; }
-        .tabs { display: flex; background: white; position: sticky; top: 0; z-index: 100; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
-        .tab-btn { flex: 1; padding: 15px; border: none; background: none; font-size: 1rem; cursor: pointer; color: #666; border-bottom: 3px solid transparent; }
-        .tab-btn.active-tab { border-bottom: 3px solid var(--primary); color: var(--primary); font-weight: bold; background: #f8fbff; }
+        header { 
+            background: var(--primary); 
+            color: white; 
+            padding: 15px 20px; 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .header-title {
+            font-size: 1.25rem;
+            font-weight: 700;
+            flex: 1;
+            text-align: left;
+        }
+        
+        .user-menu { 
+            cursor: pointer; 
+            display: flex; 
+            align-items: center; 
+            gap: 10px; 
+            position: relative;
+            padding: 8px 12px;
+            border-radius: 8px;
+            transition: background 0.2s;
+        }
+        
+        .user-menu:hover {
+            background: rgba(255,255,255,0.1);
+        }
+        
+        .user-info {
+            text-align: right;
+            line-height: 1.3;
+        }
+        
+        .user-name {
+            font-size: 0.95rem;
+            font-weight: 600;
+        }
+        
+        .user-branch {
+            font-size: 0.75rem;
+            opacity: 0.9;
+        }
+        
+        .tabs { 
+            display: flex; 
+            background: white; 
+            position: sticky; 
+            top: 0; 
+            z-index: 100; 
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1); 
+        }
+        
+        .tab-btn { 
+            flex: 1; 
+            padding: 15px; 
+            border: none; 
+            background: none; 
+            font-size: 1rem; 
+            cursor: pointer; 
+            color: #666; 
+            border-bottom: 3px solid transparent;
+            position: relative;
+        }
+        
+        .tab-btn.active-tab { 
+            border-bottom: 3px solid var(--primary); 
+            color: var(--primary); 
+            font-weight: bold; 
+            background: #f8fbff; 
+        }
+        
+        .badge {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            background: #ff4444;
+            color: white;
+            border-radius: 10px;
+            padding: 2px 6px;
+            font-size: 0.7rem;
+            font-weight: bold;
+            min-width: 18px;
+            text-align: center;
+        }
+        
         .container { max-width: 600px; margin: 20px auto; padding: 0 15px; }
         .card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); margin-bottom: 20px; }
         .tab-content { display: none; }
@@ -43,9 +127,34 @@
 
         .audit-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
 
-        .dropdown { position: absolute; right: 15px; top: 60px; background: #fff; border: 1px solid #ddd; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); display: none; z-index: 1000; min-width: 180px; }
+        .dropdown { 
+            position: absolute; 
+            top: 65px;
+            right: 20px;
+            background: #fff; 
+            border: 1px solid #ddd; 
+            border-radius: 8px; 
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15); 
+            display: none; 
+            z-index: 1000; 
+            min-width: 180px;
+        }
+        
         .dropdown.show { display: block; }
-        .dropdown-item { width: 100%; padding: 12px 15px; background: none; border: none; text-align: left; cursor: pointer; display: flex; align-items: center; gap: 10px; font-size: 0.95rem; }
+        
+        .dropdown-item { 
+            width: 100%; 
+            padding: 12px 15px; 
+            background: none; 
+            border: none; 
+            text-align: left; 
+            cursor: pointer; 
+            display: flex; 
+            align-items: center; 
+            gap: 10px; 
+            font-size: 0.95rem; 
+        }
+        
         .dropdown-item:hover { background: #f5f5f5; }
 
         .section-title { color: var(--primary); font-size: 1rem; margin: 20px 0 10px; border-bottom: 2px solid var(--light-blue); padding-bottom: 5px; }
@@ -73,29 +182,46 @@
     <div id="mainApp" class="hidden">
         
         <header>
-            <div class="user-menu" onclick="toggleDropdown()">
-                <i class="fas fa-user-circle" style="font-size:1.5rem;"></i>
-                <div style="text-align:left; line-height:1.2;">
-                    <div id="headerName" style="font-size:0.9rem;">User</div>
-                    <div id="headerBranch" style="font-size:0.75rem; opacity:0.8;">Branch</div>
-                </div>
-                <i class="fas fa-caret-down" style="font-size:0.8rem; margin-left:5px;"></i>
+            <div class="header-title">
+                <i class="fas fa-calculator"></i> Esystem Portal
             </div>
-            <div style="font-weight:bold;">Esystem Portal</div>
-            <div style="width: 100px;"></div> <!-- Spacer for centering -->
+            
+            <div class="user-menu" onclick="toggleDropdown(event)">
+                <i class="fas fa-user-circle" style="font-size:1.8rem;"></i>
+                <div class="user-info">
+                    <div class="user-name" id="headerName">User</div>
+                    <div class="user-branch" id="headerBranch">Branch</div>
+                </div>
+                <i class="fas fa-caret-down" style="font-size:0.9rem;"></i>
+            </div>
         </header>
 
         <div id="userDropdown" class="dropdown">
-            <button class="dropdown-item" onclick="changePassword()"><i class="fas fa-key"></i> Change Password</button>
-            <button class="dropdown-item" onclick="doLogout()"><i class="fas fa-sign-out-alt"></i> Logout</button>
+            <button class="dropdown-item" onclick="changePassword()">
+                <i class="fas fa-key"></i> Change Password
+            </button>
+            <button class="dropdown-item" onclick="doLogout()">
+                <i class="fas fa-sign-out-alt"></i> Logout
+            </button>
         </div>
 
         <div class="tabs">
-            <button class="tab-btn active-tab" onclick="openTab('calc', this)">Calculator</button>
-            <button class="tab-btn" onclick="openTab('apply', this)">Application</button>
-            <button class="tab-btn" onclick="openTab('audit', this)">Used Phone Audit</button>
-            <button class="tab-btn" onclick="openTab('plist', this)">Price List</button>
-            <button class="tab-btn" onclick="openTab('requests', this)">Requests</button>
+            <button class="tab-btn active-tab" onclick="openTab('calc', this)">
+                <i class="fas fa-calculator"></i> Calculator
+            </button>
+            <button class="tab-btn" onclick="openTab('apply', this)">
+                <i class="fas fa-file-alt"></i> Application
+            </button>
+            <button class="tab-btn" onclick="openTab('audit', this)">
+                <i class="fas fa-clipboard-check"></i> Audit
+            </button>
+            <button class="tab-btn" onclick="openTab('plist', this)">
+                <i class="fas fa-tags"></i> Price List
+            </button>
+            <button class="tab-btn" id="requestsTabBtn" onclick="openTab('requests', this)">
+                <i class="fas fa-paper-plane"></i> Requests
+                <span id="requestBadge" class="badge hidden">0</span>
+            </button>
         </div>
 
         <div class="container">
@@ -399,11 +525,35 @@
             // Load data
             loadData();
             loadRequests();
+            
+            // Start checking for pending requests
+            checkPendingRequests();
+            setInterval(checkPendingRequests, 30000); // Check every 30 seconds
         }
 
         function updateHeader() {
             document.getElementById('headerName').innerText = currentUser.name;
             document.getElementById('headerBranch').innerText = currentUser.branch;
+        }
+
+        async function checkPendingRequests() {
+            if (!currentUser || !currentUser.id) return;
+            
+            try {
+                const res = await fetch(`${API_URL}/requests/${currentUser.id}/pending-count`);
+                const data = await res.json();
+                const count = parseInt(data.count) || 0;
+                
+                const badge = document.getElementById('requestBadge');
+                if (count > 0) {
+                    badge.innerText = count;
+                    badge.classList.remove('hidden');
+                } else {
+                    badge.classList.add('hidden');
+                }
+            } catch (e) {
+                console.error('Error checking pending requests:', e);
+            }
         }
 
         async function submitAudit() {
@@ -498,7 +648,7 @@
                 sel.innerHTML = '<option value="">-- Select Staff --</option>';
                 users.forEach(u => {
                     if(String(u.id) !== String(currentUser.id)) {
-                        sel.innerHTML += `<option value="${u.id}">${u.name} (${u.branch})</option>`;
+                        sel.innerHTML += `<option value="${u.id}">${escapeHtml(u.name)} (${escapeHtml(u.branch)})</option>`;
                     }
                 });
 
@@ -514,7 +664,7 @@
                     inList.innerHTML = data.received.map(r => `
                         <div class="req-card">
                             <span class="req-status status-${r.status}">${r.status}</span>
-                            <b>From: ${r.sender_name || 'Unknown'}</b> <br>
+                            <b>From: ${escapeHtml(r.sender_name || 'Unknown')}</b> <br>
                             <p style="margin:5px 0;">${escapeHtml(r.content)}</p>
                             <small style="color:#888;">${new Date(r.created_at).toLocaleDateString()}</small>
                             ${r.status === 'pending' ? `
@@ -534,12 +684,15 @@
                     outList.innerHTML = data.sent.map(r => `
                         <div class="req-card">
                             <span class="req-status status-${r.status}">${r.status}</span>
-                            <b>To: ${r.receiver_name || 'Unknown'}</b>
+                            <b>To: ${escapeHtml(r.receiver_name || 'Unknown')}</b>
                             <p style="margin:5px 0;">${escapeHtml(r.content)}</p>
                             <small style="color:#888;">${new Date(r.created_at).toLocaleDateString()}</small>
                         </div>
                     `).join('');
                 }
+                
+                // Update badge after loading
+                checkPendingRequests();
             } catch(e) { 
                 console.error('Load requests error:', e); 
             }
@@ -661,7 +814,7 @@
                         <div style="font-weight:600; color:#333;">${escapeHtml(p.model)}</div>
                         <div style="font-size:0.8rem; color:#666;">${escapeHtml(p.type_name || 'Device')}</div>
                     </div>
-                    <div style="font-weight:bold; color:var(--primary); font-size:1rem;">RM ${parseFloat(p.rrp).toFixed(2)}</div>
+                    <div style="font-weight:bold; color:var(--primary); font-size:1rem;">RM ${parseFloat(p.base_price || p.rrp || 0).toFixed(2)}</div>
                 </div>
             `).join('');
         }

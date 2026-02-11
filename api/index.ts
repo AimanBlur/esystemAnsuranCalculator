@@ -71,9 +71,9 @@ const app = new Elysia()
             try {
                 const users = await sql`SELECT * FROM users WHERE username = ${body.username} AND password = ${body.password}`;
                 if (users.length > 0) {
-                    // FIX: Included 'branch' in the response
                     return { 
                         success: true, 
+                        id: users[0].id,
                         role: users[0].role, 
                         username: users[0].username, 
                         name: users[0].name, 
@@ -84,8 +84,19 @@ const app = new Elysia()
             } catch (e: any) { return { success: false, message: e.message }; }
         }, { body: t.Object({ username: t.String(), password: t.String() }) })
 
-        // GET USERS (Updated to fetch name and branch)
-        .get('/users', async ({ headers, set }) => {
+        // GET USERS - PUBLIC (for request dropdown)
+        // Removed admin check so all logged-in users can fetch the list
+        .get('/users', async () => {
+            if (!sql) return [];
+            try {
+                // Only return id, name, and branch - no sensitive info
+                const users = await sql`SELECT id, name, branch FROM users ORDER BY name ASC`;
+                return [...users];
+            } catch (e) { return []; }
+        })
+
+        // GET ALL USERS (Admin Only - for management)
+        .get('/users/admin', async ({ headers, set }) => {
             if (!sql) return [];
             if (headers['admin-secret'] !== process.env.ADMIN_PASSWORD) { set.status = 401; return []; }
             try {
@@ -110,6 +121,13 @@ const app = new Elysia()
             return { received: [...received], sent: [...sent] };
         })
 
+        // Get Pending Request Count
+        .get('/requests/:userId/pending-count', async ({ params }) => {
+            if (!sql) return { count: 0 };
+            const result = await sql`SELECT COUNT(*) as count FROM requests WHERE receiver_id = ${params.userId} AND status = 'pending'`;
+            return { count: result[0]?.count || 0 };
+        })
+
         // Create Request
         .post('/requests', async ({ body }) => {
             if (!sql) return { success: false };
@@ -127,7 +145,7 @@ const app = new Elysia()
             return { success: true };
         }, { body: t.Object({ status: t.String() }) })
 
-        // CREATE STAFF (Updated to accept name and branch)
+        // CREATE STAFF (Admin only)
         .post('/users', async ({ body, headers, set }) => {
             if (!sql) return { success: false, message: "DB Error" };
             if (headers['admin-secret'] !== process.env.ADMIN_PASSWORD) { set.status = 401; return { success: false }; }
@@ -148,9 +166,8 @@ const app = new Elysia()
             return { success: true };
         })
 
-        // NEW: Update Staff Password
+        // Update Staff Password (Admin)
         .put('/users/:id', async ({ params, body, headers, set }) => {
-            // Security Check
             if (headers['admin-secret'] !== process.env.ADMIN_PASSWORD) { 
                 set.status = 401; 
                 return { success: false, message: "Unauthorized" }; 
@@ -158,7 +175,6 @@ const app = new Elysia()
             
             const b = body as any;
             try {
-                // Update password for the specific user ID
                 await sql`UPDATE users SET password = ${b.password} WHERE id = ${params.id}`;
                 return { success: true };
             } catch (e: any) { 
@@ -176,17 +192,15 @@ const app = new Elysia()
                     LEFT JOIN types ON phones.type_id = types.id 
                     ORDER BY phones.id DESC
                 `;
-                // FIX: Use [...phones] to convert to plain array
                 return [...phones];
             } catch (error: any) { return { error: error.message }; }
         })
 
-        // ROUTE 2: Get All Types (The one causing your error!)
+        // ROUTE 2: Get All Types
         .get('/types', async () => {
             if (!sql) return [];
             try {
                 const types = await sql`SELECT * FROM types ORDER BY name ASC`;
-                // FIX: This was missing the [...types] spread operator
                 return [...types]; 
             } catch (error: any) { return []; }
         })
@@ -347,6 +361,9 @@ const app = new Elysia()
                 salarySlip: t.File()
             })
         })
-    );
+    )
+    .listen(3000);
+
+console.log(`🦊 Elysia is running at ${app.server?.hostname}:${app.server?.port}`);
 
 export default app;

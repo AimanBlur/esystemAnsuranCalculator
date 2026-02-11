@@ -264,7 +264,7 @@ const app = new Elysia()
                 return { success: false };
             }
             try {
-                const b = body as { status: string };
+                const b = body as { status: string; reason?: string };
                 
                 // Set timestamp based on status
                 if (b.status === 'accepted') {
@@ -279,6 +279,12 @@ const app = new Elysia()
                         SET status = ${b.status}, completed_at = NOW() 
                         WHERE id = ${params.id}
                     `;
+                } else if (b.status === 'rejected') {
+                    await sql`
+                        UPDATE requests 
+                        SET status = ${b.status}, rejection_reason = ${b.reason || 'No reason provided'} 
+                        WHERE id = ${params.id}
+                    `;
                 } else {
                     await sql`UPDATE requests SET status = ${b.status} WHERE id = ${params.id}`;
                 }
@@ -291,7 +297,7 @@ const app = new Elysia()
                 set.status = 500;
                 return { success: false, message: e.message };
             }
-        }, { body: t.Object({ status: t.String() }) })
+        }, { body: t.Object({ status: t.String(), reason: t.Optional(t.String()) }) })
 
         .delete('/requests/cleanup', async ({ set }) => {
             const sql = getDb();

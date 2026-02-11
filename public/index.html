@@ -7,21 +7,37 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
     <style>
-        :root { --primary: #0056b3; --light-blue: #e3f2fd; --white: #ffffff; --text: #333; --border: #ddd; }
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f0f2f5; margin: 0; padding: 0; color: var(--text); }
+        :root { 
+            --primary: #0056b3; 
+            --light-blue: #e3f2fd; 
+            --white: #ffffff; 
+            --text: #333; 
+            --border: #ddd; 
+        }
+        
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; 
+            background: #f0f2f5; 
+            margin: 0; 
+            padding: 0; 
+            color: var(--text); 
+        }
         
         header { 
             background: var(--primary); 
             color: white; 
-            padding: 15px 20px; 
+            padding: 12px 15px; 
             display: flex; 
             justify-content: space-between; 
             align-items: center; 
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            position: sticky;
+            top: 0;
+            z-index: 101;
         }
         
         .header-title {
-            font-size: 1.25rem;
+            font-size: 1.1rem;
             font-weight: 700;
             flex: 1;
             text-align: left;
@@ -31,9 +47,9 @@
             cursor: pointer; 
             display: flex; 
             align-items: center; 
-            gap: 10px; 
+            gap: 8px; 
             position: relative;
-            padding: 8px 12px;
+            padding: 6px 10px;
             border-radius: 8px;
             transition: background 0.2s;
         }
@@ -45,16 +61,27 @@
         .user-info {
             text-align: right;
             line-height: 1.3;
+            display: none; /* Hide on mobile by default */
         }
         
         .user-name {
-            font-size: 0.95rem;
+            font-size: 0.9rem;
             font-weight: 600;
         }
         
         .user-branch {
-            font-size: 0.75rem;
+            font-size: 0.7rem;
             opacity: 0.9;
+        }
+        
+        /* Show user info on larger screens */
+        @media (min-width: 480px) {
+            .user-info {
+                display: block;
+            }
+            .header-title {
+                font-size: 1.25rem;
+            }
         }
         
         .tabs { 
@@ -64,18 +91,36 @@
             top: 0; 
             z-index: 100; 
             box-shadow: 0 1px 3px rgba(0,0,0,0.1); 
+            overflow-x: auto;
+            overflow-y: hidden;
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: none; /* Firefox */
+        }
+        
+        .tabs::-webkit-scrollbar {
+            display: none; /* Chrome, Safari */
         }
         
         .tab-btn { 
-            flex: 1; 
-            padding: 15px; 
+            flex: 0 0 auto;
+            min-width: 80px;
+            padding: 12px 8px; 
             border: none; 
             background: none; 
-            font-size: 1rem; 
+            font-size: 0.85rem; 
             cursor: pointer; 
             color: #666; 
             border-bottom: 3px solid transparent;
             position: relative;
+            white-space: nowrap;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+        }
+        
+        .tab-btn i {
+            font-size: 1.1rem;
         }
         
         .tab-btn.active-tab { 
@@ -85,52 +130,191 @@
             background: #f8fbff; 
         }
         
+        /* Larger screens - horizontal tabs */
+        @media (min-width: 640px) {
+            .tab-btn {
+                flex: 1;
+                min-width: 100px;
+                padding: 15px;
+                font-size: 1rem;
+                flex-direction: row;
+                gap: 8px;
+            }
+        }
+        
         .badge {
             position: absolute;
-            top: 8px;
-            right: 8px;
+            top: 4px;
+            right: 4px;
             background: #ff4444;
             color: white;
             border-radius: 10px;
             padding: 2px 6px;
-            font-size: 0.7rem;
+            font-size: 0.65rem;
             font-weight: bold;
-            min-width: 18px;
+            min-width: 16px;
             text-align: center;
         }
         
-        .container { max-width: 600px; margin: 20px auto; padding: 0 15px; }
-        .card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); margin-bottom: 20px; }
+        @media (min-width: 640px) {
+            .badge {
+                top: 8px;
+                right: 8px;
+                font-size: 0.7rem;
+                min-width: 18px;
+            }
+        }
+        
+        .container { 
+            max-width: 600px; 
+            margin: 15px auto; 
+            padding: 0 12px; 
+        }
+        
+        @media (min-width: 640px) {
+            .container {
+                margin: 20px auto;
+                padding: 0 15px;
+            }
+        }
+        
+        .card { 
+            background: white; 
+            padding: 16px; 
+            border-radius: 12px; 
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05); 
+            margin-bottom: 15px; 
+        }
+        
+        @media (min-width: 640px) {
+            .card {
+                padding: 20px;
+                margin-bottom: 20px;
+            }
+        }
+        
         .tab-content { display: none; }
         .active-content { display: block; }
-        input, select, textarea { width: 100%; padding: 12px; margin: 8px 0 16px; border: 1px solid var(--border); border-radius: 8px; box-sizing: border-box; font-size: 16px; }
-        button { width: 100%; padding: 14px; border: none; border-radius: 8px; cursor: pointer; font-size: 1rem; font-weight: 600; transition: opacity 0.2s; }
+        
+        input, select, textarea { 
+            width: 100%; 
+            padding: 12px; 
+            margin: 8px 0 16px; 
+            border: 1px solid var(--border); 
+            border-radius: 8px; 
+            box-sizing: border-box; 
+            font-size: 16px; 
+        }
+        
+        button { 
+            width: 100%; 
+            padding: 14px; 
+            border: none; 
+            border-radius: 8px; 
+            cursor: pointer; 
+            font-size: 1rem; 
+            font-weight: 600; 
+            transition: opacity 0.2s; 
+        }
+        
         button:active { opacity: 0.8; }
         button:disabled { opacity: 0.6; cursor: not-allowed; }
+        
         .btn-primary { background: var(--primary); color: white; }
         .btn-secondary { background: var(--light-blue); color: var(--primary); margin-top: 10px; }
-        .btn-danger { background: #ffebee; color: #c62828; width: auto; padding: 8px 12px; font-size: 0.9rem; }
-        .btn-success { background: #4caf50; color: white; width: auto; padding: 8px 16px; font-size: 0.9rem; margin-right: 8px; }
+        .btn-danger { background: #ffebee; color: #c62828; width: auto; padding: 8px 12px; font-size: 0.85rem; }
+        .btn-success { background: #4caf50; color: white; width: auto; padding: 8px 16px; font-size: 0.85rem; margin-right: 8px; }
         .btn-copy { background: #e0e0e0; color: #333; width: auto; padding: 6px 12px; font-size: 0.8rem; margin-left: 10px; border-radius: 4px; }
-        .results-box { background: #f8f9fa; border: 1px solid #e9ecef; border-radius: 8px; padding: 15px; margin-top: 20px; }
-        .result-item { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid #eee; }
+        .btn-refresh { background: var(--light-blue); color: var(--primary); width: auto; padding: 8px 16px; font-size: 0.85rem; margin-bottom: 12px; }
+        
+        .results-box { 
+            background: #f8f9fa; 
+            border: 1px solid #e9ecef; 
+            border-radius: 8px; 
+            padding: 12px; 
+            margin-top: 20px; 
+        }
+        
+        .result-item { 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            padding: 10px 0; 
+            border-bottom: 1px solid #eee; 
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        
         .result-item:last-child { border-bottom: none; }
+        
         .hidden { display: none !important; }
-        .phone-2-wrapper { display: flex; align-items: center; gap: 10px; }
-        .remark-box { margin-top: 20px; padding: 15px; background-color: #fff3cd; border: 1px solid #ffeeba; border-radius: 8px; color: #856404; font-size: 0.9rem; }
-        .remark-box ul { margin: 5px 0 0 20px; padding: 0; }
+        
+        .phone-2-wrapper { 
+            display: flex; 
+            align-items: center; 
+            gap: 10px; 
+        }
+        
+        .remark-box { 
+            margin-top: 20px; 
+            padding: 12px; 
+            background-color: #fff3cd; 
+            border: 1px solid #ffeeba; 
+            border-radius: 8px; 
+            color: #856404; 
+            font-size: 0.85rem; 
+        }
+        
+        .remark-box ul { 
+            margin: 5px 0 0 20px; 
+            padding: 0; 
+        }
+        
         .remark-box li { margin-bottom: 4px; }
-
-        #loginOverlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #0056b3; z-index: 9999; display: flex; justify-content: center; align-items: center; }
-        .login-box { background: white; padding: 30px; border-radius: 15px; width: 85%; max-width: 350px; text-align: center; box-shadow: 0 10px 25px rgba(0,0,0,0.2); }
+        
+        #loginOverlay { 
+            position: fixed; 
+            top: 0; 
+            left: 0; 
+            width: 100%; 
+            height: 100%; 
+            background: #0056b3; 
+            z-index: 9999; 
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
+            padding: 20px;
+        }
+        
+        .login-box { 
+            background: white; 
+            padding: 25px; 
+            border-radius: 15px; 
+            width: 100%; 
+            max-width: 350px; 
+            text-align: center; 
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2); 
+        }
+        
         .login-box h2 { margin-top: 0; color: var(--primary); }
-
-        .audit-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
-
+        
+        .audit-grid { 
+            display: grid; 
+            grid-template-columns: 1fr; 
+            gap: 12px; 
+        }
+        
+        @media (min-width: 640px) {
+            .audit-grid { 
+                grid-template-columns: 1fr 1fr; 
+                gap: 15px; 
+            }
+        }
+        
         .dropdown { 
             position: absolute; 
-            top: 65px;
-            right: 20px;
+            top: 58px;
+            right: 10px;
             background: #fff; 
             border: 1px solid #ddd; 
             border-radius: 8px; 
@@ -138,6 +322,13 @@
             display: none; 
             z-index: 1000; 
             min-width: 180px;
+        }
+        
+        @media (min-width: 480px) {
+            .dropdown {
+                top: 65px;
+                right: 20px;
+            }
         }
         
         .dropdown.show { display: block; }
@@ -156,31 +347,36 @@
         }
         
         .dropdown-item:hover { background: #f5f5f5; }
-
-        .section-title { color: var(--primary); font-size: 1rem; margin: 20px 0 10px; border-bottom: 2px solid var(--light-blue); padding-bottom: 5px; }
-
-        .req-card { background: #f9f9f9; padding: 12px; border-radius: 8px; margin-bottom: 10px; border-left: 4px solid var(--primary); }
-        .req-status { display: inline-block; padding: 4px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: bold; margin-bottom: 8px; }
-
-        .status-pending { 
-            background: #fff3cd; 
-            color: #856404; 
+        
+        .section-title { 
+            color: var(--primary); 
+            font-size: 0.95rem; 
+            margin: 20px 0 10px; 
+            border-bottom: 2px solid var(--light-blue); 
+            padding-bottom: 5px; 
         }
         
-        .status-accepted { 
-            background: #cfe2ff; 
-            color: #084298; 
+        .req-card { 
+            background: #f9f9f9; 
+            padding: 12px; 
+            border-radius: 8px; 
+            margin-bottom: 10px; 
+            border-left: 4px solid var(--primary); 
         }
         
-        .status-completed { 
-            background: #d4edda; 
-            color: #155724; 
+        .req-status { 
+            display: inline-block; 
+            padding: 4px 8px; 
+            border-radius: 4px; 
+            font-size: 0.7rem; 
+            font-weight: bold; 
+            margin-bottom: 8px; 
         }
         
-        .status-rejected { 
-            background: #f8d7da; 
-            color: #721c24; 
-        }
+        .status-pending { background: #fff3cd; color: #856404; }
+        .status-accepted { background: #cfe2ff; color: #084298; }
+        .status-completed { background: #d4edda; color: #155724; }
+        .status-rejected { background: #f8d7da; color: #721c24; }
         
         /* Notification animation */
         @keyframes slideIn {
@@ -200,6 +396,79 @@
         .req-card .fa-check-double {
             margin-right: 5px;
             opacity: 0.7;
+        }
+        
+        /* Mobile-friendly button groups */
+        .req-card .button-group {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-top: 8px;
+        }
+        
+        .req-card .button-group button {
+            flex: 1;
+            min-width: 100px;
+        }
+        
+        /* Rejection reason styling */
+        .rejection-reason {
+            background: #fff;
+            border-left: 3px solid #c62828;
+            padding: 8px 12px;
+            margin-top: 8px;
+            border-radius: 4px;
+            font-size: 0.85rem;
+            color: #666;
+        }
+        
+        .rejection-reason strong {
+            color: #c62828;
+            display: block;
+            margin-bottom: 4px;
+            font-size: 0.75rem;
+        }
+        
+        /* Modal styles for rejection reason */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 10000;
+            padding: 20px;
+        }
+        
+        .modal-content {
+            background: white;
+            padding: 24px;
+            border-radius: 12px;
+            max-width: 400px;
+            width: 100%;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+        }
+        
+        .modal-content h3 {
+            margin-top: 0;
+            color: var(--primary);
+        }
+        
+        .modal-content textarea {
+            margin: 12px 0;
+        }
+        
+        .modal-buttons {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .modal-buttons button {
+            flex: 1;
         }
     </style>
 </head>
@@ -443,8 +712,8 @@
                         <div style="padding:20px; text-align:center;">Loading...</div>
                     </div>
                 </div>
-            </div>
-
+            </div>     
+            
             <div id="requests" class="tab-content">
                 <div class="card">
                     <h3><i class="fas fa-paper-plane"></i> Send Request</h3>
@@ -452,14 +721,21 @@
                     <select id="reqReceiver"><option>Loading users...</option></select>
                     <label>What do you need?</label>
                     <textarea id="reqContent" rows="2" placeholder="Describe your request..."></textarea>
-                    <button class="btn-primary" onclick="sendRequest()">Send Request</button>
+                    <button class="btn-primary" onclick="sendRequest()">
+                        <i class="fas fa-paper-plane"></i> Send Request
+                    </button>
                 </div>
-
+            
                 <div class="card">
-                    <h3><i class="fas fa-inbox"></i> Incoming Requests</h3>
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; flex-wrap:wrap; gap:10px;">
+                        <h3 style="margin:0;"><i class="fas fa-inbox"></i> Incoming Requests</h3>
+                        <button id="refreshRequestsBtn" onclick="refreshRequests()" class="btn-refresh">
+                            <i class="fas fa-sync"></i> Refresh
+                        </button>
+                    </div>
                     <div id="incomingList"><p style="color:#888;">No pending requests.</p></div>
                 </div>
-
+            
                 <div class="card">
                     <h3><i class="fas fa-history"></i> My Sent Requests</h3>
                     <div id="sentList"><p style="color:#888;">No history.</p></div>
@@ -703,6 +979,7 @@
             document.getElementById('userDropdown').classList.remove('show'); 
         }
 
+        // ADD THIS HELPER FUNCTION for Malaysia time formatting
         function formatMalaysiaTime(dateString) {
             if (!dateString) return '';
             
@@ -779,6 +1056,35 @@
                 console.log("Dropdown populated successfully");
         
                 // Load Requests
+                await refreshRequests();
+                
+                // Update badge after loading
+                checkPendingRequests();
+            } catch(e) { 
+                console.error('Load requests error:', e);
+                const sel = document.getElementById('reqReceiver');
+                if (sel) {
+                    if (e.name === 'AbortError') {
+                        sel.innerHTML = '<option value="">-- Timeout loading users --</option>';
+                    } else {
+                        sel.innerHTML = '<option value="">-- Error loading users --</option>';
+                    }
+                }
+                alert('❌ Error loading users. Please try refreshing the page.');
+            }
+        }
+        
+        // NEW FUNCTION: Refresh only the requests (not the whole page)
+        async function refreshRequests() {
+            if (!currentUser || !currentUser.id) return;
+            
+            const refreshBtn = document.getElementById('refreshRequestsBtn');
+            if (refreshBtn) {
+                refreshBtn.disabled = true;
+                refreshBtn.innerHTML = '<i class="fas fa-sync fa-spin"></i> Refreshing...';
+            }
+            
+            try {
                 const rRes = await fetch(`${API_URL}/requests/${currentUser.id}`);
                 const data = await rRes.json();
                 
@@ -804,16 +1110,27 @@
                                     ${completedTime ? `<div><i class="fas fa-check-double"></i> Completed: ${completedTime}</div>` : ''}
                                 </div>
                                 
+                                ${r.status === 'rejected' && r.rejection_reason ? `
+                                    <div class="rejection-reason">
+                                        <strong>REJECTION REASON:</strong>
+                                        ${escapeHtml(r.rejection_reason)}
+                                    </div>
+                                ` : ''}
+                                
                                 ${r.status === 'pending' ? `
-                                    <div style="margin-top:8px;">
-                                        <button onclick="updateReq(${r.id}, 'accepted')" class="btn-success">Accept</button>
-                                        <button onclick="updateReq(${r.id}, 'rejected')" class="btn-danger">Reject</button>
+                                    <div class="button-group">
+                                        <button onclick="updateReq(${r.id}, 'accepted')" class="btn-success">
+                                            <i class="fas fa-check"></i> Accept
+                                        </button>
+                                        <button onclick="showRejectModal(${r.id})" class="btn-danger">
+                                            <i class="fas fa-times"></i> Reject
+                                        </button>
                                     </div>
                                 ` : ''}
                                 
                                 ${r.status === 'accepted' ? `
                                     <div style="margin-top:8px;">
-                                        <button onclick="updateReq(${r.id}, 'completed')" class="btn-primary" style="width:auto; padding:8px 16px; font-size:0.9rem;">
+                                        <button onclick="updateReq(${r.id}, 'completed')" class="btn-primary" style="width:100%; padding:10px;">
                                             <i class="fas fa-check-circle"></i> Mark as Complete
                                         </button>
                                     </div>
@@ -844,25 +1161,152 @@
                                     ${acceptedTime ? `<div><i class="fas fa-check"></i> Accepted: ${acceptedTime}</div>` : ''}
                                     ${completedTime ? `<div><i class="fas fa-check-double"></i> Completed: ${completedTime}</div>` : ''}
                                 </div>
+                                
+                                ${r.status === 'rejected' && r.rejection_reason ? `
+                                    <div class="rejection-reason">
+                                        <strong>REJECTION REASON:</strong>
+                                        ${escapeHtml(r.rejection_reason)}
+                                    </div>
+                                ` : ''}
                             </div>
                         `;
                     }).join('');
                 }
                 
-                // Update badge after loading
+                // Update badge
                 checkPendingRequests();
-            } catch(e) { 
-                console.error('Load requests error:', e);
-                const sel = document.getElementById('reqReceiver');
-                if (sel) {
-                    if (e.name === 'AbortError') {
-                        sel.innerHTML = '<option value="">-- Timeout loading users --</option>';
-                    } else {
-                        sel.innerHTML = '<option value="">-- Error loading users --</option>';
-                    }
+                
+                if (refreshBtn) {
+                    refreshBtn.disabled = false;
+                    refreshBtn.innerHTML = '<i class="fas fa-sync"></i> Refresh';
                 }
-                alert('❌ Error loading users. Please try refreshing the page.');
+            } catch (e) {
+                console.error('Refresh error:', e);
+                if (refreshBtn) {
+                    refreshBtn.disabled = false;
+                    refreshBtn.innerHTML = '<i class="fas fa-sync"></i> Refresh';
+                }
             }
+        }
+        
+        // NEW FUNCTION: Show reject modal
+        function showRejectModal(requestId) {
+            const modal = document.createElement('div');
+            modal.className = 'modal-overlay';
+            modal.id = 'rejectModal';
+            modal.innerHTML = `
+                <div class="modal-content">
+                    <h3><i class="fas fa-times-circle" style="color:#c62828;"></i> Reject Request</h3>
+                    <p style="color:#666; font-size:0.9rem;">Please provide a reason for rejecting this request:</p>
+                    <textarea id="rejectReason" rows="4" placeholder="Enter rejection reason..." style="width:100%; margin:0;"></textarea>
+                    <div class="modal-buttons" style="margin-top:16px;">
+                        <button onclick="closeRejectModal()" class="btn-secondary">Cancel</button>
+                        <button onclick="confirmReject(${requestId})" class="btn-danger" style="width:auto; flex:1;">
+                            <i class="fas fa-times"></i> Reject
+                        </button>
+                    </div>
+                </div>
+            `;
+            
+            document.body.appendChild(modal);
+            document.getElementById('rejectReason').focus();
+            
+            // Close on overlay click
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) closeRejectModal();
+            });
+        }
+        
+        // NEW FUNCTION: Close reject modal
+        function closeRejectModal() {
+            const modal = document.getElementById('rejectModal');
+            if (modal) modal.remove();
+        }
+        
+        // NEW FUNCTION: Confirm rejection with reason
+        async function confirmReject(requestId) {
+            const reason = document.getElementById('rejectReason').value.trim();
+            
+            if (!reason) {
+                alert('Please provide a reason for rejection');
+                return;
+            }
+            
+            closeRejectModal();
+            await updateReq(requestId, 'rejected', reason);
+        }
+        
+        // UPDATE the updateReq function to handle rejection reason
+        async function updateReq(id, status, reason = null) {
+            const statusText = {
+                'accepted': 'Accept',
+                'rejected': 'Reject', 
+                'completed': 'Complete'
+            };
+            
+            const confirmMsg = {
+                'accepted': 'Accept this request?',
+                'completed': 'Mark this request as complete?'
+            };
+            
+            // Skip confirmation for reject since we already have the modal
+            if (status !== 'rejected' && !confirm(confirmMsg[status])) return;
+            
+            try {
+                const body = { status };
+                if (status === 'rejected' && reason) {
+                    body.reason = reason;
+                }
+                
+                const res = await fetch(`${API_URL}/requests/${id}/status`, {
+                    method: 'PUT', 
+                    headers: {'Content-Type':'application/json'},
+                    body: JSON.stringify(body)
+                });
+                
+                if (res.ok) {
+                    const successMsg = {
+                        'accepted': '✅ Request Accepted!',
+                        'rejected': '❌ Request Rejected',
+                        'completed': '✅ Request Completed!'
+                    };
+                    
+                    // Show quick feedback
+                    showNotification(successMsg[status], status === 'rejected' ? '#c62828' : '#28a745');
+                    
+                    refreshRequests();
+                } else {
+                    alert("❌ Failed to update request");
+                }
+            } catch(e) {
+                console.error('Update request error:', e);
+                alert("❌ Network Error");
+            }
+        }
+        
+        // NEW FUNCTION: Show notification toast
+        function showNotification(message, color = '#28a745') {
+            const notification = document.createElement('div');
+            notification.style.cssText = `
+                position: fixed;
+                top: 80px;
+                right: 20px;
+                background: ${color};
+                color: white;
+                padding: 15px 20px;
+                border-radius: 8px;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+                z-index: 10000;
+                animation: slideIn 0.3s ease-out;
+                max-width: 300px;
+            `;
+            notification.innerHTML = message;
+            document.body.appendChild(notification);
+            
+            setTimeout(() => {
+                notification.style.animation = 'slideIn 0.3s ease-out reverse';
+                setTimeout(() => notification.remove(), 300);
+            }, 2500);
         }
 
         async function sendRequest() {
@@ -900,65 +1344,6 @@
             }
         }
 
-        async function updateReq(id, status) {
-            const statusText = {
-                'accepted': 'Accept',
-                'rejected': 'Reject', 
-                'completed': 'Complete'
-            };
-            
-            const confirmMsg = {
-                'accepted': 'Accept this request?',
-                'rejected': 'Reject this request?',
-                'completed': 'Mark this request as complete?'
-            };
-            
-            if (!confirm(confirmMsg[status])) return;
-            
-            try {
-                const res = await fetch(`${API_URL}/requests/${id}/status`, {
-                    method: 'PUT', 
-                    headers: {'Content-Type':'application/json'},
-                    body: JSON.stringify({ status })
-                });
-                
-                if (res.ok) {
-                    const successMsg = {
-                        'accepted': '✅ Request Accepted!',
-                        'rejected': '❌ Request Rejected',
-                        'completed': '✅ Request Completed!'
-                    };
-                    
-                    // Show quick feedback
-                    const notification = document.createElement('div');
-                    notification.style.cssText = `
-                        position: fixed;
-                        top: 80px;
-                        right: 20px;
-                        background: #28a745;
-                        color: white;
-                        padding: 15px 20px;
-                        border-radius: 8px;
-                        box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-                        z-index: 10000;
-                        animation: slideIn 0.3s ease-out;
-                    `;
-                    notification.innerHTML = `<i class="fas fa-check-circle"></i> ${successMsg[status]}`;
-                    document.body.appendChild(notification);
-                    
-                    setTimeout(() => {
-                        notification.remove();
-                    }, 2000);
-                    
-                    loadRequests();
-                } else {
-                    alert("❌ Failed to update request");
-                }
-            } catch(e) {
-                console.error('Update request error:', e);
-                alert("❌ Network Error");
-            }
-        }
         function openTab(tabId, btnElement) {
             document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active-content'));
             document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active-tab'));
@@ -1213,6 +1598,7 @@
     </script>
 </body>
 </html>
+
 
 
 

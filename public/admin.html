@@ -394,7 +394,7 @@
         // --- STAFF LOGIC ---
         async function loadStaff() {
             try {
-                const res = await fetch(`${API_URL}/users`, { headers: { 'admin-secret': secretKey } });
+                const res = await fetch(`${API_URL}/users/admin`, { headers: { 'admin-secret': secretKey } });
                 if (!res.ok) { if(res.status === 401) logout(); return; }
                 const users = await res.json();
                 const list = document.getElementById('staffList');
@@ -453,27 +453,33 @@
                 const res = await fetch(`${API_URL}/audits`, { headers: { 'admin-secret': secretKey } });
                 loadedAudits = await res.json();
                 const list = document.getElementById('auditList');
-                if(loadedAudits.length === 0) { list.innerHTML = "<tr><td colspan='6' style='text-align:center;'>No audits found.</td></tr>"; return; }
+                if(!loadedAudits.length) { list.innerHTML = "<tr><td colspan='6' style='text-align:center; padding:20px;'>No audits found.</td></tr>"; return; }
+                
                 list.innerHTML = loadedAudits.map(a => `
                     <tr>
                         <td>${new Date(a.date_received).toLocaleDateString()}</td>
-                        <td>${a.staff_name || '-'} <br> <small>${a.staff_branch || '-'}</small></td>
-                        <td>${a.model} <br> <small>${a.storage_color || ''}</small></td>
+                        <td>${a.staff_name || '-'} <br> <small style="color:#666;">${a.staff_branch || '-'}</small></td>
+                        <td>${a.model}</td>
                         <td>${a.imei || '-'}</td>
                         <td><b>${a.grade || '-'}</b></td>
-                        <td><button class="btn-success" onclick="viewAuditDetails(${a.id})" style="padding:4px 8px; font-size:0.8rem;">View</button></td>
+                        <td><button class="btn-success" onclick="viewAuditDetails(${a.id})" style="padding:4px 10px; font-size:0.8rem;">View Full</button></td>
                     </tr>
                 `).join('');
             } catch(e) { console.error(e); }
         }
 
         function viewAuditDetails(id) {
-            const audit = loadedAudits.find(a => a.id === id);
-            if (!audit) return;
-            const fields = { "Model": audit.model, "Color": audit.storage_color, "IMEI": audit.imei, "Grade": audit.grade, "Battery": audit.battery_health, "Remarks": audit.remarks, "Screen": audit.screen_condition, "Body": audit.frame_condition }; // Add more fields as needed
+            const a = loadedAudits.find(i => i.id === id);
+            if (!a) return;
+            const fields = { 
+                "Model": a.model, "Color": a.storage_color, "Serial": a.serial_number, "IMEI": a.imei, 
+                "iCloud": a.icloud_lock, "Battery": a.battery_health + '%', "Screen": a.screen_condition, 
+                "Body": a.frame_condition, "Cameras": a.camera_condition, "FaceID": a.biometrics,
+                "Non-Genuine": a.non_genuine_parts, "Grade": a.grade, "Remarks": a.remarks 
+            };
             let html = "";
-            for (const [key, val] of Object.entries(fields)) {
-                html += `<div style="border-bottom:1px solid #eee; padding:5px;"><b style="color:#666;">${key}:</b> ${val || '-'}</div>`;
+            for (const [k, v] of Object.entries(fields)) {
+                html += `<div style="border-bottom:1px solid #f0f0f0; padding:5px;"><strong style="color:#666; font-size:0.8rem;">${k}</strong><br>${v || '-'}</div>`;
             }
             document.getElementById('auditModalBody').innerHTML = html;
             document.getElementById('auditModal').classList.remove('hidden');
@@ -666,4 +672,5 @@
     </script>
 </body>
 </html>
+
 

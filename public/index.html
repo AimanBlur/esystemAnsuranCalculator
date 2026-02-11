@@ -161,9 +161,46 @@
 
         .req-card { background: #f9f9f9; padding: 12px; border-radius: 8px; margin-bottom: 10px; border-left: 4px solid var(--primary); }
         .req-status { display: inline-block; padding: 4px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: bold; margin-bottom: 8px; }
-        .status-pending { background: #fff3cd; color: #856404; }
-        .status-completed { background: #d4edda; color: #155724; }
-        .status-rejected { background: #f8d7da; color: #721c24; }
+
+        .status-pending { 
+            background: #fff3cd; 
+            color: #856404; 
+        }
+        
+        .status-accepted { 
+            background: #cfe2ff; 
+            color: #084298; 
+        }
+        
+        .status-completed { 
+            background: #d4edda; 
+            color: #155724; 
+        }
+        
+        .status-rejected { 
+            background: #f8d7da; 
+            color: #721c24; 
+        }
+        
+        /* Notification animation */
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+        
+        /* Time display styling */
+        .req-card .fa-clock,
+        .req-card .fa-check,
+        .req-card .fa-check-double {
+            margin-right: 5px;
+            opacity: 0.7;
+        }
     </style>
 </head>
 <body>
@@ -666,6 +703,26 @@
             document.getElementById('userDropdown').classList.remove('show'); 
         }
 
+        function formatMalaysiaTime(dateString) {
+            if (!dateString) return '';
+            
+            const date = new Date(dateString);
+            
+            // Format to Malaysia time (UTC+8)
+            const options = {
+                timeZone: 'Asia/Kuala_Lumpur',
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit',
+                hour12: true
+            };
+            
+            return date.toLocaleString('en-MY', options);
+        }
+        
+        // REPLACE the loadRequests function with this updated version
         async function loadRequests() {
             if (!currentUser || !currentUser.id) {
                 console.error("No current user");
@@ -674,9 +731,17 @@
             
             try {
                 console.log("Loading users for dropdown...");
+                
+                // First, run cleanup of old completed requests
+                try {
+                    await fetch(`${API_URL}/requests/cleanup`, { method: 'DELETE' });
+                } catch (e) {
+                    console.log("Cleanup skipped:", e);
+                }
+                
                 // Load Users for Dropdown with timeout
                 const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+                const timeoutId = setTimeout(() => controller.abort(), 10000);
                 
                 const uRes = await fetch(`${API_URL}/users`, {
                     signal: controller.signal
@@ -698,7 +763,6 @@
                     return;
                 }
                 
-                // Check if users is actually an array
                 if (!Array.isArray(users)) {
                     console.error("Users response is not an array:", users);
                     sel.innerHTML = '<option value="">-- Error loading users --</option>';
@@ -723,19 +787,40 @@
                 if(!data.received || data.received.length === 0) {
                     inList.innerHTML = `<p style="color:#888;">No incoming requests.</p>`;
                 } else {
-                    inList.innerHTML = data.received.map(r => `
-                        <div class="req-card">
-                            <span class="req-status status-${r.status}">${r.status}</span>
-                            <b>From: ${escapeHtml(r.sender_name || 'Unknown')}</b> <br>
-                            <p style="margin:5px 0;">${escapeHtml(r.content)}</p>
-                            <small style="color:#888;">${new Date(r.created_at).toLocaleDateString()}</small>
-                            ${r.status === 'pending' ? `
-                                <div style="margin-top:8px;">
-                                    <button onclick="updateReq(${r.id}, 'completed')" class="btn-success">Accept</button>
-                                    <button onclick="updateReq(${r.id}, 'rejected')" class="btn-danger">Reject</button>
-                                </div>` : ''}
-                        </div>
-                    `).join('');
+                    inList.innerHTML = data.received.map(r => {
+                        const sentTime = formatMalaysiaTime(r.created_at);
+                        const acceptedTime = r.accepted_at ? formatMalaysiaTime(r.accepted_at) : null;
+                        const completedTime = r.completed_at ? formatMalaysiaTime(r.completed_at) : null;
+                        
+                        return `
+                            <div class="req-card">
+                                <span class="req-status status-${r.status}">${r.status}</span>
+                                <b>From: ${escapeHtml(r.sender_name || 'Unknown')}</b> <br>
+                                <p style="margin:5px 0;">${escapeHtml(r.content)}</p>
+                                
+                                <div style="font-size:0.75rem; color:#666; margin-top:8px;">
+                                    <div><i class="fas fa-clock"></i> Sent: ${sentTime}</div>
+                                    ${acceptedTime ? `<div><i class="fas fa-check"></i> Accepted: ${acceptedTime}</div>` : ''}
+                                    ${completedTime ? `<div><i class="fas fa-check-double"></i> Completed: ${completedTime}</div>` : ''}
+                                </div>
+                                
+                                ${r.status === 'pending' ? `
+                                    <div style="margin-top:8px;">
+                                        <button onclick="updateReq(${r.id}, 'accepted')" class="btn-success">Accept</button>
+                                        <button onclick="updateReq(${r.id}, 'rejected')" class="btn-danger">Reject</button>
+                                    </div>
+                                ` : ''}
+                                
+                                ${r.status === 'accepted' ? `
+                                    <div style="margin-top:8px;">
+                                        <button onclick="updateReq(${r.id}, 'completed')" class="btn-primary" style="width:auto; padding:8px 16px; font-size:0.9rem;">
+                                            <i class="fas fa-check-circle"></i> Mark as Complete
+                                        </button>
+                                    </div>
+                                ` : ''}
+                            </div>
+                        `;
+                    }).join('');
                 }
         
                 // Render Sent
@@ -743,14 +828,25 @@
                 if(!data.sent || data.sent.length === 0) {
                     outList.innerHTML = `<p style="color:#888;">No sent requests.</p>`;
                 } else {
-                    outList.innerHTML = data.sent.map(r => `
-                        <div class="req-card">
-                            <span class="req-status status-${r.status}">${r.status}</span>
-                            <b>To: ${escapeHtml(r.receiver_name || 'Unknown')}</b>
-                            <p style="margin:5px 0;">${escapeHtml(r.content)}</p>
-                            <small style="color:#888;">${new Date(r.created_at).toLocaleDateString()}</small>
-                        </div>
-                    `).join('');
+                    outList.innerHTML = data.sent.map(r => {
+                        const sentTime = formatMalaysiaTime(r.created_at);
+                        const acceptedTime = r.accepted_at ? formatMalaysiaTime(r.accepted_at) : null;
+                        const completedTime = r.completed_at ? formatMalaysiaTime(r.completed_at) : null;
+                        
+                        return `
+                            <div class="req-card">
+                                <span class="req-status status-${r.status}">${r.status}</span>
+                                <b>To: ${escapeHtml(r.receiver_name || 'Unknown')}</b>
+                                <p style="margin:5px 0;">${escapeHtml(r.content)}</p>
+                                
+                                <div style="font-size:0.75rem; color:#666; margin-top:8px;">
+                                    <div><i class="fas fa-clock"></i> Sent: ${sentTime}</div>
+                                    ${acceptedTime ? `<div><i class="fas fa-check"></i> Accepted: ${acceptedTime}</div>` : ''}
+                                    ${completedTime ? `<div><i class="fas fa-check-double"></i> Completed: ${completedTime}</div>` : ''}
+                                </div>
+                            </div>
+                        `;
+                    }).join('');
                 }
                 
                 // Update badge after loading
@@ -805,6 +901,20 @@
         }
 
         async function updateReq(id, status) {
+            const statusText = {
+                'accepted': 'Accept',
+                'rejected': 'Reject', 
+                'completed': 'Complete'
+            };
+            
+            const confirmMsg = {
+                'accepted': 'Accept this request?',
+                'rejected': 'Reject this request?',
+                'completed': 'Mark this request as complete?'
+            };
+            
+            if (!confirm(confirmMsg[status])) return;
+            
             try {
                 const res = await fetch(`${API_URL}/requests/${id}/status`, {
                     method: 'PUT', 
@@ -813,6 +923,33 @@
                 });
                 
                 if (res.ok) {
+                    const successMsg = {
+                        'accepted': '✅ Request Accepted!',
+                        'rejected': '❌ Request Rejected',
+                        'completed': '✅ Request Completed!'
+                    };
+                    
+                    // Show quick feedback
+                    const notification = document.createElement('div');
+                    notification.style.cssText = `
+                        position: fixed;
+                        top: 80px;
+                        right: 20px;
+                        background: #28a745;
+                        color: white;
+                        padding: 15px 20px;
+                        border-radius: 8px;
+                        box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+                        z-index: 10000;
+                        animation: slideIn 0.3s ease-out;
+                    `;
+                    notification.innerHTML = `<i class="fas fa-check-circle"></i> ${successMsg[status]}`;
+                    document.body.appendChild(notification);
+                    
+                    setTimeout(() => {
+                        notification.remove();
+                    }, 2000);
+                    
                     loadRequests();
                 } else {
                     alert("❌ Failed to update request");
@@ -822,7 +959,6 @@
                 alert("❌ Network Error");
             }
         }
-
         function openTab(tabId, btnElement) {
             document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active-content'));
             document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active-tab'));
@@ -1077,5 +1213,6 @@
     </script>
 </body>
 </html>
+
 
 

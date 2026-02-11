@@ -66,7 +66,7 @@ const app = new Elysia()
                 return { success: true };
             } catch (e: any) { 
                 console.error("Audit POST error:", e);
-                await sql.end();
+                try { await sql.end(); } catch(err) {}
                 return { success: false, message: e.message }; 
             }
         })
@@ -79,7 +79,7 @@ const app = new Elysia()
             }
             if (headers['admin-secret'] !== process.env.ADMIN_PASSWORD) { 
                 set.status = 401; 
-                await sql.end();
+                try { await sql.end(); } catch(err) {}
                 return []; 
             }
             try {
@@ -88,7 +88,7 @@ const app = new Elysia()
                 return [...audits];
             } catch (e) { 
                 console.error("Audits GET error:", e);
-                await sql.end();
+                try { await sql.end(); } catch(err) {}
                 return []; 
             }
         })
@@ -118,7 +118,7 @@ const app = new Elysia()
                 return { success: false, message: "Invalid ID or Password" };
             } catch (e: any) { 
                 console.error("Login error:", e);
-                await sql.end();
+                try { await sql.end(); } catch(err) {}
                 return { success: false, message: e.message }; 
             }
         }, { body: t.Object({ username: t.String(), password: t.String() }) })
@@ -126,17 +126,24 @@ const app = new Elysia()
         .get('/users', async ({ set }) => {
             const sql = getDb();
             if (!sql) {
-                console.error("Users GET - DB not connected");
+                console.error("Users GET - DB not connected, DATABASE_URL:", process.env.DATABASE_URL ? "present" : "missing");
                 set.status = 500;
                 return [];
             }
             try {
+                console.log("Fetching users from database...");
                 const users = await sql`SELECT id, name, branch FROM users ORDER BY name ASC`;
+                console.log("Users fetched:", users.length);
                 await sql.end();
-                return [...users];
-            } catch (e) { 
-                console.error("Users GET error:", e);
-                await sql.end();
+                // Ensure we return a plain array that can be serialized
+                return users.map(u => ({ 
+                    id: Number(u.id), 
+                    name: String(u.name), 
+                    branch: String(u.branch) 
+                }));
+            } catch (e: any) { 
+                console.error("Users GET error:", e.message, e.stack);
+                try { await sql.end(); } catch(err) { console.error("Error closing connection:", err); }
                 set.status = 500;
                 return []; 
             }
@@ -147,7 +154,7 @@ const app = new Elysia()
             if (!sql) return [];
             if (headers['admin-secret'] !== process.env.ADMIN_PASSWORD) { 
                 set.status = 401;
-                await sql.end();
+                try { await sql.end(); } catch(err) {}
                 return []; 
             }
             try {
@@ -156,7 +163,7 @@ const app = new Elysia()
                 return [...users];
             } catch (e) { 
                 console.error("Users Admin GET error:", e);
-                await sql.end();
+                try { await sql.end(); } catch(err) {}
                 return []; 
             }
         })
@@ -173,7 +180,7 @@ const app = new Elysia()
                 return { success: true };
             } catch (e: any) {
                 console.error("Password update error:", e);
-                await sql.end();
+                try { await sql.end(); } catch(err) {}
                 set.status = 500;
                 return { success: false, message: e.message };
             }
@@ -193,7 +200,7 @@ const app = new Elysia()
                 return { received: [...received], sent: [...sent] };
             } catch (e) {
                 console.error("Requests GET error:", e);
-                await sql.end();
+                try { await sql.end(); } catch(err) {}
                 set.status = 500;
                 return { received: [], sent: [] };
             }
@@ -211,7 +218,7 @@ const app = new Elysia()
                 return { count: parseInt(result[0]?.count) || 0 };
             } catch (e) {
                 console.error("Pending count error:", e);
-                await sql.end();
+                try { await sql.end(); } catch(err) {}
                 return { count: 0 };
             }
         })
@@ -231,7 +238,7 @@ const app = new Elysia()
                 return { success: true };
             } catch (e: any) {
                 console.error("Request POST error:", e);
-                await sql.end();
+                try { await sql.end(); } catch(err) {}
                 set.status = 500;
                 return { success: false, message: e.message };
             }
@@ -249,7 +256,7 @@ const app = new Elysia()
                 return { success: true };
             } catch (e: any) {
                 console.error("Request status update error:", e);
-                await sql.end();
+                try { await sql.end(); } catch(err) {}
                 set.status = 500;
                 return { success: false, message: e.message };
             }
@@ -263,7 +270,7 @@ const app = new Elysia()
             }
             if (headers['admin-secret'] !== process.env.ADMIN_PASSWORD) { 
                 set.status = 401;
-                await sql.end();
+                try { await sql.end(); } catch(err) {}
                 return { success: false }; 
             }
             try {
@@ -276,7 +283,7 @@ const app = new Elysia()
                 return { success: true };
             } catch (e: any) { 
                 console.error("User creation error:", e);
-                await sql.end();
+                try { await sql.end(); } catch(err) {}
                 return { success: false, message: e.message }; 
             }
         })
@@ -289,7 +296,7 @@ const app = new Elysia()
             }
             if (headers['admin-secret'] !== process.env.ADMIN_PASSWORD) { 
                 set.status = 401;
-                await sql.end();
+                try { await sql.end(); } catch(err) {}
                 return { success: false }; 
             }
             try {
@@ -298,7 +305,7 @@ const app = new Elysia()
                 return { success: true };
             } catch (e: any) {
                 console.error("User deletion error:", e);
-                await sql.end();
+                try { await sql.end(); } catch(err) {}
                 set.status = 500;
                 return { success: false, message: e.message };
             }
@@ -322,7 +329,7 @@ const app = new Elysia()
                 return { success: true };
             } catch (e: any) { 
                 console.error("User update error:", e);
-                await sql.end();
+                try { await sql.end(); } catch(err) {}
                 return { success: false, message: e.message }; 
             }
         }, { body: t.Object({ password: t.String() }) })
@@ -345,7 +352,7 @@ const app = new Elysia()
                 return [...phones];
             } catch (error: any) { 
                 console.error("Phones GET error:", error);
-                await sql.end();
+                try { await sql.end(); } catch(err) {}
                 set.status = 500;
                 return { error: error.message }; 
             }
@@ -364,7 +371,7 @@ const app = new Elysia()
                 return [...types]; 
             } catch (error: any) { 
                 console.error("Types GET error:", error);
-                await sql.end();
+                try { await sql.end(); } catch(err) {}
                 set.status = 500;
                 return []; 
             }
@@ -378,7 +385,7 @@ const app = new Elysia()
             }
             if (headers['admin-secret'] !== process.env.ADMIN_PASSWORD) {
                 set.status = 401;
-                await sql.end();
+                try { await sql.end(); } catch(err) {}
                 return { success: false };
             }
             try {
@@ -387,7 +394,7 @@ const app = new Elysia()
                 return { success: true };
             } catch (e: any) { 
                 console.error("Type creation error:", e);
-                await sql.end();
+                try { await sql.end(); } catch(err) {}
                 return { success: false, message: e.message }; 
             }
         }, { body: t.Object({ name: t.String() }) })
@@ -400,7 +407,7 @@ const app = new Elysia()
             }
             if (headers['admin-secret'] !== process.env.ADMIN_PASSWORD) { 
                 set.status = 401;
-                await sql.end();
+                try { await sql.end(); } catch(err) {}
                 return { success: false }; 
             }
             
@@ -422,7 +429,7 @@ const app = new Elysia()
                 return { success: true };
             } catch (e: any) { 
                 console.error("Phone creation error:", e);
-                await sql.end();
+                try { await sql.end(); } catch(err) {}
                 return { success: false, message: e.message }; 
             }
         })    
@@ -435,7 +442,7 @@ const app = new Elysia()
             }
             if (headers['admin-secret'] !== process.env.ADMIN_PASSWORD) { 
                 set.status = 401;
-                await sql.end();
+                try { await sql.end(); } catch(err) {}
                 return { success: false }; 
             }
             
@@ -457,7 +464,7 @@ const app = new Elysia()
                 return { success: true };
             } catch (e: any) { 
                 console.error("Phone update error:", e);
-                await sql.end();
+                try { await sql.end(); } catch(err) {}
                 return { success: false, message: e.message }; 
             }
         })
@@ -471,7 +478,7 @@ const app = new Elysia()
 
             if (headers['admin-secret'] !== process.env.ADMIN_PASSWORD) {
                 set.status = 401;
-                await sql.end();
+                try { await sql.end(); } catch(err) {}
                 return { success: false, message: "Wrong Password" };
             }
 
@@ -481,7 +488,7 @@ const app = new Elysia()
                 return { success: true };
             } catch (error: any) {
                 console.error("Phone deletion error:", error);
-                await sql.end();
+                try { await sql.end(); } catch(err) {}
                 set.status = 500;
                 return { success: false, message: error.message };
             }

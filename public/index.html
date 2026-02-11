@@ -448,53 +448,6 @@
             if (e.key === 'Enter') handleLogin();
         });
 
-        async function handleLogin() {
-            const u = document.getElementById('staffUser').value.trim();
-            const p = document.getElementById('staffPass').value;
-            const btn = document.getElementById('loginBtn');
-            const msg = document.getElementById('loginMsg');
-            
-            if(!u || !p) {
-                msg.innerText = "Please enter both User ID and Password";
-                return;
-            }
-            
-            btn.innerText = "Checking...";
-            btn.disabled = true;
-            msg.innerText = "";
-
-            try {
-                const res = await fetch(`${API_URL}/login`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ username: u, password: p })
-                });
-                
-                if (!res.ok) throw new Error('Login failed');
-                
-                const data = await res.json();
-                
-                if (data.success) {
-                    localStorage.setItem("staffUser", u);
-                    localStorage.setItem("staffName", data.name || u);
-                    localStorage.setItem("staffBranch", data.branch || "-");
-                    localStorage.setItem("staffId", data.id || "");
-                    
-                    document.getElementById('loginOverlay').classList.add('hidden');
-                    document.getElementById('mainApp').classList.remove('hidden');
-                    initApp();
-                } else {
-                    msg.innerText = data.message || "Invalid ID or Password";
-                }
-            } catch (e) { 
-                console.error('Login error:', e);
-                msg.innerText = "Server Error. Please try again."; 
-            }
-            
-            btn.innerText = "Login";
-            btn.disabled = false;
-        }
-
         function doLogout() {
             if(confirm("Logout from system?")) {
                 localStorage.clear();
@@ -503,12 +456,25 @@
         }
 
         function initApp() {
-            // Set current user
+            // Set current user - with better validation
+            const userId = localStorage.getItem("staffId");
+            const userName = localStorage.getItem("staffName");
+            const userBranch = localStorage.getItem("staffBranch");
+            
+            if (!userId) {
+                console.error("Staff ID missing from localStorage");
+                alert("Session error. Please login again.");
+                doLogout();
+                return;
+            }
+            
             currentUser = {
-                id: localStorage.getItem("staffId"),
-                name: localStorage.getItem("staffName") || "Staff",
-                branch: localStorage.getItem("staffBranch") || "Main"
+                id: userId,
+                name: userName || "Staff",
+                branch: userBranch || "Main"
             };
+            
+            console.log("Current user initialized:", currentUser);
             
             // Update UI
             updateHeader();
@@ -529,6 +495,69 @@
             // Start checking for pending requests
             checkPendingRequests();
             setInterval(checkPendingRequests, 30000); // Check every 30 seconds
+        }
+        
+        
+        // ALSO UPDATE handleLogin to ensure staffId is properly saved
+        async function handleLogin() {
+            const u = document.getElementById('staffUser').value.trim();
+            const p = document.getElementById('staffPass').value;
+            const btn = document.getElementById('loginBtn');
+            const msg = document.getElementById('loginMsg');
+            
+            if(!u || !p) {
+                msg.innerText = "Please enter both User ID and Password";
+                return;
+            }
+            
+            btn.innerText = "Checking...";
+            btn.disabled = true;
+            msg.innerText = "";
+        
+            try {
+                const res = await fetch(`${API_URL}/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username: u, password: p })
+                });
+                
+                if (!res.ok) throw new Error('Login failed');
+                
+                const data = await res.json();
+                console.log("Login response:", data); // Debug log
+                
+                if (data.success) {
+                    // Make sure we're saving the ID properly
+                    if (!data.id) {
+                        console.error("No user ID in response:", data);
+                        msg.innerText = "Login error: No user ID returned";
+                        return;
+                    }
+                    
+                    localStorage.setItem("staffUser", u);
+                    localStorage.setItem("staffName", data.name || u);
+                    localStorage.setItem("staffBranch", data.branch || "-");
+                    localStorage.setItem("staffId", String(data.id)); // Convert to string explicitly
+                    
+                    console.log("Saved to localStorage:", {
+                        staffId: localStorage.getItem("staffId"),
+                        staffName: localStorage.getItem("staffName"),
+                        staffBranch: localStorage.getItem("staffBranch")
+                    });
+                    
+                    document.getElementById('loginOverlay').classList.add('hidden');
+                    document.getElementById('mainApp').classList.remove('hidden');
+                    initApp();
+                } else {
+                    msg.innerText = data.message || "Invalid ID or Password";
+                }
+            } catch (e) { 
+                console.error('Login error:', e);
+                msg.innerText = "Server Error. Please try again."; 
+            }
+            
+            btn.innerText = "Login";
+            btn.disabled = false;
         }
 
         function updateHeader() {
@@ -1048,4 +1077,5 @@
     </script>
 </body>
 </html>
+
 

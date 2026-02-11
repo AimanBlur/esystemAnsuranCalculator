@@ -4,5 +4,11 @@
       "source": "/api/(.*)",
       "destination": "/api"
     }
+  ],
+  "crons": [
+    {
+      "path": "/api/requests/cleanup",
+      "schedule": "0 2 * * *"
+    }
   ]
 }

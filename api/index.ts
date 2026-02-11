@@ -101,7 +101,8 @@ const app = new Elysia()
                 return { success: false, message: "DB Disconnected" }; 
             }
             try {
-                const users = await sql`SELECT * FROM users WHERE username = ${body.username} AND password = ${body.password}`;
+                const b = body as { username: string; password: string };
+                const users = await sql`SELECT * FROM users WHERE username = ${b.username} AND password = ${b.password}`;
                 await sql.end();
                 
                 if (users.length > 0) {
@@ -175,7 +176,8 @@ const app = new Elysia()
                 return { success: false };
             }
             try {
-                await sql`UPDATE users SET password = ${body.password} WHERE id = ${params.id}`;
+                const b = body as { password: string };
+                await sql`UPDATE users SET password = ${b.password} WHERE id = ${params.id}`;
                 await sql.end();
                 return { success: true };
             } catch (e: any) {
@@ -230,9 +232,10 @@ const app = new Elysia()
                 return { success: false };
             }
             try {
+                const b = body as { sender_id: number; sender_name: string; receiver_id: number; content: string };
                 await sql`
                     INSERT INTO requests (sender_id, sender_name, receiver_id, content) 
-                    VALUES (${body.sender_id}, ${body.sender_name}, ${body.receiver_id}, ${body.content})
+                    VALUES (${b.sender_id}, ${b.sender_name}, ${b.receiver_id}, ${b.content})
                 `;
                 await sql.end();
                 return { success: true };
@@ -251,7 +254,8 @@ const app = new Elysia()
                 return { success: false };
             }
             try {
-                await sql`UPDATE requests SET status = ${body.status} WHERE id = ${params.id}`;
+                const b = body as { status: string };
+                await sql`UPDATE requests SET status = ${b.status} WHERE id = ${params.id}`;
                 await sql.end();
                 return { success: true };
             } catch (e: any) {

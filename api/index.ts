@@ -196,8 +196,18 @@ const app = new Elysia()
                 return { received: [], sent: [] };
             }
             try {
-                const received = await sql`SELECT * FROM requests WHERE receiver_id = ${params.userId} ORDER BY created_at DESC`;
-                const sent = await sql`SELECT r.*, u.name as receiver_name FROM requests r LEFT JOIN users u ON r.receiver_id = u.id WHERE sender_id = ${params.userId} ORDER BY created_at DESC`;
+                const received = await sql`
+                    SELECT * FROM requests 
+                    WHERE receiver_id = ${params.userId} 
+                    ORDER BY created_at DESC
+                `;
+                const sent = await sql`
+                    SELECT r.*, u.name as receiver_name 
+                    FROM requests r 
+                    LEFT JOIN users u ON r.receiver_id = u.id 
+                    WHERE sender_id = ${params.userId} 
+                    ORDER BY created_at DESC
+                `;
                 await sql.end();
                 return { received: [...received], sent: [...sent] };
             } catch (e) {
@@ -255,7 +265,24 @@ const app = new Elysia()
             }
             try {
                 const b = body as { status: string };
-                await sql`UPDATE requests SET status = ${b.status} WHERE id = ${params.id}`;
+                
+                // Set timestamp based on status
+                if (b.status === 'accepted') {
+                    await sql`
+                        UPDATE requests 
+                        SET status = ${b.status}, accepted_at = NOW() 
+                        WHERE id = ${params.id}
+                    `;
+                } else if (b.status === 'completed') {
+                    await sql`
+                        UPDATE requests 
+                        SET status = ${b.status}, completed_at = NOW() 
+                        WHERE id = ${params.id}
+                    `;
+                } else {
+                    await sql`UPDATE requests SET status = ${b.status} WHERE id = ${params.id}`;
+                }
+                
                 await sql.end();
                 return { success: true };
             } catch (e: any) {
@@ -265,6 +292,30 @@ const app = new Elysia()
                 return { success: false, message: e.message };
             }
         }, { body: t.Object({ status: t.String() }) })
+
+        .delete('/requests/cleanup', async ({ set }) => {
+            const sql = getDb();
+            if (!sql) {
+                set.status = 500;
+                return { success: false, deleted: 0 };
+            }
+            try {
+                // Delete completed requests older than 2 days
+                const result = await sql`
+                    DELETE FROM requests 
+                    WHERE status = 'completed' 
+                    AND completed_at < NOW() - INTERVAL '2 days'
+                    RETURNING id
+                `;
+                await sql.end();
+                return { success: true, deleted: result.length };
+            } catch (e: any) {
+                console.error("Cleanup error:", e);
+                try { await sql.end(); } catch(err) {}
+                set.status = 500;
+                return { success: false, deleted: 0, message: e.message };
+            }
+        })
 
         .post('/users', async ({ body, headers, set }) => {
             const sql = getDb();

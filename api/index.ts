@@ -38,6 +38,67 @@ const app = new Elysia()
     .use(cors())
     .group('/api', app => app
 
+        .get('/admin/all-requests', async ({ set }) => {
+            const sql = getDb();
+            if (!sql) { set.status = 500; return []; }
+            try {
+                // Join twice to get Sender Name and Receiver Name
+                return await sql`
+                    SELECT r.*, 
+                           s.name as sender_real_name, 
+                           rc.name as receiver_real_name 
+                    FROM requests r
+                    LEFT JOIN users s ON r.sender_id = s.id
+                    LEFT JOIN users rc ON r.receiver_id = rc.id
+                    ORDER BY r.created_at DESC LIMIT 100
+                `;
+            } catch (err) { return []; }
+        })
+
+        // 2. Get ALL Leave Applications
+        .get('/admin/all-leaves', async ({ set }) => {
+            const sql = getDb();
+            if (!sql) { set.status = 500; return []; }
+            try {
+                return await sql`
+                    SELECT l.*, u.name as staff_name, u.branch 
+                    FROM leaves l 
+                    JOIN users u ON l.user_id = u.id 
+                    ORDER BY l.created_at DESC
+                `;
+            } catch (err) { return []; }
+        })
+
+        // 3. Approve/Reject Leave
+        .put('/admin/leave-status', async ({ body, set }) => {
+            const sql = getDb();
+            if (!sql) { set.status = 500; return { success: false }; }
+            
+            const b = body as { id: number, status: string, reason?: string };
+            try {
+                await sql`
+                    UPDATE leaves 
+                    SET status = ${b.status}, rejection_reason = ${b.reason || null} 
+                    WHERE id = ${b.id}
+                `;
+                return { success: true };
+            } catch (err) { return { success: false, error: String(err) }; }
+        }, { body: t.Object({ id: t.Number(), status: t.String(), reason: t.Optional(t.String()) }) })
+
+        // 4. Get ALL Attendance/Shifts
+        .get('/admin/all-shifts', async ({ set }) => {
+            const sql = getDb();
+            if (!sql) { set.status = 500; return []; }
+            try {
+                return await sql`
+                    SELECT s.*, u.name as staff_name, u.branch 
+                    FROM shifts s 
+                    JOIN users u ON s.user_id = u.id 
+                    ORDER BY s.clock_in DESC LIMIT 200
+                `;
+            } catch (err) { return []; }
+        })
+
         .get('/shift/status/:userId', async ({ params, set }) => {
             const sql = getDb(); // <--- FIX: Initialize DB connection
             if (!sql) { 

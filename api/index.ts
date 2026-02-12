@@ -38,50 +38,84 @@ const app = new Elysia()
     .use(cors())
     .group('/api', app => app
 
-        .get('/shift/status/:userId', async ({ params }) => {
-            if (!sql) return { active: false };
-            // Check for a shift that hasn't ended yet
-            const active = await sql`SELECT * FROM shifts WHERE user_id = ${params.userId} AND clock_out IS NULL ORDER BY id DESC LIMIT 1`;
-            return { active: active.length > 0, shift: active[0] || null };
+        .get('/shift/status/:userId', async ({ params, set }) => {
+            const sql = getDb(); // <--- FIX: Initialize DB connection
+            if (!sql) { 
+                console.error("DB Connection Failed"); 
+                set.status = 500; 
+                return { active: false, error: "DB Error" }; 
+            }
+            try {
+                // Check for a shift that hasn't ended yet
+                const active = await sql`SELECT * FROM shifts WHERE user_id = ${params.userId} AND clock_out IS NULL ORDER BY id DESC LIMIT 1`;
+                return { active: active.length > 0, shift: active[0] || null };
+            } catch (err) {
+                console.error("Shift Status Error:", err);
+                return { active: false };
+            }
         })
 
         // Clock In
-        .post('/shift/clock-in', async ({ body }) => {
-            if (!sql) return { success: false };
-            const { user_id } = body;
+        .post('/shift/clock-in', async ({ body, set }) => {
+            const sql = getDb(); // <--- FIX
+            if (!sql) { set.status = 500; return { success: false, message: "DB Error" }; }
             
-            // Check if already clocked in
-            const active = await sql`SELECT * FROM shifts WHERE user_id = ${user_id} AND clock_out IS NULL`;
-            if (active.length > 0) return { success: false, message: "Already clocked in!" };
+            const b = body as { user_id: number };
+            try {
+                // Check if already clocked in
+                const active = await sql`SELECT * FROM shifts WHERE user_id = ${b.user_id} AND clock_out IS NULL`;
+                if (active.length > 0) return { success: false, message: "Already clocked in!" };
 
-            await sql`INSERT INTO shifts (user_id, clock_in, date) VALUES (${user_id}, NOW(), CURRENT_DATE)`;
-            return { success: true };
+                await sql`INSERT INTO shifts (user_id, clock_in, date) VALUES (${b.user_id}, NOW(), CURRENT_DATE)`;
+                return { success: true };
+            } catch (err) {
+                return { success: false, message: String(err) };
+            }
         }, { body: t.Object({ user_id: t.Number() }) })
 
         // Clock Out
-        .post('/shift/clock-out', async ({ body }) => {
-            if (!sql) return { success: false };
-            const { user_id } = body;
-            
-            await sql`UPDATE shifts SET clock_out = NOW() WHERE user_id = ${user_id} AND clock_out IS NULL`;
-            return { success: true };
+        .post('/shift/clock-out', async ({ body, set }) => {
+            const sql = getDb(); // <--- FIX
+            if (!sql) { set.status = 500; return { success: false, message: "DB Error" }; }
+
+            const b = body as { user_id: number };
+            try {
+                await sql`UPDATE shifts SET clock_out = NOW() WHERE user_id = ${b.user_id} AND clock_out IS NULL`;
+                return { success: true };
+            } catch (err) {
+                return { success: false, message: String(err) };
+            }
         }, { body: t.Object({ user_id: t.Number() }) })
 
         // Get Shift Logs
-        .get('/shift/logs/:userId', async ({ params }) => {
-            if (!sql) return [];
-            return await sql`SELECT * FROM shifts WHERE user_id = ${params.userId} ORDER BY clock_in DESC LIMIT 30`;
+        .get('/shift/logs/:userId', async ({ params, set }) => {
+            const sql = getDb(); // <--- FIX
+            if (!sql) { set.status = 500; return []; }
+
+            try {
+                return await sql`SELECT * FROM shifts WHERE user_id = ${params.userId} ORDER BY clock_in DESC LIMIT 30`;
+            } catch (err) {
+                console.error("Logs Error:", err);
+                return [];
+            }
         })
 
         // --- LEAVE SYSTEM ---
 
-        .post('/leaves', async ({ body }) => {
-            if (!sql) return { success: false };
-            await sql`
-                INSERT INTO leaves (user_id, leave_type, start_date, end_date, reason)
-                VALUES (${body.user_id}, ${body.leave_type}, ${body.start_date}, ${body.end_date}, ${body.reason})
-            `;
-            return { success: true };
+        .post('/leaves', async ({ body, set }) => {
+            const sql = getDb(); // <--- FIX
+            if (!sql) { set.status = 500; return { success: false, message: "DB Error" }; }
+
+            const b = body as { user_id: number, leave_type: string, start_date: string, end_date: string, reason: string };
+            try {
+                await sql`
+                    INSERT INTO leaves (user_id, leave_type, start_date, end_date, reason)
+                    VALUES (${b.user_id}, ${b.leave_type}, ${b.start_date}, ${b.end_date}, ${b.reason})
+                `;
+                return { success: true };
+            } catch (err) {
+                return { success: false, message: String(err) };
+            }
         }, { 
             body: t.Object({ 
                 user_id: t.Number(), 
@@ -92,9 +126,15 @@ const app = new Elysia()
             }) 
         })
 
-        .get('/leaves/:userId', async ({ params }) => {
-            if (!sql) return [];
-            return await sql`SELECT * FROM leaves WHERE user_id = ${params.userId} ORDER BY created_at DESC`;
+        .get('/leaves/:userId', async ({ params, set }) => {
+            const sql = getDb(); // <--- FIX
+            if (!sql) { set.status = 500; return []; }
+            
+            try {
+                return await sql`SELECT * FROM leaves WHERE user_id = ${params.userId} ORDER BY created_at DESC`;
+            } catch (err) {
+                return [];
+            }
         })
 
         .post('/audits', async ({ body, set }) => {

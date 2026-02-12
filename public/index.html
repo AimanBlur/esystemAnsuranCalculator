@@ -518,11 +518,11 @@
 
         <div class="mobile-tab-selector">
             <select id="mobileTabSelect" onchange="switchTabFromDropdown(this.value)">
-                <option value="calc">📱 Calculator</option>
-                <option value="apply">📝 Application</option>
-                <option value="audit">✅ Audit</option>
-                <option value="plist">🏷️ Price List</option>
-                <option value="requests">📨 Requests <span id="mobileBadgeText"></span></option>
+                <option value="calc">Calculator</option>
+                <option value="apply">Application</option>
+                <option value="audit">Audit</option>
+                <option value="plist">Price List</option>
+                <option value="requests">Requests <span id="mobileBadgeText"></span></option>
             </select>
         </div>
 
@@ -543,6 +543,7 @@
                 <i class="fas fa-paper-plane"></i> Requests
                 <span id="requestBadge" class="badge hidden">0</span>
             </button>
+            <button class="tab-btn" onclick="openTab('shift', this)">Shift</button>
         </div>
 
         <div class="container">
@@ -754,6 +755,46 @@
                 <div class="card">
                     <h3><i class="fas fa-history"></i> My Sent Requests</h3>
                     <div id="sentList"><p style="color:#888;">No history.</p></div>
+                </div>
+            </div>
+
+            <div id="shift" class="tab-content">
+                <div class="card" style="text-align:center; padding:30px 20px;">
+                    <h2 id="realTimeClock" style="font-size: 2.5rem; margin:0; color:var(--primary);">00:00:00</h2>
+                    <p id="realTimeDate" style="color:#666; margin-top:5px; font-weight:600;">Loading Date...</p>
+                    
+                    <div id="shiftControls" style="margin-top:25px;">
+                        <button class="btn-primary" disabled>Loading...</button>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h3 style="margin-top:0; cursor:pointer; display:flex; justify-content:space-between;" onclick="toggleLeaveForm()">
+                        <span><i class="fas fa-calendar-minus"></i> Apply Leave</span>
+                        <i class="fas fa-chevron-down"></i>
+                    </h3>
+                    <div id="leaveFormSection" class="hidden" style="margin-top:15px;">
+                        <select id="leaveType">
+                            <option value="Annual">Annual Leave</option>
+                            <option value="MC">Medical Certificate (MC)</option>
+                            <option value="Urgent">Urgent Leave</option>
+                            <option value="Unpaid">Unpaid Leave</option>
+                            <option value="Others">Others</option>
+                        </select>
+                        <div style="display:flex; gap:10px;">
+                            <div style="flex:1"><label>Start</label><input type="date" id="leaveStart"></div>
+                            <div style="flex:1"><label>End</label><input type="date" id="leaveEnd"></div>
+                        </div>
+                        <textarea id="leaveReason" placeholder="Reason for leave..." rows="2"></textarea>
+                        <button onclick="submitLeave()" class="btn-secondary">Submit Application</button>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h3 style="margin-top:0;"><i class="fas fa-history"></i> Attendance Log</h3>
+                    <div id="shiftLogsList">
+                        <p style="text-align:center; color:#999;">Loading logs...</p>
+                    </div>
                 </div>
             </div>
         </div>
@@ -1417,8 +1458,11 @@
             if (mobileSelect) mobileSelect.value = tabId;
             
             // Load requests when switching to requests tab
-            if (tabId === 'requests') {
-                loadRequests();
+            if(id === 'requests') loadRequests();
+            if(id === 'shift') {
+                startClock();
+                loadShiftStatus();
+                loadShiftLogs();
             }
         }
 
@@ -1655,6 +1699,126 @@
             btn.disabled = false;
         });
 
+        // --- SHIFT & CLOCK LOGIC ---
+        let clockInterval;
+
+        function startClock() {
+            if(clockInterval) clearInterval(clockInterval);
+            const update = () => {
+                const now = new Date();
+                document.getElementById('realTimeClock').innerText = now.toLocaleTimeString('en-US', { hour12: true, hour:'2-digit', minute:'2-digit', second:'2-digit' });
+                document.getElementById('realTimeDate').innerText = now.toLocaleDateString('en-MY', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+            };
+            update();
+            clockInterval = setInterval(update, 1000);
+        }
+
+        async function loadShiftStatus() {
+            try {
+                const res = await fetch(`${API_URL}/shift/status/${currentUser.id}`);
+                const data = await res.json();
+                const container = document.getElementById('shiftControls');
+                
+                if (data.active) {
+                    const startTime = new Date(data.shift.clock_in).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+                    container.innerHTML = `
+                        <div style="color:green; font-weight:bold; margin-bottom:10px;">
+                            <i class="fas fa-circle fa-pulse"></i> Clocked In at ${startTime}
+                        </div>
+                        <button onclick="handleShiftAction('out')" class="btn-danger" style="font-size:1.2rem; padding:15px;">
+                            <i class="fas fa-sign-out-alt"></i> CLOCK OUT
+                        </button>`;
+                } else {
+                    container.innerHTML = `
+                        <button onclick="handleShiftAction('in')" class="btn-primary" style="font-size:1.2rem; padding:15px; background: #28a745;">
+                            <i class="fas fa-sign-in-alt"></i> CLOCK IN
+                        </button>`;
+                }
+            } catch(e) { console.error(e); }
+        }
+
+        async function handleShiftAction(action) {
+            if(!confirm(`Confirm Clock ${action.toUpperCase()}?`)) return;
+            const endpoint = action === 'in' ? '/shift/clock-in' : '/shift/clock-out';
+            
+            try {
+                const res = await fetch(`${API_URL}${endpoint}`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ user_id: parseInt(currentUser.id) })
+                });
+                const data = await res.json();
+                if(data.success) {
+                    loadShiftStatus();
+                    loadShiftLogs();
+                } else {
+                    alert("Error: " + (data.message || "Failed"));
+                }
+            } catch(e) { alert("Network Error"); }
+        }
+
+        async function loadShiftLogs() {
+            try {
+                const res = await fetch(`${API_URL}/shift/logs/${currentUser.id}`);
+                const logs = await res.json();
+                const list = document.getElementById('shiftLogsList');
+                
+                if(logs.length === 0) { list.innerHTML = "<p>No records found.</p>"; return; }
+
+                // Group by Date
+                let html = "";
+                let currentDate = "";
+                
+                logs.forEach(log => {
+                    const logDate = new Date(log.clock_in).toLocaleDateString();
+                    if(logDate !== currentDate) {
+                        currentDate = logDate;
+                        html += `<div style="background:#eee; padding:5px 10px; font-weight:bold; margin:10px 0 5px; border-radius:4px;">${currentDate}</div>`;
+                    }
+                    
+                    const inTime = new Date(log.clock_in).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+                    const outTime = log.clock_out ? new Date(log.clock_out).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) : '<span style="color:green">Active</span>';
+                    
+                    // Calculate duration if completed
+                    let duration = "";
+                    if(log.clock_out) {
+                        const diff = (new Date(log.clock_out) - new Date(log.clock_in)) / 1000 / 60 / 60; // hours
+                        duration = `<small style="color:#666;">(${diff.toFixed(1)} hrs)</small>`;
+                    }
+
+                    html += `
+                        <div style="display:flex; justify-content:space-between; padding:10px; border-bottom:1px solid #eee; background:white;">
+                            <div><i class="fas fa-arrow-right" style="color:green"></i> ${inTime}</div>
+                            <div>${duration}</div>
+                            <div><i class="fas fa-arrow-left" style="color:red"></i> ${outTime}</div>
+                        </div>`;
+                });
+                list.innerHTML = html;
+            } catch(e) { console.error(e); }
+        }
+
+        function toggleLeaveForm() {
+            document.getElementById('leaveFormSection').classList.toggle('hidden');
+        }
+
+        async function submitLeave() {
+            const type = document.getElementById('leaveType').value;
+            const start = document.getElementById('leaveStart').value;
+            const end = document.getElementById('leaveEnd').value;
+            const reason = document.getElementById('leaveReason').value;
+
+            if(!start || !end || !reason) return alert("Please fill all fields");
+
+            try {
+                const res = await fetch(`${API_URL}/leaves`, {
+                    method: 'POST', headers: {'Content-Type':'application/json'},
+                    body: JSON.stringify({ user_id: parseInt(currentUser.id), leave_type: type, start_date: start, end_date: end, reason: reason })
+                });
+                if(res.ok) { alert("Leave Application Sent!"); toggleLeaveForm(); }
+                else alert("Failed to send");
+            } catch(e) { alert("Error"); }
+        }
+
         // Utility function to escape HTML and prevent XSS
         function escapeHtml(text) {
             const div = document.createElement('div');
@@ -1664,6 +1828,7 @@
     </script>
 </body>
 </html>
+
 
 
 

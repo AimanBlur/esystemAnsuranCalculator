@@ -546,6 +546,9 @@
             <button class="tab-btn" id="shiftTabBtn" onclick="openTab('shift', this)">
                 <i class="fas fa-user-clock"></i> Shift
             </button>
+            <button class="tab-btn hidden" id="adminTabBtn" onclick="openTab('admin', this)">
+                <i class="fas fa-user-shield"></i> Admin
+            </button>
         </div>
 
         <div class="container">
@@ -799,6 +802,36 @@
                     </div>
                 </div>
             </div>
+
+            <div id="admin" class="tab-content">
+                
+                <div class="card">
+                    <h3 style="margin-top:0; color:var(--primary); border-bottom:1px solid #eee; padding-bottom:10px;">
+                        <i class="fas fa-envelope-open-text"></i> Leave Applications
+                    </h3>
+                    <div id="adminLeaveList">
+                        <p style="text-align:center; color:#999;">Loading leaves...</p>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h3 style="margin-top:0; color:var(--primary); border-bottom:1px solid #eee; padding-bottom:10px;">
+                        <i class="fas fa-clock"></i> Staff Attendance (Recent)
+                    </h3>
+                    <div id="adminShiftList">
+                        <p style="text-align:center; color:#999;">Loading shifts...</p>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h3 style="margin-top:0; color:var(--primary); border-bottom:1px solid #eee; padding-bottom:10px;">
+                        <i class="fas fa-list"></i> All Requests Log
+                    </h3>
+                    <div id="adminRequestList">
+                        <p style="text-align:center; color:#999;">Loading requests...</p>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -862,6 +895,23 @@
             // Set initial mobile dropdown value to 'calc'
             const mobileSelect = document.getElementById('mobileTabSelect');
             if (mobileSelect) mobileSelect.value = 'calc';
+
+            const userRole = localStorage.getItem("staffRole") || 'staff';
+            currentUser.role = userRole;
+
+            if (userRole === 'admin') {
+                const adminBtn = document.getElementById('adminTabBtn');
+                if(adminBtn) adminBtn.classList.remove('hidden');
+                
+                // Add Admin option to mobile dropdown if it exists
+                const mobileSelect = document.getElementById('mobileTabSelect');
+                if (mobileSelect && !mobileSelect.querySelector('option[value="admin"]')) {
+                    const opt = document.createElement('option');
+                    opt.value = 'admin';
+                    opt.text = 'Admin Panel';
+                    mobileSelect.add(opt);
+                }
+            }
             
             // Load data
             loadData();
@@ -914,6 +964,7 @@
                     localStorage.setItem("staffName", data.name || u);
                     localStorage.setItem("staffBranch", data.branch || "-");
                     localStorage.setItem("staffId", String(data.id)); // Convert to string explicitly
+                    localStorage.setItem("staffRole", data.role || 'staff');
                     
                     console.log("Saved to localStorage:", {
                         staffId: localStorage.getItem("staffId"),
@@ -1468,6 +1519,11 @@
                 loadShiftStatus();
                 loadShiftLogs();
             }
+            if(tabId === 'admin') {
+                loadAdminLeaves();
+                loadAdminShifts();
+                loadAdminRequests();
+            }
         }
 
         async function loadData() {
@@ -1862,9 +1918,117 @@
                 console.error("Auto-shift redirect check failed:", e);
             }
         }
+
+        async function loadAdminLeaves() {
+            try {
+                const res = await fetch(`${API_URL}/admin/leaves`);
+                const leaves = await res.json();
+                const list = document.getElementById('adminLeaveList');
+                
+                if(leaves.length === 0) { list.innerHTML = "<p>No leave applications.</p>"; return; }
+
+                list.innerHTML = leaves.map(l => {
+                    let actions = '';
+                    if(l.status === 'Pending') {
+                        actions = `
+                            <div style="margin-top:10px; display:flex; gap:10px;">
+                                <button onclick="processLeave(${l.id}, 'Approved')" class="btn-success" style="flex:1;">Approve</button>
+                                <button onclick="processLeave(${l.id}, 'Rejected')" class="btn-danger" style="flex:1;">Reject</button>
+                            </div>`;
+                    }
+
+                    const statusColors = { 'Pending':'#f39c12', 'Approved':'#27ae60', 'Rejected':'#c0392b' };
+                    const color = statusColors[l.status] || '#333';
+
+                    return `
+                        <div style="padding:15px; border-bottom:1px solid #eee; background:${l.status === 'Pending' ? '#fffdf7' : '#fff'};">
+                            <div style="display:flex; justify-content:space-between;">
+                                <b>${escapeHtml(l.staff_name)} <small>(${l.branch})</small></b>
+                                <span style="color:${color}; font-weight:bold; font-size:0.8rem; border:1px solid ${color}; padding:2px 6px; border-radius:4px;">${l.status}</span>
+                            </div>
+                            <div style="font-size:0.9rem; margin:5px 0;">
+                                <div><i class="fas fa-tag"></i> ${l.leave_type}</div>
+                                <div><i class="fas fa-calendar"></i> ${new Date(l.start_date).toLocaleDateString()} - ${new Date(l.end_date).toLocaleDateString()}</div>
+                                <div style="color:#666; font-style:italic;">"${escapeHtml(l.reason)}"</div>
+                                ${l.rejection_reason ? `<div style="color:red; margin-top:5px;">Reason: ${escapeHtml(l.rejection_reason)}</div>` : ''}
+                            </div>
+                            ${actions}
+                        </div>
+                    `;
+                }).join('');
+            } catch(e) { console.error(e); }
+        }
+
+        async function processLeave(id, status) {
+            let reason = "";
+            if(status === 'Rejected') {
+                reason = prompt("Reason for rejection:");
+                if(!reason) return; // Cancel if no reason
+            }
+
+            if(!confirm(`Confirm ${status} this leave?`)) return;
+
+            try {
+                const res = await fetch(`${API_URL}/admin/leaves/${id}`, {
+                    method: 'PUT',
+                    headers: {'Content-Type':'application/json'},
+                    body: JSON.stringify({ status, reason, admin_name: currentUser.name })
+                });
+                if(res.ok) { loadAdminLeaves(); }
+            } catch(e) { alert("Error processing leave"); }
+        }
+
+        async function loadAdminShifts() {
+            try {
+                const res = await fetch(`${API_URL}/admin/shifts`);
+                const shifts = await res.json();
+                const list = document.getElementById('adminShiftList');
+                
+                if(shifts.length === 0) { list.innerHTML = "<p>No attendance records.</p>"; return; }
+
+                list.innerHTML = shifts.map(s => {
+                    const inTime = new Date(s.clock_in).toLocaleString('en-MY', { month:'short', day:'numeric', hour:'2-digit', minute:'2-digit' });
+                    const outTime = s.clock_out ? new Date(s.clock_out).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) : '<span style="color:green; font-weight:bold;">Active</span>';
+                    
+                    return `
+                        <div style="display:flex; justify-content:space-between; padding:10px; border-bottom:1px solid #eee; font-size:0.9rem;">
+                            <div>
+                                <b>${escapeHtml(s.staff_name)}</b> <small>(${s.branch})</small><br>
+                                <span style="color:#666;">${inTime}</span>
+                            </div>
+                            <div style="text-align:right;">
+                                <span>${outTime}</span>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            } catch(e) { console.error(e); }
+        }
+
+        async function loadAdminRequests() {
+            try {
+                const res = await fetch(`${API_URL}/admin/requests`);
+                const reqs = await res.json();
+                const list = document.getElementById('adminRequestList');
+                
+                if(reqs.length === 0) { list.innerHTML = "<p>No requests.</p>"; return; }
+
+                list.innerHTML = reqs.map(r => `
+                    <div style="padding:10px; border-bottom:1px solid #eee; font-size:0.9rem;">
+                        <div style="display:flex; justify-content:space-between;">
+                            <b>${escapeHtml(r.sender_name)} <i class="fas fa-arrow-right"></i> ${escapeHtml(r.receiver_name || 'System')}</b>
+                            <span class="req-status status-${r.status}">${r.status}</span>
+                        </div>
+                        <p style="margin:5px 0; color:#444;">${escapeHtml(r.content)}</p>
+                        <small style="color:#999;">${new Date(r.created_at).toLocaleString()}</small>
+                    </div>
+                `).join('');
+            } catch(e) { console.error(e); }
+        }
     </script>
 </body>
 </html>
+
 
 
 

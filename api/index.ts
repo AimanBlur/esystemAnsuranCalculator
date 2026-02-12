@@ -38,6 +38,65 @@ const app = new Elysia()
     .use(cors())
     .group('/api', app => app
 
+        .get('/shift/status/:userId', async ({ params }) => {
+            if (!sql) return { active: false };
+            // Check for a shift that hasn't ended yet
+            const active = await sql`SELECT * FROM shifts WHERE user_id = ${params.userId} AND clock_out IS NULL ORDER BY id DESC LIMIT 1`;
+            return { active: active.length > 0, shift: active[0] || null };
+        })
+
+        // Clock In
+        .post('/shift/clock-in', async ({ body }) => {
+            if (!sql) return { success: false };
+            const { user_id } = body;
+            
+            // Check if already clocked in
+            const active = await sql`SELECT * FROM shifts WHERE user_id = ${user_id} AND clock_out IS NULL`;
+            if (active.length > 0) return { success: false, message: "Already clocked in!" };
+
+            await sql`INSERT INTO shifts (user_id, clock_in, date) VALUES (${user_id}, NOW(), CURRENT_DATE)`;
+            return { success: true };
+        }, { body: t.Object({ user_id: t.Number() }) })
+
+        // Clock Out
+        .post('/shift/clock-out', async ({ body }) => {
+            if (!sql) return { success: false };
+            const { user_id } = body;
+            
+            await sql`UPDATE shifts SET clock_out = NOW() WHERE user_id = ${user_id} AND clock_out IS NULL`;
+            return { success: true };
+        }, { body: t.Object({ user_id: t.Number() }) })
+
+        // Get Shift Logs
+        .get('/shift/logs/:userId', async ({ params }) => {
+            if (!sql) return [];
+            return await sql`SELECT * FROM shifts WHERE user_id = ${params.userId} ORDER BY clock_in DESC LIMIT 30`;
+        })
+
+        // --- LEAVE SYSTEM ---
+
+        .post('/leaves', async ({ body }) => {
+            if (!sql) return { success: false };
+            await sql`
+                INSERT INTO leaves (user_id, leave_type, start_date, end_date, reason)
+                VALUES (${body.user_id}, ${body.leave_type}, ${body.start_date}, ${body.end_date}, ${body.reason})
+            `;
+            return { success: true };
+        }, { 
+            body: t.Object({ 
+                user_id: t.Number(), 
+                leave_type: t.String(), 
+                start_date: t.String(), 
+                end_date: t.String(), 
+                reason: t.String() 
+            }) 
+        })
+
+        .get('/leaves/:userId', async ({ params }) => {
+            if (!sql) return [];
+            return await sql`SELECT * FROM leaves WHERE user_id = ${params.userId} ORDER BY created_at DESC`;
+        })
+
         .post('/audits', async ({ body, set }) => {
             const sql = getDb();
             if (!sql) { 

@@ -38,25 +38,7 @@ const app = new Elysia()
     .use(cors())
     .group('/api', app => app
 
-        .get('/admin/all-requests', async ({ set }) => {
-            const sql = getDb();
-            if (!sql) { set.status = 500; return []; }
-            try {
-                // Join twice to get Sender Name and Receiver Name
-                return await sql`
-                    SELECT r.*, 
-                           s.name as sender_real_name, 
-                           rc.name as receiver_real_name 
-                    FROM requests r
-                    LEFT JOIN users s ON r.sender_id = s.id
-                    LEFT JOIN users rc ON r.receiver_id = rc.id
-                    ORDER BY r.created_at DESC LIMIT 100
-                `;
-            } catch (err) { return []; }
-        })
-
-        // 2. Get ALL Leave Applications
-        .get('/admin/all-leaves', async ({ set }) => {
+        .get('/admin/leaves', async ({ set }) => {
             const sql = getDb();
             if (!sql) { set.status = 500; return []; }
             try {
@@ -66,37 +48,56 @@ const app = new Elysia()
                     JOIN users u ON l.user_id = u.id 
                     ORDER BY l.created_at DESC
                 `;
-            } catch (err) { return []; }
+            } catch (e) { return []; }
         })
 
-        // 3. Approve/Reject Leave
-        .put('/admin/leave-status', async ({ body, set }) => {
+        // 2. Update Leave Status (Approve/Reject)
+        .put('/admin/leaves/:id', async ({ params, body, set }) => {
             const sql = getDb();
             if (!sql) { set.status = 500; return { success: false }; }
             
-            const b = body as { id: number, status: string, reason?: string };
+            const b = body as { status: string, reason?: string, admin_name: string };
             try {
                 await sql`
                     UPDATE leaves 
-                    SET status = ${b.status}, rejection_reason = ${b.reason || null} 
-                    WHERE id = ${b.id}
+                    SET status = ${b.status}, 
+                        rejection_reason = ${b.reason || null},
+                        approved_by = ${b.admin_name}
+                    WHERE id = ${params.id}
                 `;
                 return { success: true };
-            } catch (err) { return { success: false, error: String(err) }; }
-        }, { body: t.Object({ id: t.Number(), status: t.String(), reason: t.Optional(t.String()) }) })
+            } catch (e) { return { success: false, error: String(e) }; }
+        })
 
-        // 4. Get ALL Attendance/Shifts
-        .get('/admin/all-shifts', async ({ set }) => {
+        // 3. Get All Shifts (Attendance)
+        .get('/admin/shifts', async ({ set }) => {
             const sql = getDb();
             if (!sql) { set.status = 500; return []; }
             try {
+                // Get last 50 shifts with User details
                 return await sql`
                     SELECT s.*, u.name as staff_name, u.branch 
                     FROM shifts s 
                     JOIN users u ON s.user_id = u.id 
-                    ORDER BY s.clock_in DESC LIMIT 200
+                    ORDER BY s.clock_in DESC 
+                    LIMIT 50
                 `;
-            } catch (err) { return []; }
+            } catch (e) { return []; }
+        })
+
+        // 4. Get All Global Requests
+        .get('/admin/requests', async ({ set }) => {
+            const sql = getDb();
+            if (!sql) { set.status = 500; return []; }
+            try {
+                return await sql`
+                    SELECT r.*, u.name as receiver_name 
+                    FROM requests r 
+                    LEFT JOIN users u ON r.receiver_id = u.id 
+                    ORDER BY r.created_at DESC 
+                    LIMIT 50
+                `;
+            } catch (e) { return []; }
         })
 
         .get('/shift/status/:userId', async ({ params, set }) => {

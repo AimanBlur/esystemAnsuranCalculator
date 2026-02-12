@@ -1,6 +1,6 @@
 import { Elysia, t } from 'elysia';
 import { cors } from '@elysiajs/cors';
-import nodemailer from 'nodemailer';
+import nodemailer from 'nodemailer'; 
 import postgres from 'postgres';
 
 // For Vercel serverless, we need to create connection per request or use connection pooling

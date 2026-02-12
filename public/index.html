@@ -543,7 +543,9 @@
                 <i class="fas fa-paper-plane"></i> Requests
                 <span id="requestBadge" class="badge hidden">0</span>
             </button>
-            <button class="tab-btn" onclick="openTab('shift', this)">Shift</button>
+            <button class="tab-btn" id="shiftTabBtn" onclick="openTab('shift', this)">
+                <i class="fas fa-user-clock"></i> Shift
+            </button>
         </div>
 
         <div class="container">
@@ -868,6 +870,8 @@
             // Start checking for pending requests
             checkPendingRequests();
             setInterval(checkPendingRequests, 30000); // Check every 30 seconds
+
+            checkAutoShiftRedirect();
         }
         
         // ALSO UPDATE handleLogin to ensure staffId is properly saved
@@ -1825,9 +1829,43 @@
             div.textContent = text;
             return div.innerHTML;
         }
+
+        async function checkAutoShiftRedirect() {
+            if (!currentUser || !currentUser.id) return;
+        
+            // 1. Check if we already did this check today
+            const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+            const lastRedirect = localStorage.getItem("lastShiftRedirect");
+        
+            if (lastRedirect === today) {
+                // We already checked today, don't annoy the user on refresh
+                return; 
+            }
+        
+            try {
+                // 2. Check backend: Is the user clocked in?
+                const res = await fetch(`${API_URL}/shift/status/${currentUser.id}`);
+                const data = await res.json();
+        
+                // 3. If NOT clocked in (active: false), Force click the Shift Tab
+                if (!data.active) {
+                    const shiftBtn = document.getElementById("shiftTabBtn");
+                    if (shiftBtn) {
+                        console.log("User not clocked in on first visit. Redirecting to Shift tab.");
+                        shiftBtn.click();
+                        
+                        // 4. Mark as done for today so it doesn't happen on page refresh
+                        localStorage.setItem("lastShiftRedirect", today);
+                    }
+                }
+            } catch (e) {
+                console.error("Auto-shift redirect check failed:", e);
+            }
+        }
     </script>
 </body>
 </html>
+
 
 
 

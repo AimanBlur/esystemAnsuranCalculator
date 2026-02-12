@@ -1458,8 +1458,8 @@
             if (mobileSelect) mobileSelect.value = tabId;
             
             // Load requests when switching to requests tab
-            if(id === 'requests') loadRequests();
-            if(id === 'shift') {
+            if(tabId === 'requests') loadRequests();
+            if(tabId === 'shift') {
                 startClock();
                 loadShiftStatus();
                 loadShiftLogs();
@@ -1828,6 +1828,7 @@
     </script>
 </body>
 </html>
+
 
 
 

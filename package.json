@@ -9,7 +9,8 @@
     "elysia": "latest",
     "@elysiajs/cors": "latest",
     "nodemailer": "latest",
-    "postgres": "latest"
+    "postgres": "latest",
+    "mysql2": "latest"
   },
   "devDependencies": {
     "bun-types": "latest",

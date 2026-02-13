@@ -67,26 +67,34 @@ const app = new Elysia()
             const sql = getDb();
             if (!sql) { set.status = 500; return []; }
             try {
-                // We select everything to ensure we have the data
-                return await sql`SELECT id, name, branch, role FROM users ORDER BY name ASC`;
+                const users = await sql`SELECT id, name, branch, role FROM users ORDER BY name ASC`;
+                await sql.end();
+                return [...users];
             } catch (e) { 
                 console.error("Admin Users Error:", e);
+                try { await sql.end(); } catch(err) {}
                 return []; 
             }
         })
 
-        // 2. Get All Leaves (Updated query)
+        // 2. Get All Leaves
         .get('/admin/leaves', async ({ set }) => {
             const sql = getDb();
             if (!sql) { set.status = 500; return []; }
             try {
-                return await sql`
+                const leaves = await sql`
                     SELECT l.*, u.name as staff_name, u.branch 
                     FROM leaves l 
                     LEFT JOIN users u ON l.user_id = u.id 
                     ORDER BY l.created_at DESC
                 `;
-            } catch (e) { return []; }
+                await sql.end();
+                return [...leaves];
+            } catch (e) { 
+                console.error("Admin Leaves Error:", e);
+                try { await sql.end(); } catch(err) {}
+                return []; 
+            }
         })
 
         // 3. Update Leave Status
@@ -103,8 +111,13 @@ const app = new Elysia()
                         approved_by = ${b.admin_name}
                     WHERE id = ${params.id}
                 `;
+                await sql.end();
                 return { success: true };
-            } catch (e) { return { success: false, error: String(e) }; }
+            } catch (e) { 
+                console.error("Leave Update Error:", e);
+                try { await sql.end(); } catch(err) {}
+                return { success: false, error: String(e) }; 
+            }
         })
 
         // 4. Get Today's Shifts
@@ -112,14 +125,20 @@ const app = new Elysia()
             const sql = getDb();
             if (!sql) { set.status = 500; return []; }
             try {
-                return await sql`
+                const shifts = await sql`
                     SELECT s.*, u.name as staff_name, u.branch 
                     FROM shifts s 
                     LEFT JOIN users u ON s.user_id = u.id 
                     WHERE s.date = CURRENT_DATE
                     ORDER BY s.clock_in DESC
                 `;
-            } catch (e) { return []; }
+                await sql.end();
+                return [...shifts];
+            } catch (e) { 
+                console.error("Admin Shifts Error:", e);
+                try { await sql.end(); } catch(err) {}
+                return []; 
+            }
         })
 
         // 5. Get Requests
@@ -127,14 +146,20 @@ const app = new Elysia()
             const sql = getDb();
             if (!sql) { set.status = 500; return []; }
             try {
-                return await sql`
+                const requests = await sql`
                     SELECT r.*, u.name as receiver_name 
                     FROM requests r 
                     LEFT JOIN users u ON r.receiver_id = u.id 
                     ORDER BY r.created_at DESC 
                     LIMIT 50
                 `;
-            } catch (e) { return []; }
+                await sql.end();
+                return [...requests];
+            } catch (e) { 
+                console.error("Admin Requests Error:", e);
+                try { await sql.end(); } catch(err) {}
+                return []; 
+            }
         })
 
         // 6. Get Staff History
@@ -144,12 +169,17 @@ const app = new Elysia()
             try {
                 const shifts = await sql`SELECT * FROM shifts WHERE user_id = ${params.userId} ORDER BY clock_in DESC LIMIT 50`;
                 const leaves = await sql`SELECT * FROM leaves WHERE user_id = ${params.userId} ORDER BY created_at DESC`;
-                return { shifts, leaves };
-            } catch (e) { return { shifts: [], leaves: [] }; }
+                await sql.end();
+                return { shifts: [...shifts], leaves: [...leaves] };
+            } catch (e) { 
+                console.error("Staff History Error:", e);
+                try { await sql.end(); } catch(err) {}
+                return { shifts: [], leaves: [] }; 
+            }
         })
 
         .get('/shift/status/:userId', async ({ params, set }) => {
-            const sql = getDb(); // <--- FIX: Initialize DB connection
+            const sql = getDb();
             if (!sql) { 
                 console.error("DB Connection Failed"); 
                 set.status = 500; 
@@ -158,9 +188,11 @@ const app = new Elysia()
             try {
                 // Check for a shift that hasn't ended yet
                 const active = await sql`SELECT * FROM shifts WHERE user_id = ${params.userId} AND clock_out IS NULL ORDER BY id DESC LIMIT 1`;
+                await sql.end();
                 return { active: active.length > 0, shift: active[0] || null };
             } catch (err) {
                 console.error("Shift Status Error:", err);
+                try { await sql.end(); } catch(e) {}
                 return { active: false };
             }
         })
@@ -174,7 +206,10 @@ const app = new Elysia()
             try {
                 // 1. Get User's Assigned Branch
                 const [user] = await sql`SELECT branch FROM users WHERE id = ${b.user_id}`;
-                if (!user) return { success: false, message: "User not found" };
+                if (!user) {
+                    await sql.end();
+                    return { success: false, message: "User not found" };
+                }
 
                 // 2. Check Geofence
                 const branchLoc = BRANCH_LOCATIONS[user.branch];
@@ -183,6 +218,7 @@ const app = new Elysia()
                 if (branchLoc) {
                     const distance = getDistance(b.lat, b.lng, branchLoc.lat, branchLoc.lng);
                     if (distance > ALLOWED_RADIUS_METERS) {
+                        await sql.end();
                         return { 
                             success: false, 
                             message: `You are too far from ${user.branch}! (${Math.round(distance)}m away)` 
@@ -192,63 +228,94 @@ const app = new Elysia()
 
                 // 3. Check if already clocked in
                 const active = await sql`SELECT * FROM shifts WHERE user_id = ${b.user_id} AND clock_out IS NULL`;
-                if (active.length > 0) return { success: false, message: "Already clocked in!" };
+                if (active.length > 0) {
+                    await sql.end();
+                    return { success: false, message: "Already clocked in!" };
+                }
 
                 // 4. Insert with Location Data
                 await sql`
                     INSERT INTO shifts (user_id, clock_in, date, lat, lng) 
                     VALUES (${b.user_id}, NOW(), CURRENT_DATE, ${String(b.lat)}, ${String(b.lng)})
                 `;
+                await sql.end();
                 return { success: true };
             } catch (err) {
+                console.error("Clock-in Error:", err);
+                try { await sql.end(); } catch(e) {}
                 return { success: false, message: String(err) };
             }
         }, { body: t.Object({ user_id: t.Number(), lat: t.Number(), lng: t.Number() }) })
 
-        .post('/shift/clock-out', async ({ body }) => {
-            const b = body as any;
-
-            // 1. Get User's Branch
-            const users = await query('SELECT branch FROM users WHERE id = ?', [b.user_id]);
-            if (!users || users.length === 0) return { success: false, message: "User not found" };
+        .post('/shift/clock-out', async ({ body, set }) => {
+            const sql = getDb();
+            if (!sql) { 
+                set.status = 500; 
+                return { success: false, message: "DB Error" }; 
+            }
             
-            const userBranch = users[0].branch;
-            const branchLoc = BRANCH_LOCATIONS[userBranch];
-            
-            let specialRemark = null;
+            const b = body as { user_id: number, lat: number, lng: number };
 
-            // 2. Calculate Distance
-            if (branchLoc) {
-                const dist = getDistance(b.lat, b.lng, branchLoc.lat, branchLoc.lng);
-                
-                // 3. If far away, add a remark
-                if (dist > ALLOWED_RADIUS_METERS) {
-                    specialRemark = `⚠️ Off-site: ${Math.round(dist)}m from ${userBranch}`;
+            try {
+                // 1. Get User's Branch
+                const [user] = await sql`SELECT branch FROM users WHERE id = ${b.user_id}`;
+                if (!user) {
+                    await sql.end();
+                    return { success: false, message: "User not found" };
                 }
-            }
+                
+                const userBranch = user.branch;
+                const branchLoc = BRANCH_LOCATIONS[userBranch];
+                
+                let specialRemark = null;
 
-            // 4. Update Shift (Save location AND remark)
-            await query(
-                'UPDATE shifts SET clock_out = NOW(), out_lat = ?, out_lng = ?, remarks = ? WHERE user_id = ? AND clock_out IS NULL',
-                [String(b.lat), String(b.lng), specialRemark, b.user_id]
-            );
+                // 2. Calculate Distance if branch location is configured
+                if (branchLoc) {
+                    const dist = getDistance(b.lat, b.lng, branchLoc.lat, branchLoc.lng);
+                    
+                    // 3. If far away, add a remark
+                    if (dist > ALLOWED_RADIUS_METERS) {
+                        specialRemark = `⚠️ Off-site: ${Math.round(dist)}m from ${userBranch}`;
+                    }
+                }
 
-            // 5. Send success message (warn user if off-site)
-            if (specialRemark) {
-                return { success: true, message: "Clocked out (Location Warning Recorded)" };
+                // 4. Update Shift (Save location AND remark)
+                await sql`
+                    UPDATE shifts 
+                    SET clock_out = NOW(), 
+                        out_lat = ${String(b.lat)}, 
+                        out_lng = ${String(b.lng)}, 
+                        remarks = ${specialRemark}
+                    WHERE user_id = ${b.user_id} AND clock_out IS NULL
+                `;
+
+                await sql.end();
+
+                // 5. Send success message (warn user if off-site)
+                if (specialRemark) {
+                    return { success: true, message: "Clocked out (Location Warning Recorded)" };
+                }
+                return { success: true };
+            } catch (err) {
+                console.error("Clock-out error:", err);
+                try { await sql.end(); } catch(e) {}
+                set.status = 500;
+                return { success: false, message: String(err) };
             }
-            return { success: true };
-        })
+        }, { body: t.Object({ user_id: t.Number(), lat: t.Number(), lng: t.Number() }) })
         
         // Get Shift Logs
         .get('/shift/logs/:userId', async ({ params, set }) => {
-            const sql = getDb(); // <--- FIX
+            const sql = getDb();
             if (!sql) { set.status = 500; return []; }
 
             try {
-                return await sql`SELECT * FROM shifts WHERE user_id = ${params.userId} ORDER BY clock_in DESC LIMIT 30`;
+                const logs = await sql`SELECT * FROM shifts WHERE user_id = ${params.userId} ORDER BY clock_in DESC LIMIT 30`;
+                await sql.end();
+                return [...logs];
             } catch (err) {
                 console.error("Logs Error:", err);
+                try { await sql.end(); } catch(e) {}
                 return [];
             }
         })
@@ -256,7 +323,7 @@ const app = new Elysia()
         // --- LEAVE SYSTEM ---
 
         .post('/leaves', async ({ body, set }) => {
-            const sql = getDb(); // <--- FIX
+            const sql = getDb();
             if (!sql) { set.status = 500; return { success: false, message: "DB Error" }; }
 
             const b = body as { user_id: number, leave_type: string, start_date: string, end_date: string, reason: string };
@@ -265,8 +332,11 @@ const app = new Elysia()
                     INSERT INTO leaves (user_id, leave_type, start_date, end_date, reason)
                     VALUES (${b.user_id}, ${b.leave_type}, ${b.start_date}, ${b.end_date}, ${b.reason})
                 `;
+                await sql.end();
                 return { success: true };
             } catch (err) {
+                console.error("Leave POST Error:", err);
+                try { await sql.end(); } catch(e) {}
                 return { success: false, message: String(err) };
             }
         }, { 
@@ -280,12 +350,16 @@ const app = new Elysia()
         })
 
         .get('/leaves/:userId', async ({ params, set }) => {
-            const sql = getDb(); // <--- FIX
+            const sql = getDb();
             if (!sql) { set.status = 500; return []; }
             
             try {
-                return await sql`SELECT * FROM leaves WHERE user_id = ${params.userId} ORDER BY created_at DESC`;
+                const leaves = await sql`SELECT * FROM leaves WHERE user_id = ${params.userId} ORDER BY created_at DESC`;
+                await sql.end();
+                return [...leaves];
             } catch (err) {
+                console.error("Leaves GET Error:", err);
+                try { await sql.end(); } catch(e) {}
                 return [];
             }
         })
@@ -490,11 +564,16 @@ const app = new Elysia()
                     LIMIT 1
                 `;
 
+                await sql.end();
                 return { 
                     count: Number(countResult.count), 
-                    latest: latest || null // Send the details to frontend
+                    latest: latest || null
                 };
-            } catch (e) { return { count: 0 }; }
+            } catch (e) { 
+                console.error("Pending Count Error:", e);
+                try { await sql.end(); } catch(err) {}
+                return { count: 0 }; 
+            }
         })
 
         .post('/requests', async ({ body, set }) => {

@@ -934,9 +934,15 @@
             loadData();
             loadRequests();
             
-            // Start checking for pending requests
+            if ("Notification" in window) {
+                Notification.requestPermission().then(permission => {
+                    console.log("Notification permission:", permission);
+                });
+            }
+
+            // Start checking
             checkPendingRequests();
-            setInterval(checkPendingRequests, 30000); // Check every 30 seconds
+            setInterval(checkPendingRequests, 30000);
 
             checkAutoShiftRedirect();
         }
@@ -1009,6 +1015,8 @@
             document.getElementById('headerBranch').innerText = currentUser.branch;
         }
 
+        let lastRequestCount = 0; 
+
         async function checkPendingRequests() {
             if (!currentUser || !currentUser.id) return;
             
@@ -1017,7 +1025,7 @@
                 const data = await res.json();
                 const count = parseInt(data.count) || 0;
                 
-                // Update desktop badge
+                // 1. Update Badge
                 const badge = document.getElementById('requestBadge');
                 if (badge) {
                     if (count > 0) {
@@ -1027,22 +1035,44 @@
                         badge.classList.add('hidden');
                     }
                 }
-                
-                // Update mobile dropdown option text
-                const mobileSelect = document.getElementById('mobileTabSelect');
-                const mobileBadgeText = document.getElementById('mobileBadgeText');
-                if (mobileSelect) {
-                    const requestOption = mobileSelect.querySelector('option[value="requests"]');
-                    if (requestOption) {
-                        if (count > 0) {
-                            requestOption.textContent = `Requests (${count})`;
-                        } else {
-                            requestOption.textContent = 'Requests';
-                        }
+
+                // 2. Notification Logic
+                // If count increased AND we have permission
+                if (count > lastRequestCount && count > 0) {
+                    if ("Notification" in window && Notification.permission === "granted") {
+                        
+                        // Get details from the latest request (or fallback)
+                        const sender = data.latest ? data.latest.sender_name : "System";
+                        const remarks = data.latest ? data.latest.content : "You have a new request.";
+
+                        // Create the Notification
+                        const notif = new Notification(`New Request from ${sender}`, {
+                            body: remarks, // Shows the request content
+                            icon: "https://cdn-icons-png.flaticon.com/512/10309/10309344.png",
+                            tag: `req-${Date.now()}`, // UNIQUE TAG = STACKING (Like WhatsApp)
+                            requireInteraction: true // Keeps it on screen longer
+                        });
+
+                        // 3. Click Handler - Go to Requests Tab
+                        notif.onclick = function(event) {
+                            event.preventDefault(); // Prevent browser default
+                            window.focus(); // Bring window to front
+                            this.close(); // Close the notification
+                            
+                            // Programmatically click the 'Requests' tab button
+                            // Ensure your requests tab button has id="requestsTabBtn"
+                            const btn = document.getElementById('requestsTabBtn');
+                            if (btn) btn.click(); 
+                            else openTab('requests'); // Fallback if button ID missing
+                        };
                     }
                 }
+
+                // Update memory so we don't notify again for the same request
+                lastRequestCount = count; 
+
             } catch (e) {
-                console.error('Error checking pending requests:', e);
+                console.error('Error checking requests:', e);
             }
         }
 
@@ -1550,6 +1580,7 @@
                 loadShiftLogs();
             }
             if(tabId === 'admin') {
+                loadAdminStaff();
                 loadAdminLeaves();
                 loadAdminShifts();
                 loadAdminRequests();
@@ -2110,6 +2141,7 @@
     </script>
 </body>
 </html>
+
 
 
 

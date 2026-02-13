@@ -51,7 +51,7 @@ const app = new Elysia()
             } catch (e) { return []; }
         })
 
-        // 2. Update Leave Status (Approve/Reject)
+        // 2. Update Leave Status (Existing - No Change)
         .put('/admin/leaves/:id', async ({ params, body, set }) => {
             const sql = getDb();
             if (!sql) { set.status = 500; return { success: false }; }
@@ -69,23 +69,22 @@ const app = new Elysia()
             } catch (e) { return { success: false, error: String(e) }; }
         })
 
-        // 3. Get All Shifts (Attendance)
+        // 3. Get Today's Shifts (UPDATED: Today Only)
         .get('/admin/shifts', async ({ set }) => {
             const sql = getDb();
             if (!sql) { set.status = 500; return []; }
             try {
-                // Get last 50 shifts with User details
                 return await sql`
                     SELECT s.*, u.name as staff_name, u.branch 
                     FROM shifts s 
                     JOIN users u ON s.user_id = u.id 
-                    ORDER BY s.clock_in DESC 
-                    LIMIT 50
+                    WHERE s.date = CURRENT_DATE
+                    ORDER BY s.clock_in DESC
                 `;
             } catch (e) { return []; }
         })
 
-        // 4. Get All Global Requests
+        // 4. Get All Global Requests (Existing - No Change)
         .get('/admin/requests', async ({ set }) => {
             const sql = getDb();
             if (!sql) { set.status = 500; return []; }
@@ -95,9 +94,20 @@ const app = new Elysia()
                     FROM requests r 
                     LEFT JOIN users u ON r.receiver_id = u.id 
                     ORDER BY r.created_at DESC 
-                    LIMIT 50
+                    LIMIT 100
                 `;
             } catch (e) { return []; }
+        })
+
+        // 5. Get Full History for Specific Staff (NEW)
+        .get('/admin/staff-history/:userId', async ({ params, set }) => {
+            const sql = getDb();
+            if (!sql) { set.status = 500; return { shifts: [], leaves: [] }; }
+            try {
+                const shifts = await sql`SELECT * FROM shifts WHERE user_id = ${params.userId} ORDER BY clock_in DESC LIMIT 100`;
+                const leaves = await sql`SELECT * FROM leaves WHERE user_id = ${params.userId} ORDER BY created_at DESC`;
+                return { shifts, leaves };
+            } catch (e) { return { shifts: [], leaves: [] }; }
         })
 
         .get('/shift/status/:userId', async ({ params, set }) => {

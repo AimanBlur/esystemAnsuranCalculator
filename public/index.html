@@ -2048,6 +2048,17 @@
 
             } catch(e) { console.error(e); }
         }
+
+        async function loadAdminShifts() {
+            const res = await fetch(`${API_URL}/admin/shifts`);
+            const shifts = await res.json();
+            document.getElementById('adminShiftList').innerHTML = shifts.length ? shifts.map(s => 
+                `<div class="result-item">
+                    <div><b>${s.staff_name}</b> <small>(${s.branch})</small></div>
+                    <div>${new Date(s.clock_in).toLocaleTimeString()} - ${s.clock_out ? new Date(s.clock_out).toLocaleTimeString() : '<span style="color:green">Active</span>'}</div>
+                </div>`).join('') : '<p>No attendance today.</p>';
+        }
     </script>
 </body>
 </html>
+

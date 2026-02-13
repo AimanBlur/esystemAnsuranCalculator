@@ -1986,35 +1986,39 @@
             grid.innerHTML = '<p style="grid-column:1/-1; text-align:center;">Loading staff list...</p>';
 
             try {
-                // Fetch from the specific admin endpoint
                 const res = await fetch(`${API_URL}/admin/users`); 
-                
                 if (!res.ok) throw new Error(`Server returned ${res.status}`);
                 
                 const users = await res.json();
-                console.log("Staff loaded:", users); // Debug log
-
-                if (!Array.isArray(users) || users.length === 0) { 
-                    grid.innerHTML = '<p style="grid-column:1/-1; text-align:center; color:#666;">No staff accounts found.</p>'; 
-                    return; 
-                }
                 
-                // Filter out admins from the list so you only see staff
+                // Filter out admins
                 const staffList = users.filter(u => u.role !== 'admin');
 
+                if (staffList.length === 0) {
+                    grid.innerHTML = '<p style="grid-column:1/-1; text-align:center; color:#666;">No staff found.</p>';
+                    return;
+                }
+
+                // --- CHANGE: Removed Avatar & Fixed Click Handler ---
+                // We now store the name in 'data-name' to prevent quotes breaking the script
                 grid.innerHTML = staffList.map(u => `
-                    <div class="staff-card" onclick="viewStaffHistory(${u.id}, '${escapeHtml(u.name || 'User')}')">
-                        <div class="staff-avatar" style="background:${stringToColor(u.name)};">
-                            ${(u.name || 'U').charAt(0).toUpperCase()}
+                    <div class="staff-card" 
+                         onclick="viewStaffHistory(${u.id}, this.getAttribute('data-name'))" 
+                         data-name="${escapeHtml(u.name || 'User')}"
+                         style="padding: 20px 15px; text-align: center;">
+                        
+                        <div style="font-weight:bold; font-size:1.1rem; margin-bottom:5px; color:var(--primary);">
+                            ${escapeHtml(u.name || 'Unknown')}
                         </div>
-                        <div style="font-weight:bold; margin-bottom:2px;">${escapeHtml(u.name || 'Unknown')}</div>
-                        <div style="font-size:0.8rem; color:#666;">${escapeHtml(u.branch || 'No Branch')}</div>
+                        <div style="font-size:0.9rem; color:#666;">
+                            <i class="fas fa-map-marker-alt"></i> ${escapeHtml(u.branch || 'No Branch')}
+                        </div>
                     </div>
                 `).join('');
                 
             } catch(e) { 
                 console.error("Staff Load Error:", e);
-                grid.innerHTML = `<p style="grid-column:1/-1; text-align:center; color:red;">Error loading staff: ${e.message}</p>`;
+                grid.innerHTML = `<p style="grid-column:1/-1; text-align:center; color:red;">Error loading staff.</p>`;
             }
         }
 
@@ -2078,45 +2082,80 @@
 
         // 3. Staff History Viewer (Also updated date formats here)
         async function viewStaffHistory(id, name) {
+            console.log(`Viewing history for: ${name} (ID: ${id})`);
+            
+            // 1. Open Modal Immediately
+            const modal = document.getElementById('staffModal');
+            if(modal) modal.classList.remove('hidden');
+            
+            // 2. Set Title and Reset Content
             document.getElementById('staffModalTitle').innerText = `${name}'s History`;
-            document.getElementById('modalShiftList').innerHTML = '<div style="text-align:center; padding:20px;">Loading attendance...</div>';
-            document.getElementById('modalLeaveList').innerHTML = '<div style="text-align:center; padding:20px;">Loading leaves...</div>';
-            document.getElementById('staffModal').classList.remove('hidden');
+            document.getElementById('modalShiftList').innerHTML = '<div style="text-align:center; padding:20px; color:#666;"><i class="fas fa-spinner fa-spin"></i> Loading attendance...</div>';
+            document.getElementById('modalLeaveList').innerHTML = '<div style="text-align:center; padding:20px; color:#666;"><i class="fas fa-spinner fa-spin"></i> Loading leaves...</div>';
 
             try {
+                // 3. Fetch Data
                 const res = await fetch(`${API_URL}/admin/staff-history/${id}`);
                 const data = await res.json();
                 
-                // Render Shifts
+                // 4. Render Shifts (Attendance)
                 const sList = document.getElementById('modalShiftList');
-                sList.innerHTML = data.shifts.length ? data.shifts.map(s => {
-                    const d = new Date(s.clock_in).toLocaleDateString('en-MY');
-                    const i = new Date(s.clock_in).toLocaleTimeString('en-US', {hour:'2-digit', minute:'2-digit'});
-                    const o = s.clock_out ? new Date(s.clock_out).toLocaleTimeString('en-US', {hour:'2-digit', minute:'2-digit'}) : '<span style="color:green">Active</span>';
-                    return `
-                        <div class="result-item">
-                            <span><i class="fas fa-calendar"></i> ${d}</span> 
-                            <span>${i} <i class="fas fa-arrow-right" style="font-size:0.7em; color:#999;"></i> ${o}</span>
-                        </div>`;
-                }).join('') : '<p style="text-align:center; color:#999;">No attendance records found.</p>';
+                if (!data.shifts || data.shifts.length === 0) {
+                    sList.innerHTML = '<p style="text-align:center; color:#999; padding:20px;">No attendance records found.</p>';
+                } else {
+                    sList.innerHTML = data.shifts.map(s => {
+                        const d = new Date(s.clock_in).toLocaleDateString('en-MY', { day: 'numeric', month: 'short', year: 'numeric' });
+                        const i = new Date(s.clock_in).toLocaleTimeString('en-US', {hour:'2-digit', minute:'2-digit'});
+                        const o = s.clock_out ? new Date(s.clock_out).toLocaleTimeString('en-US', {hour:'2-digit', minute:'2-digit'}) : '<span style="color:green; font-weight:bold;">Active</span>';
+                        
+                        // Calculate duration if clocked out
+                        let duration = "";
+                        if(s.clock_out) {
+                            const diff = (new Date(s.clock_out) - new Date(s.clock_in)) / 1000 / 60 / 60;
+                            duration = `<small style="color:#888;">(${diff.toFixed(1)}h)</small>`;
+                        }
 
-                // Render Leaves
+                        return `
+                            <div class="result-item" style="padding:12px; border-bottom:1px solid #eee;">
+                                <span style="font-weight:500;"><i class="fas fa-calendar-alt" style="color:#999; margin-right:5px;"></i> ${d}</span> 
+                                <span>${i} <i class="fas fa-long-arrow-alt-right" style="color:#ccc; margin:0 5px;"></i> ${o} ${duration}</span>
+                            </div>`;
+                    }).join('');
+                }
+
+                // 5. Render Leaves
                 const lList = document.getElementById('modalLeaveList');
-                lList.innerHTML = data.leaves.length ? data.leaves.map(l => {
-                    const sDate = new Date(l.start_date).toLocaleDateString('en-MY');
-                    const eDate = new Date(l.end_date).toLocaleDateString('en-MY');
-                    return `
-                        <div class="result-item" style="display:block;">
-                            <div style="display:flex; justify-content:space-between;">
-                                <strong>${l.leave_type}</strong> 
-                                <span style="font-size:0.8rem; font-weight:bold;">${l.status}</span>
-                            </div>
-                            <div style="font-size:0.85rem; color:#666;">${sDate} to ${eDate}</div>
-                            <div style="font-size:0.85rem; color:#444; margin-top:2px;">"${escapeHtml(l.reason)}"</div>
-                        </div>`;
-                }).join('') : '<p style="text-align:center; color:#999;">No leave records found.</p>';
+                if (!data.leaves || data.leaves.length === 0) {
+                    lList.innerHTML = '<p style="text-align:center; color:#999; padding:20px;">No leave records found.</p>';
+                } else {
+                    lList.innerHTML = data.leaves.map(l => {
+                        const sDate = new Date(l.start_date).toLocaleDateString('en-MY', { day: 'numeric', month: 'short' });
+                        const eDate = new Date(l.end_date).toLocaleDateString('en-MY', { day: 'numeric', month: 'short' });
+                        
+                        const colorMap = { 'Approved':'#28a745', 'Rejected':'#dc3545', 'Pending':'#ffc107' };
+                        const stColor = colorMap[l.status] || '#666';
 
-            } catch(e) { console.error(e); }
+                        return `
+                            <div class="result-item" style="display:block; padding:12px; border-bottom:1px solid #eee;">
+                                <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+                                    <strong>${escapeHtml(l.leave_type)}</strong> 
+                                    <span style="font-size:0.75rem; font-weight:bold; color:white; background:${stColor}; padding:2px 8px; border-radius:10px;">${l.status}</span>
+                                </div>
+                                <div style="font-size:0.85rem; color:#666; margin-bottom:4px;">
+                                    <i class="fas fa-clock"></i> ${sDate} - ${eDate}
+                                </div>
+                                <div style="font-size:0.85rem; color:#444; background:#f9f9f9; padding:6px; border-radius:4px; font-style:italic;">
+                                    "${escapeHtml(l.reason)}"
+                                </div>
+                            </div>`;
+                    }).join('');
+                }
+
+            } catch(e) { 
+                console.error("History Error:", e);
+                document.getElementById('modalShiftList').innerHTML = '<p style="color:red; text-align:center;">Failed to load history.</p>';
+                document.getElementById('modalLeaveList').innerHTML = '<p style="color:red; text-align:center;">Failed to load history.</p>';
+            }
         }
 
         async function loadAdminShifts() {
@@ -2141,6 +2180,7 @@
     </script>
 </body>
 </html>
+
 
 
 

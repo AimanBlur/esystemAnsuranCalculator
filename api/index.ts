@@ -36,9 +36,9 @@ const transporter = nodemailer.createTransport({
 
 const BRANCH_LOCATIONS: Record<string, { lat: number, lng: number }> = {
     "HQ": { lat: 1.4845, lng: 103.7177 },
-    "TUTA": { lat: 3.1390, lng: 101.6869 },
-    "ANGSANA": { lat: 1.5000, lng: 103.7000 },
-    "AEON PERMAS": { lat: 1.5000, lng: 103.7000 }
+    "TUTA": { lat: 1.527164, lng: 103.668258 },
+    "ANGSANA": { lat: 1.496179, lng: 103.705852 },
+    "AEON PERMAS": { lat: 1.495621, lng: 103.817432 }
 };
 
 const ALLOWED_RADIUS_METERS = 30;

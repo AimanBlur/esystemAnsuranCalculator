@@ -38,6 +38,15 @@ const app = new Elysia()
     .use(cors())
     .group('/api', app => app
 
+        .get('/admin/users', async ({ set }) => {
+            const sql = getDb();
+            if (!sql) { set.status = 500; return []; }
+            try {
+                return await sql`SELECT id, name, branch, role FROM users ORDER BY name ASC`;
+            } catch (e) { return []; }
+        })
+
+        // 2. Get All Leaves (Updated query)
         .get('/admin/leaves', async ({ set }) => {
             const sql = getDb();
             if (!sql) { set.status = 500; return []; }
@@ -45,13 +54,13 @@ const app = new Elysia()
                 return await sql`
                     SELECT l.*, u.name as staff_name, u.branch 
                     FROM leaves l 
-                    JOIN users u ON l.user_id = u.id 
+                    LEFT JOIN users u ON l.user_id = u.id 
                     ORDER BY l.created_at DESC
                 `;
             } catch (e) { return []; }
         })
 
-        // 2. Update Leave Status (Existing - No Change)
+        // 3. Update Leave Status
         .put('/admin/leaves/:id', async ({ params, body, set }) => {
             const sql = getDb();
             if (!sql) { set.status = 500; return { success: false }; }
@@ -69,7 +78,7 @@ const app = new Elysia()
             } catch (e) { return { success: false, error: String(e) }; }
         })
 
-        // 3. Get Today's Shifts (UPDATED: Today Only)
+        // 4. Get Today's Shifts
         .get('/admin/shifts', async ({ set }) => {
             const sql = getDb();
             if (!sql) { set.status = 500; return []; }
@@ -77,14 +86,14 @@ const app = new Elysia()
                 return await sql`
                     SELECT s.*, u.name as staff_name, u.branch 
                     FROM shifts s 
-                    JOIN users u ON s.user_id = u.id 
+                    LEFT JOIN users u ON s.user_id = u.id 
                     WHERE s.date = CURRENT_DATE
                     ORDER BY s.clock_in DESC
                 `;
             } catch (e) { return []; }
         })
 
-        // 4. Get All Global Requests (Existing - No Change)
+        // 5. Get Requests
         .get('/admin/requests', async ({ set }) => {
             const sql = getDb();
             if (!sql) { set.status = 500; return []; }
@@ -94,17 +103,17 @@ const app = new Elysia()
                     FROM requests r 
                     LEFT JOIN users u ON r.receiver_id = u.id 
                     ORDER BY r.created_at DESC 
-                    LIMIT 100
+                    LIMIT 50
                 `;
             } catch (e) { return []; }
         })
 
-        // 5. Get Full History for Specific Staff (NEW)
+        // 6. Get Staff History
         .get('/admin/staff-history/:userId', async ({ params, set }) => {
             const sql = getDb();
             if (!sql) { set.status = 500; return { shifts: [], leaves: [] }; }
             try {
-                const shifts = await sql`SELECT * FROM shifts WHERE user_id = ${params.userId} ORDER BY clock_in DESC LIMIT 100`;
+                const shifts = await sql`SELECT * FROM shifts WHERE user_id = ${params.userId} ORDER BY clock_in DESC LIMIT 50`;
                 const leaves = await sql`SELECT * FROM leaves WHERE user_id = ${params.userId} ORDER BY created_at DESC`;
                 return { shifts, leaves };
             } catch (e) { return { shifts: [], leaves: [] }; }

@@ -2167,24 +2167,33 @@
                 if (!data.shifts || data.shifts.length === 0) {
                     sList.innerHTML = '<p style="text-align:center; color:#999; padding:20px;">No attendance records found.</p>';
                 } else {
-                    sList.innerHTML = data.shifts.map(s => {
-                        const d = new Date(s.clock_in).toLocaleDateString('en-MY', { day: 'numeric', month: 'short', year: 'numeric' });
+                    sList.innerHTML = data.shifts.length ? data.shifts.map(s => {
+                        const d = new Date(s.clock_in).toLocaleDateString('en-MY', { day: 'numeric', month: 'short' });
                         const i = new Date(s.clock_in).toLocaleTimeString('en-US', {hour:'2-digit', minute:'2-digit'});
                         const o = s.clock_out ? new Date(s.clock_out).toLocaleTimeString('en-US', {hour:'2-digit', minute:'2-digit'}) : '<span style="color:green; font-weight:bold;">Active</span>';
                         
-                        // Calculate duration if clocked out
+                        // Duration logic
                         let duration = "";
                         if(s.clock_out) {
                             const diff = (new Date(s.clock_out) - new Date(s.clock_in)) / 1000 / 60 / 60;
                             duration = `<small style="color:#888;">(${diff.toFixed(1)}h)</small>`;
                         }
-
+    
+                        // --- NEW: Remark Logic ---
+                        let remarkHtml = "";
+                        if (s.remarks) {
+                            remarkHtml = `<div style="font-size:0.75rem; color:#dc3545; background:#ffe6e6; padding:2px 6px; border-radius:4px; margin-top:4px; display:inline-block;">${s.remarks}</div>`;
+                        }
+    
                         return `
-                            <div class="result-item" style="padding:12px; border-bottom:1px solid #eee;">
-                                <span style="font-weight:500;"><i class="fas fa-calendar-alt" style="color:#999; margin-right:5px;"></i> ${d}</span> 
-                                <span>${i} <i class="fas fa-long-arrow-alt-right" style="color:#ccc; margin:0 5px;"></i> ${o} ${duration}</span>
+                            <div class="result-item" style="padding:12px; border-bottom:1px solid #eee; display:block;">
+                                <div style="display:flex; justify-content:space-between;">
+                                    <span style="font-weight:500;"><i class="fas fa-calendar-alt" style="color:#999; margin-right:5px;"></i> ${d}</span> 
+                                    <span>${i} <i class="fas fa-long-arrow-alt-right" style="color:#ccc; margin:0 5px;"></i> ${o} ${duration}</span>
+                                </div>
+                                ${remarkHtml}
                             </div>`;
-                    }).join('');
+                    }).join('') : '<p style="text-align:center; color:#999; padding:20px;">No attendance records found.</p>';
                 }
 
                 // 5. Render Leaves
@@ -2272,6 +2281,7 @@
     </script>
 </body>
 </html>
+
 
 
 

@@ -1938,119 +1938,116 @@
 
         async function loadAdminStaff() {
             try {
-                const res = await fetch(`${API_URL}/users`); // Admin endpoint returns all users
+                // Fetch from the new specific admin endpoint
+                const res = await fetch(`${API_URL}/admin/users`); 
                 const users = await res.json();
                 const grid = document.getElementById('adminStaffGrid');
-                if(!users.length) { grid.innerHTML = "<p>No staff found.</p>"; return; }
+                
+                if(!users.length) { 
+                    grid.innerHTML = "<p>No staff found.</p>"; 
+                    return; 
+                }
                 
                 grid.innerHTML = users.filter(u => u.role !== 'admin').map(u => `
-                    <div class="staff-card" onclick="viewStaffHistory(${u.id}, '${u.name}')">
-                        <div class="staff-avatar">${u.name.charAt(0)}</div>
-                        <b>${u.name}</b><br>
-                        <small>${u.branch}</small>
+                    <div class="staff-card" onclick="viewStaffHistory(${u.id}, '${escapeHtml(u.name)}')">
+                        <div class="staff-avatar">${u.name.charAt(0).toUpperCase()}</div>
+                        <b>${escapeHtml(u.name)}</b><br>
+                        <small>${escapeHtml(u.branch || '-')}</small>
                     </div>
                 `).join('');
+            } catch(e) { console.error("Staff Load Error:", e); }
+        }
+
+        // 2. Leave List Fix (Date Format + Reason)
+        async function loadAdminLeaves() {
+            try {
+                const res = await fetch(`${API_URL}/admin/leaves`);
+                const leaves = await res.json();
+                const list = document.getElementById('adminLeaveList');
+                
+                if(leaves.length === 0) { list.innerHTML = "<p>No leave applications.</p>"; return; }
+
+                list.innerHTML = leaves.map(l => {
+                    // Fix Date Format
+                    const sDate = new Date(l.start_date).toLocaleDateString('en-MY', { day: 'numeric', month: 'short', year: 'numeric' });
+                    const eDate = new Date(l.end_date).toLocaleDateString('en-MY', { day: 'numeric', month: 'short', year: 'numeric' });
+                    
+                    let actions = '';
+                    if(l.status === 'Pending') {
+                        actions = `
+                            <div style="margin-top:10px; display:flex; gap:10px;">
+                                <button onclick="processLeave(${l.id}, 'Approved')" class="btn-success" style="padding:8px; flex:1;">Approve</button>
+                                <button onclick="processLeave(${l.id}, 'Rejected')" class="btn-danger" style="padding:8px; flex:1;">Reject</button>
+                            </div>`;
+                    }
+
+                    const statusColors = { 'Pending':'#f39c12', 'Approved':'#27ae60', 'Rejected':'#c0392b' };
+                    const color = statusColors[l.status] || '#333';
+
+                    return `
+                        <div style="padding:15px; border-bottom:1px solid #eee; background:${l.status === 'Pending' ? '#fffdf7' : '#fff'}; border-radius:8px; margin-bottom:10px; border:1px solid #eee;">
+                            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                                <b>${escapeHtml(l.staff_name || 'Unknown')} <small style="color:#666;">(${escapeHtml(l.branch || '-')})</small></b>
+                                <span style="color:${color}; font-weight:bold; font-size:0.8rem; border:1px solid ${color}; padding:2px 8px; border-radius:12px;">${l.status}</span>
+                            </div>
+                            <div style="font-size:0.9rem; color:#444;">
+                                <div style="margin-bottom:4px;"><strong>Type:</strong> ${escapeHtml(l.leave_type)}</div>
+                                <div style="margin-bottom:4px;"><i class="fas fa-calendar-alt"></i> ${sDate} — ${eDate}</div>
+                                <div style="background:#f5f5f5; padding:8px; border-radius:6px; font-style:italic; margin-top:5px;">
+                                    "${escapeHtml(l.reason)}"
+                                </div>
+                                ${l.rejection_reason ? `<div style="color:#c0392b; margin-top:8px; font-weight:bold; font-size:0.85rem;"><i class="fas fa-times-circle"></i> Rejected: ${escapeHtml(l.rejection_reason)}</div>` : ''}
+                                ${l.approved_by ? `<div style="color:#27ae60; margin-top:5px; font-size:0.8rem;"><i class="fas fa-check-circle"></i> Handled by: ${escapeHtml(l.approved_by)}</div>` : ''}
+                            </div>
+                            ${actions}
+                        </div>
+                    `;
+                }).join('');
             } catch(e) { console.error(e); }
         }
 
+        // 3. Staff History Viewer (Also updated date formats here)
         async function viewStaffHistory(id, name) {
             document.getElementById('staffModalTitle').innerText = `${name}'s History`;
-            document.getElementById('modalShiftList').innerHTML = "Loading...";
-            document.getElementById('modalLeaveList').innerHTML = "Loading...";
+            document.getElementById('modalShiftList').innerHTML = '<div style="text-align:center; padding:20px;">Loading attendance...</div>';
+            document.getElementById('modalLeaveList').innerHTML = '<div style="text-align:center; padding:20px;">Loading leaves...</div>';
             document.getElementById('staffModal').classList.remove('hidden');
 
             try {
                 const res = await fetch(`${API_URL}/admin/staff-history/${id}`);
                 const data = await res.json();
                 
-                // Shifts
+                // Render Shifts
                 const sList = document.getElementById('modalShiftList');
                 sList.innerHTML = data.shifts.length ? data.shifts.map(s => {
-                    const d = new Date(s.clock_in).toLocaleDateString();
-                    const i = new Date(s.clock_in).toLocaleTimeString();
-                    const o = s.clock_out ? new Date(s.clock_out).toLocaleTimeString() : 'Active';
-                    return `<div class="result-item"><span>${d}</span> <span>${i} - ${o}</span></div>`;
-                }).join('') : '<p>No records.</p>';
+                    const d = new Date(s.clock_in).toLocaleDateString('en-MY');
+                    const i = new Date(s.clock_in).toLocaleTimeString('en-US', {hour:'2-digit', minute:'2-digit'});
+                    const o = s.clock_out ? new Date(s.clock_out).toLocaleTimeString('en-US', {hour:'2-digit', minute:'2-digit'}) : '<span style="color:green">Active</span>';
+                    return `
+                        <div class="result-item">
+                            <span><i class="fas fa-calendar"></i> ${d}</span> 
+                            <span>${i} <i class="fas fa-arrow-right" style="font-size:0.7em; color:#999;"></i> ${o}</span>
+                        </div>`;
+                }).join('') : '<p style="text-align:center; color:#999;">No attendance records found.</p>';
 
-                // Leaves
+                // Render Leaves
                 const lList = document.getElementById('modalLeaveList');
-                lList.innerHTML = data.leaves.length ? data.leaves.map(l => 
-                    `<div class="result-item"><span>${l.leave_type} (${l.status})</span> <small>${l.start_date}</small></div>`
-                ).join('') : '<p>No records.</p>';
+                lList.innerHTML = data.leaves.length ? data.leaves.map(l => {
+                    const sDate = new Date(l.start_date).toLocaleDateString('en-MY');
+                    const eDate = new Date(l.end_date).toLocaleDateString('en-MY');
+                    return `
+                        <div class="result-item" style="display:block;">
+                            <div style="display:flex; justify-content:space-between;">
+                                <strong>${l.leave_type}</strong> 
+                                <span style="font-size:0.8rem; font-weight:bold;">${l.status}</span>
+                            </div>
+                            <div style="font-size:0.85rem; color:#666;">${sDate} to ${eDate}</div>
+                            <div style="font-size:0.85rem; color:#444; margin-top:2px;">"${escapeHtml(l.reason)}"</div>
+                        </div>`;
+                }).join('') : '<p style="text-align:center; color:#999;">No leave records found.</p>';
 
             } catch(e) { console.error(e); }
-        }
-
-        function closeStaffModal() { document.getElementById('staffModal').classList.add('hidden'); }
-        function switchModalTab(id, btn) {
-            document.querySelectorAll('.modal-tab-content').forEach(d => d.style.display = 'none');
-            document.getElementById(id).style.display = 'block';
-            btn.parentElement.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active-tab'));
-            btn.classList.add('active-tab');
-        }
-
-        async function loadAdminLeaves() {
-            const res = await fetch(`${API_URL}/admin/leaves`);
-            const leaves = await res.json();
-            const list = document.getElementById('adminLeaveList');
-            if(!leaves.length) { list.innerHTML="<p>No leaves.</p>"; return; }
-            
-            list.innerHTML = leaves.map(l => `
-                <div style="padding:10px; border-bottom:1px solid #eee; background:${l.status==='Pending'?'#fffdf7':'#fff'};">
-                    <div style="display:flex; justify-content:space-between;">
-                        <b>${l.staff_name}</b> <span>${l.status}</span>
-                    </div>
-                    <small>${l.leave_type}: ${l.start_date} to ${l.end_date}</small>
-                    ${l.status==='Pending' ? `
-                        <div style="margin-top:5px; display:flex; gap:5px;">
-                            <button class="btn-success" style="padding:5px;" onclick="processLeave(${l.id}, 'Approved')">Approve</button>
-                            <button class="btn-danger" style="padding:5px;" onclick="processLeave(${l.id}, 'Rejected')">Reject</button>
-                        </div>` : ''}
-                </div>`).join('');
-        }
-
-        async function processLeave(id, status) {
-            let reason = "";
-            if(status === 'Rejected') { reason = prompt("Reason:"); if(!reason) return; }
-            if(!confirm("Confirm?")) return;
-            await fetch(`${API_URL}/admin/leaves/${id}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify({status, reason, admin_name:currentUser.name}) });
-            loadAdminLeaves();
-        }
-
-        async function loadAdminShifts() {
-            const res = await fetch(`${API_URL}/admin/shifts`);
-            const shifts = await res.json();
-            document.getElementById('adminShiftList').innerHTML = shifts.length ? shifts.map(s => 
-                `<div class="result-item">
-                    <div><b>${s.staff_name}</b> <small>(${s.branch})</small></div>
-                    <div>${new Date(s.clock_in).toLocaleTimeString()} - ${s.clock_out ? new Date(s.clock_out).toLocaleTimeString() : '<span style="color:green">Active</span>'}</div>
-                </div>`).join('') : '<p>No attendance today.</p>';
-        }
-
-        async function loadAdminRequests() {
-            const res = await fetch(`${API_URL}/admin/requests`);
-            const reqs = await res.json();
-            document.getElementById('adminRequestList').innerHTML = reqs.length ? reqs.map(r => 
-                `<div class="result-item" style="display:block;">
-                    <div style="display:flex; justify-content:space-between;"><b>${r.sender_name} -> ${r.receiver_name}</b> <span>${r.status}</span></div>
-                    <small>${r.content}</small>
-                </div>`).join('') : '<p>No requests.</p>';
         }
     </script>
 </body>
 </html>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

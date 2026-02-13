@@ -2058,7 +2058,18 @@
                     <div>${new Date(s.clock_in).toLocaleTimeString()} - ${s.clock_out ? new Date(s.clock_out).toLocaleTimeString() : '<span style="color:green">Active</span>'}</div>
                 </div>`).join('') : '<p>No attendance today.</p>';
         }
+
+        async function loadAdminRequests() {
+            const res = await fetch(`${API_URL}/admin/requests`);
+            const reqs = await res.json();
+            document.getElementById('adminRequestList').innerHTML = reqs.length ? reqs.map(r => 
+                `<div class="result-item" style="display:block;">
+                    <div style="display:flex; justify-content:space-between;"><b>${r.sender_name} -> ${r.receiver_name}</b> <span>${r.status}</span></div>
+                    <small>${r.content}</small>
+                </div>`).join('') : '<p>No requests.</p>';
+        }
     </script>
 </body>
 </html>
+
 

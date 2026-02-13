@@ -1881,22 +1881,65 @@
 
         async function handleShiftAction(action) {
             if(!confirm(`Confirm Clock ${action.toUpperCase()}?`)) return;
-            const endpoint = action === 'in' ? '/shift/clock-in' : '/shift/clock-out';
-            
-            try {
-                const res = await fetch(`${API_URL}${endpoint}`, {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ user_id: parseInt(currentUser.id) })
-                });
-                const data = await res.json();
-                if(data.success) {
-                    loadShiftStatus();
-                    loadShiftLogs();
-                } else {
-                    alert("Error: " + (data.message || "Failed"));
-                }
-            } catch(e) { alert("Network Error"); }
+
+            // 1. Check for Geolocation Support
+            if (!navigator.geolocation) {
+                return alert("Geolocation is not supported by your browser.");
+            }
+
+            // 2. Show Loading State
+            const container = document.getElementById('shiftControls');
+            const originalContent = container.innerHTML;
+            container.innerHTML = `<button class="btn-primary" disabled><i class="fas fa-satellite-dish fa-spin"></i> Locating...</button>`;
+
+            // 3. Get Position
+            navigator.geolocation.getCurrentPosition(
+                async (position) => {
+                    const lat = position.coords.latitude;
+                    const lng = position.coords.longitude;
+                    
+                    // 4. Send to Backend
+                    const endpoint = action === 'in' ? '/shift/clock-in' : '/shift/clock-out';
+                    
+                    try {
+                        const res = await fetch(`${API_URL}${endpoint}`, {
+                            method: 'POST',
+                            headers: {'Content-Type': 'application/json'},
+                            body: JSON.stringify({ 
+                                user_id: parseInt(currentUser.id),
+                                lat: lat,
+                                lng: lng
+                            })
+                        });
+                        const data = await res.json();
+                        
+                        if(data.success) {
+                            // Play success sound (optional)
+                            // new Audio('https://www.soundjay.com/buttons/beep-01a.mp3').play().catch(e=>{});
+                            alert(`✅ Success! Location Verified.`);
+                            loadShiftStatus();
+                            loadShiftLogs();
+                        } else {
+                            alert("❌ " + (data.message || "Failed"));
+                            container.innerHTML = originalContent; // Restore button on fail
+                        }
+                    } catch(e) { 
+                        alert("Network Error"); 
+                        container.innerHTML = originalContent;
+                    }
+                },
+                (error) => {
+                    // Handle GPS Errors
+                    let msg = "Unknown GPS Error";
+                    if(error.code === 1) msg = "Please allow location access to Clock In.";
+                    else if(error.code === 2) msg = "Position unavailable. Check GPS.";
+                    else if(error.code === 3) msg = "GPS Timeout.";
+                    
+                    alert("❌ " + msg);
+                    container.innerHTML = originalContent;
+                },
+                { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+            );
         }
 
         async function loadShiftLogs() {
@@ -2229,6 +2272,7 @@
     </script>
 </body>
 </html>
+
 
 
 

@@ -38,12 +38,17 @@ const app = new Elysia()
     .use(cors())
     .group('/api', app => app
 
+        // 1. Get All Staff for Directory
         .get('/admin/users', async ({ set }) => {
             const sql = getDb();
             if (!sql) { set.status = 500; return []; }
             try {
+                // We select everything to ensure we have the data
                 return await sql`SELECT id, name, branch, role FROM users ORDER BY name ASC`;
-            } catch (e) { return []; }
+            } catch (e) { 
+                console.error("Admin Users Error:", e);
+                return []; 
+            }
         })
 
         // 2. Get All Leaves (Updated query)

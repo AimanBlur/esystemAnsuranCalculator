@@ -1473,6 +1473,19 @@
             if (tabId === 'requests') {
                 loadRequests();
             }
+
+            if (tabId === 'shift') {
+                startClock();       // Start the timer
+                loadShiftStatus();  // Check if clocked in
+                loadShiftLogs();    // Load history
+            }
+            
+            if (tabId === 'admin') {
+                loadAdminStaff();
+                loadAdminLeaves();
+                loadAdminShifts();
+                loadAdminRequests();
+            }
         }
 
         
@@ -1937,27 +1950,53 @@
         }
 
         async function loadAdminStaff() {
+            console.log("Loading Staff Directory...");
+            const grid = document.getElementById('adminStaffGrid');
+            grid.innerHTML = '<p style="grid-column:1/-1; text-align:center;">Loading staff list...</p>';
+
             try {
-                // Fetch from the new specific admin endpoint
+                // Fetch from the specific admin endpoint
                 const res = await fetch(`${API_URL}/admin/users`); 
-                const users = await res.json();
-                const grid = document.getElementById('adminStaffGrid');
                 
-                if(!users.length) { 
-                    grid.innerHTML = "<p>No staff found.</p>"; 
+                if (!res.ok) throw new Error(`Server returned ${res.status}`);
+                
+                const users = await res.json();
+                console.log("Staff loaded:", users); // Debug log
+
+                if (!Array.isArray(users) || users.length === 0) { 
+                    grid.innerHTML = '<p style="grid-column:1/-1; text-align:center; color:#666;">No staff accounts found.</p>'; 
                     return; 
                 }
                 
-                grid.innerHTML = users.filter(u => u.role !== 'admin').map(u => `
-                    <div class="staff-card" onclick="viewStaffHistory(${u.id}, '${escapeHtml(u.name)}')">
-                        <div class="staff-avatar">${u.name.charAt(0).toUpperCase()}</div>
-                        <b>${escapeHtml(u.name)}</b><br>
-                        <small>${escapeHtml(u.branch || '-')}</small>
+                // Filter out admins from the list so you only see staff
+                const staffList = users.filter(u => u.role !== 'admin');
+
+                grid.innerHTML = staffList.map(u => `
+                    <div class="staff-card" onclick="viewStaffHistory(${u.id}, '${escapeHtml(u.name || 'User')}')">
+                        <div class="staff-avatar" style="background:${stringToColor(u.name)};">
+                            ${(u.name || 'U').charAt(0).toUpperCase()}
+                        </div>
+                        <div style="font-weight:bold; margin-bottom:2px;">${escapeHtml(u.name || 'Unknown')}</div>
+                        <div style="font-size:0.8rem; color:#666;">${escapeHtml(u.branch || 'No Branch')}</div>
                     </div>
                 `).join('');
-            } catch(e) { console.error("Staff Load Error:", e); }
+                
+            } catch(e) { 
+                console.error("Staff Load Error:", e);
+                grid.innerHTML = `<p style="grid-column:1/-1; text-align:center; color:red;">Error loading staff: ${e.message}</p>`;
+            }
         }
 
+        // Helper to generate consistent colors for avatars
+        function stringToColor(str) {
+            if(!str) return '#ccc';
+            let hash = 0;
+            for (let i = 0; i < str.length; i++) {
+                hash = str.charCodeAt(i) + ((hash << 5) - hash);
+            }
+            const c = (hash & 0x00FFFFFF).toString(16).toUpperCase();
+            return '#' + "00000".substring(0, 6 - c.length) + c;
+        }
         // 2. Leave List Fix (Date Format + Reason)
         async function loadAdminLeaves() {
             try {
@@ -2071,5 +2110,6 @@
     </script>
 </body>
 </html>
+
 
 

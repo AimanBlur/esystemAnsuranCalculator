@@ -34,6 +34,30 @@ const transporter = nodemailer.createTransport({
     }
 });
 
+const BRANCH_LOCATIONS: Record<string, { lat: number, lng: number }> = {
+    "HQ": { lat: 1.4845, lng: 103.7177 },
+    "TUTA": { lat: 3.1390, lng: 101.6869 },
+    "ANGSANA": { lat: 1.5000, lng: 103.7000 },
+    "AEON PERMAS": { lat: 1.5000, lng: 103.7000 }
+};
+
+const ALLOWED_RADIUS_METERS = 30;
+
+// Helper: Calculate distance in meters
+function getDistance(lat1: number, lon1: number, lat2: number, lon2: number) {
+    const R = 6371e3; // Earth radius in meters
+    const φ1 = lat1 * Math.PI/180;
+    const φ2 = lat2 * Math.PI/180;
+    const Δφ = (lat2-lat1) * Math.PI/180;
+    const Δλ = (lon2-lon1) * Math.PI/180;
+
+    const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
+            Math.cos(φ1) * Math.cos(φ2) *
+            Math.sin(Δλ/2) * Math.sin(Δλ/2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    return R * c;
+}
+
 const app = new Elysia()
     .use(cors())
     .group('/api', app => app
@@ -141,38 +165,67 @@ const app = new Elysia()
             }
         })
 
-        // Clock In
         .post('/shift/clock-in', async ({ body, set }) => {
-            const sql = getDb(); // <--- FIX
+            const sql = getDb();
             if (!sql) { set.status = 500; return { success: false, message: "DB Error" }; }
             
-            const b = body as { user_id: number };
+            const b = body as { user_id: number, lat: number, lng: number };
+            
             try {
-                // Check if already clocked in
+                // 1. Get User's Assigned Branch
+                const [user] = await sql`SELECT branch FROM users WHERE id = ${b.user_id}`;
+                if (!user) return { success: false, message: "User not found" };
+
+                // 2. Check Geofence
+                const branchLoc = BRANCH_LOCATIONS[user.branch];
+                
+                // Only enforce if branch is in our list (Skip check if branch not configured)
+                if (branchLoc) {
+                    const distance = getDistance(b.lat, b.lng, branchLoc.lat, branchLoc.lng);
+                    if (distance > ALLOWED_RADIUS_METERS) {
+                        return { 
+                            success: false, 
+                            message: `You are too far from ${user.branch}! (${Math.round(distance)}m away)` 
+                        };
+                    }
+                }
+
+                // 3. Check if already clocked in
                 const active = await sql`SELECT * FROM shifts WHERE user_id = ${b.user_id} AND clock_out IS NULL`;
                 if (active.length > 0) return { success: false, message: "Already clocked in!" };
 
-                await sql`INSERT INTO shifts (user_id, clock_in, date) VALUES (${b.user_id}, NOW(), CURRENT_DATE)`;
+                // 4. Insert with Location Data
+                await sql`
+                    INSERT INTO shifts (user_id, clock_in, date, lat, lng) 
+                    VALUES (${b.user_id}, NOW(), CURRENT_DATE, ${String(b.lat)}, ${String(b.lng)})
+                `;
                 return { success: true };
             } catch (err) {
                 return { success: false, message: String(err) };
             }
-        }, { body: t.Object({ user_id: t.Number() }) })
+        }, { body: t.Object({ user_id: t.Number(), lat: t.Number(), lng: t.Number() }) })
 
-        // Clock Out
+        // CLOCK OUT (With Location Tracking)
         .post('/shift/clock-out', async ({ body, set }) => {
-            const sql = getDb(); // <--- FIX
+            const sql = getDb();
             if (!sql) { set.status = 500; return { success: false, message: "DB Error" }; }
 
-            const b = body as { user_id: number };
+            const b = body as { user_id: number, lat: number, lng: number };
             try {
-                await sql`UPDATE shifts SET clock_out = NOW() WHERE user_id = ${b.user_id} AND clock_out IS NULL`;
+                // We track location on clock out too, but usually don't block them from leaving
+                await sql`
+                    UPDATE shifts 
+                    SET clock_out = NOW(), 
+                        out_lat = ${String(b.lat)}, 
+                        out_lng = ${String(b.lng)}
+                    WHERE user_id = ${b.user_id} AND clock_out IS NULL
+                `;
                 return { success: true };
             } catch (err) {
                 return { success: false, message: String(err) };
             }
-        }, { body: t.Object({ user_id: t.Number() }) })
-
+        }, { body: t.Object({ user_id: t.Number(), lat: t.Number(), lng: t.Number() }) })
+        
         // Get Shift Logs
         .get('/shift/logs/:userId', async ({ params, set }) => {
             const sql = getDb(); // <--- FIX

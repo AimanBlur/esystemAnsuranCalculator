@@ -405,19 +405,29 @@ const app = new Elysia()
 
         .get('/requests/:userId/pending-count', async ({ params, set }) => {
             const sql = getDb();
-            if (!sql) {
-                set.status = 500;
-                return { count: 0 };
-            }
+            if (!sql) { set.status = 500; return { count: 0 }; }
             try {
-                const result = await sql`SELECT COUNT(*) as count FROM requests WHERE receiver_id = ${params.userId} AND status = 'pending'`;
-                await sql.end();
-                return { count: parseInt(result[0]?.count) || 0 };
-            } catch (e) {
-                console.error("Pending count error:", e);
-                try { await sql.end(); } catch(err) {}
-                return { count: 0 };
-            }
+                // 1. Get total pending count
+                const [countResult] = await sql`
+                    SELECT COUNT(*) as count 
+                    FROM requests 
+                    WHERE receiver_id = ${params.userId} AND status = 'pending'
+                `;
+                
+                // 2. Get the specific details of the MOST RECENT pending request
+                const [latest] = await sql`
+                    SELECT sender_name, content 
+                    FROM requests 
+                    WHERE receiver_id = ${params.userId} AND status = 'pending' 
+                    ORDER BY created_at DESC 
+                    LIMIT 1
+                `;
+
+                return { 
+                    count: Number(countResult.count), 
+                    latest: latest || null // Send the details to frontend
+                };
+            } catch (e) { return { count: 0 }; }
         })
 
         .post('/requests', async ({ body, set }) => {

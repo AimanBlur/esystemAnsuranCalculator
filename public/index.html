@@ -849,6 +849,27 @@
                     </div>
                 </div>
             </div>
+
+            <div id="staffModal" class="modal-overlay hidden">
+                <div class="modal-content" style="max-width:600px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+                        <h3 style="margin:0;" id="staffModalTitle">Staff History</h3>
+                        <button onclick="closeStaffModal()" style="background:none; border:none; cursor:pointer; color:black; font-size:1.5rem;">&times;</button>
+                    </div>
+                    
+                    <div style="display:flex; border-bottom:1px solid #ddd; margin-bottom:15px;">
+                        <button class="tab-btn active-tab" onclick="switchModalTab('modalShifts', this)" style="flex:1; background:none; border:none; border-bottom:3px solid transparent; padding:10px; cursor:pointer;">Attendance</button>
+                        <button class="tab-btn" onclick="switchModalTab('modalLeaves', this)" style="flex:1; background:none; border:none; border-bottom:3px solid transparent; padding:10px; cursor:pointer;">Leaves</button>
+                    </div>
+                    
+                    <div id="modalShifts" class="modal-tab-content" style="display:block;">
+                        <div class="scroll-pane" id="modalShiftList" style="max-height:300px; overflow-y:auto;"></div>
+                    </div>
+                    <div id="modalLeaves" class="modal-tab-content" style="display:none;">
+                        <div class="scroll-pane" id="modalLeaveList" style="max-height:300px; overflow-y:auto;"></div>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -2177,9 +2198,38 @@
                     <small>${r.content}</small>
                 </div>`).join('') : '<p>No requests.</p>';
         }
+
+        function closeStaffModal() { 
+            document.getElementById('staffModal').classList.add('hidden'); 
+        }
+    
+        function switchModalTab(tabId, btn) {
+            // Hide all modal tab contents
+            document.querySelectorAll('.modal-tab-content').forEach(d => d.style.display = 'none');
+            
+            // Show the selected one
+            document.getElementById(tabId).style.display = 'block';
+            
+            // Update tab styling
+            // Remove active class from all buttons in this container
+            const parent = btn.parentElement;
+            parent.querySelectorAll('.tab-btn').forEach(b => {
+                b.classList.remove('active-tab');
+                b.style.borderBottom = '3px solid transparent';
+                b.style.fontWeight = 'normal';
+                b.style.color = '#666';
+            });
+            
+            // Add active class to clicked button
+            btn.classList.add('active-tab');
+            btn.style.borderBottom = '3px solid #0056b3';
+            btn.style.fontWeight = 'bold';
+            btn.style.color = '#0056b3';
+        }
     </script>
 </body>
 </html>
+
 
 
 

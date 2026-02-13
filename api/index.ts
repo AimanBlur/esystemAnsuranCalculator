@@ -205,26 +205,40 @@ const app = new Elysia()
             }
         }, { body: t.Object({ user_id: t.Number(), lat: t.Number(), lng: t.Number() }) })
 
-        // CLOCK OUT (With Location Tracking)
-        .post('/shift/clock-out', async ({ body, set }) => {
-            const sql = getDb();
-            if (!sql) { set.status = 500; return { success: false, message: "DB Error" }; }
+        .post('/shift/clock-out', async ({ body }) => {
+            const b = body as any;
 
-            const b = body as { user_id: number, lat: number, lng: number };
-            try {
-                // We track location on clock out too, but usually don't block them from leaving
-                await sql`
-                    UPDATE shifts 
-                    SET clock_out = NOW(), 
-                        out_lat = ${String(b.lat)}, 
-                        out_lng = ${String(b.lng)}
-                    WHERE user_id = ${b.user_id} AND clock_out IS NULL
-                `;
-                return { success: true };
-            } catch (err) {
-                return { success: false, message: String(err) };
+            // 1. Get User's Branch
+            const users = await query('SELECT branch FROM users WHERE id = ?', [b.user_id]);
+            if (!users || users.length === 0) return { success: false, message: "User not found" };
+            
+            const userBranch = users[0].branch;
+            const branchLoc = BRANCH_LOCATIONS[userBranch];
+            
+            let specialRemark = null;
+
+            // 2. Calculate Distance
+            if (branchLoc) {
+                const dist = getDistance(b.lat, b.lng, branchLoc.lat, branchLoc.lng);
+                
+                // 3. If far away, add a remark
+                if (dist > ALLOWED_RADIUS_METERS) {
+                    specialRemark = `⚠️ Off-site: ${Math.round(dist)}m from ${userBranch}`;
+                }
             }
-        }, { body: t.Object({ user_id: t.Number(), lat: t.Number(), lng: t.Number() }) })
+
+            // 4. Update Shift (Save location AND remark)
+            await query(
+                'UPDATE shifts SET clock_out = NOW(), out_lat = ?, out_lng = ?, remarks = ? WHERE user_id = ? AND clock_out IS NULL',
+                [String(b.lat), String(b.lng), specialRemark, b.user_id]
+            );
+
+            // 5. Send success message (warn user if off-site)
+            if (specialRemark) {
+                return { success: true, message: "Clocked out (Location Warning Recorded)" };
+            }
+            return { success: true };
+        })
         
         // Get Shift Logs
         .get('/shift/logs/:userId', async ({ params, set }) => {

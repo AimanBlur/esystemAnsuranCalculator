@@ -177,11 +177,13 @@ const app = new Elysia()
         // TOGGLE ROAMING PERMISSION
         .put('/admin/users/:id/roam', async ({ params, body, set }) => {
             const sql = getDb();
-            if (!sql) { set.status = 500; return { success: false, message: "DB Error" }; }
+            if (!sql) { set.status = 500; return { success: false }; }
             try {
-                // Force boolean conversion to be safe
-                const val = Boolean(body.bypass);
-                await sql`UPDATE users SET bypass_geofence = ${val} WHERE id = ${params.id}`;
+                // Ensure ID is a number and bypass is a boolean
+                const userId = parseInt(params.id);
+                const isBypass = Boolean(body.bypass);
+                
+                await sql`UPDATE users SET bypass_geofence = ${isBypass} WHERE id = ${userId}`;
                 return { success: true };
             } catch (e: any) { 
                 console.error("Toggle Error:", e);
@@ -251,32 +253,40 @@ const app = new Elysia()
             if (!sql) { set.status = 500; return { success: false, message: "DB Error" }; }
             
             try {
-                // 1. Get User Details
+                // 1. Get User
                 const [user] = await sql`SELECT branch, bypass_geofence FROM users WHERE id = ${body.user_id}`;
                 if (!user) return { success: false, message: "User not found" };
 
                 // 2. Determine Target Branch
-                // If user has permission AND sent a branch, use it. Otherwise, use assigned branch.
-                const targetBranch = (user.bypass_geofence && body.target_branch) ? body.target_branch : user.branch;
+                // Logic: If user HAS permission AND SENT a target, use target. Else use Home.
+                const hasPermission = user.bypass_geofence;
+                const requestedBranch = body.target_branch;
+                
+                const targetBranch = (hasPermission && requestedBranch) ? requestedBranch : user.branch;
                 const branchLoc = BRANCH_LOCATIONS[targetBranch];
 
-                // 3. Geofence Check (Against the TARGET branch)
-                if (branchLoc) {
-                    const dist = getDistance(body.lat, body.lng, branchLoc.lat, branchLoc.lng);
-                    if (dist > ALLOWED_RADIUS_METERS) {
-                        return { success: false, message: `Too far from ${targetBranch}! (${Math.round(dist)}m away)` };
-                    }
-                } else {
-                    return { success: false, message: "Invalid Branch Configuration" };
+                // --- DEBUG LOGGING (Check Vercel Function Logs if this fails) ---
+                console.log(`ClockIn: User=${body.user_id}, Perm=${hasPermission}, ReqBranch=${requestedBranch}, FinalTarget=${targetBranch}`);
+
+                // 3. Check Branch Validity
+                if (!branchLoc) {
+                    return { success: false, message: `Invalid Branch: ${targetBranch}` };
                 }
 
-                // 4. Check if already clocked in
+                // 4. Geofence Check
+                const dist = getDistance(body.lat, body.lng, branchLoc.lat, branchLoc.lng);
+                console.log(`Distance to ${targetBranch}: ${dist}m`); // Debug Log
+
+                if (dist > ALLOWED_RADIUS_METERS) {
+                    return { success: false, message: `Too far from ${targetBranch}! (${Math.round(dist)}m away)` };
+                }
+
+                // 5. Check Active Shift
                 const [active] = await sql`SELECT id FROM shifts WHERE user_id = ${body.user_id} AND clock_out IS NULL`;
                 if (active) return { success: false, message: "Already clocked in!" };
 
-                // 5. Save (We record the actual branch they clocked into in the notes for reference)
+                // 6. Save
                 const note = body.note ? `${body.note} (at ${targetBranch})` : `(at ${targetBranch})`;
-                
                 await sql`
                     INSERT INTO shifts (user_id, clock_in, date, lat, lng, in_note) 
                     VALUES (${body.user_id}, NOW(), CURRENT_DATE, ${String(body.lat)}, ${String(body.lng)}, ${note})
@@ -284,7 +294,6 @@ const app = new Elysia()
                 return { success: true };
             } catch (e: any) { return { success: false, message: e.message }; }
         }, { body: t.Object({ user_id: t.Number(), lat: t.Number(), lng: t.Number(), note: t.Optional(t.String()), target_branch: t.Optional(t.String()) }) })
-
         // --- CLOCK OUT (Same Logic) ---
         .post('/shift/clock-out', async ({ body, set }) => {
             const sql = getDb();

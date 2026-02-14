@@ -784,15 +784,16 @@
 
             <div id="shift" class="tab-content">
                 <div class="card" style="text-align:center; padding:30px 20px;">
-                    <h2 id="realTimeClock" style="font-size: 2.5rem; margin:0; color:var(--primary);">00:00:00</h2>
-                    <p id="realTimeDate" style="color:#666; margin-top:5px; font-weight:600;">Loading Date...</p>
-                    
                     <div style="margin-top:25px;">
-                        <input type="text" id="shiftRemark" placeholder="Optional remark (e.g. 'Site Visit')" style="margin-bottom:10px; font-size:0.9rem;">
                         
-                        <div id="shiftControls">
-                            <button class="btn-primary" disabled>Loading...</button>
+                        <div id="branchSelectorContainer" style="margin-bottom:15px; display:none;">
+                            <label style="display:block; font-size:0.8rem; color:#666; margin-bottom:5px;">Select Location:</label>
+                            <select id="shiftBranchSelect" style="margin:0; padding:8px; border:1px solid #0056b3; color:#0056b3; font-weight:bold;">
+                                </select>
                         </div>
+                
+                        <input type="text" id="shiftRemark" ... >
+                        <div id="shiftControls">...</div>
                     </div>
                 </div>
 
@@ -923,9 +924,11 @@
             }
             
             currentUser = {
-                id: userId,
-                name: userName || "Staff",
-                branch: userBranch || "Main"
+                id: localStorage.getItem("staffId"),
+                name: localStorage.getItem("staffName"),
+                branch: localStorage.getItem("staffBranch"),
+                role: localStorage.getItem("staffRole"),
+                canRoam: localStorage.getItem("canRoam") === "true" // <--- ADD THIS
             };
             
             console.log("Current user initialized:", currentUser);
@@ -966,6 +969,8 @@
             // Load data
             loadData();
             loadRequests();
+
+            if(currentUser.canRoam) loadBranchOptions();
             
             if ("Notification" in window) {
                 Notification.requestPermission().then(permission => {
@@ -978,6 +983,76 @@
             setInterval(checkPendingRequests, 30000);
 
             checkAutoShiftRedirect();
+        }
+
+        async function loadBranchOptions() {
+            try {
+                const res = await fetch(`${API_URL}/branches`);
+                const branches = await res.json();
+                
+                const select = document.getElementById('shiftBranchSelect');
+                const container = document.getElementById('branchSelectorContainer');
+                
+                if (select && branches.length > 0) {
+                    select.innerHTML = branches.map(b => 
+                        `<option value="${b}" ${b === currentUser.branch ? 'selected' : ''}>${b}</option>`
+                    ).join('');
+                    
+                    // Show the dropdown ONLY if user has permission
+                    if (currentUser.canRoam) {
+                        container.style.display = 'block';
+                    }
+                }
+            } catch (e) { console.error("Branch load error", e); }
+        }
+
+        // --- UPDATED: Handle Shift Action (Send Selected Branch) ---
+        async function handleShiftAction(action) {
+            if(!confirm(`Confirm Clock ${action.toUpperCase()}?`)) return;
+            
+            const note = document.getElementById('shiftRemark').value.trim();
+            
+            // Get selected branch IF visible, otherwise default to null (backend uses assigned)
+            const branchSelect = document.getElementById('shiftBranchSelect');
+            const targetBranch = (currentUser.canRoam && branchSelect) ? branchSelect.value : null;
+
+            if (!navigator.geolocation) return alert("GPS Required");
+
+            const container = document.getElementById('shiftControls');
+            container.innerHTML = `<button class="btn-primary" disabled>Locating...</button>`;
+
+            navigator.geolocation.getCurrentPosition(async (pos) => {
+                try {
+                    const res = await fetch(`${API_URL}/shift/clock-${action}`, {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({ 
+                            user_id: parseInt(currentUser.id),
+                            lat: pos.coords.latitude,
+                            lng: pos.coords.longitude,
+                            note: note,
+                            target_branch: targetBranch // <--- Send this
+                        })
+                    });
+                    
+                    const data = await res.json();
+                    if(data.success) {
+                        alert(data.message || "Success");
+                        document.getElementById('shiftRemark').value = ""; 
+                        loadShiftStatus();
+                        loadShiftLogs();
+                    } else {
+                        alert("❌ " + data.message);
+                        loadShiftStatus(); 
+                    }
+                } catch(e) { 
+                    alert("Network Error"); 
+                    loadShiftStatus();
+                }
+            }, () => {
+                alert("❌ GPS Access Denied");
+                loadShiftStatus();
+            });
         }
         
         // ALSO UPDATE handleLogin to ensure staffId is properly saved
@@ -1021,6 +1096,7 @@
                     localStorage.setItem("staffBranch", data.branch || "-");
                     localStorage.setItem("staffId", String(data.id)); // Convert to string explicitly
                     localStorage.setItem("staffRole", data.role || 'staff');
+                    localStorage.setItem("canRoam", data.can_roam ? "true" : "false");
                     
                     console.log("Saved to localStorage:", {
                         staffId: localStorage.getItem("staffId"),
@@ -1028,6 +1104,14 @@
                         staffBranch: localStorage.getItem("staffBranch")
                     });
                     
+                    currentUser = { 
+                        id: data.id, 
+                        name: data.name||u, 
+                        branch: data.branch||'-', 
+                        role: data.role,
+                        canRoam: data.can_roam // <--- AND THIS
+                    };
+                            
                     document.getElementById('loginOverlay').classList.add('hidden');
                     document.getElementById('mainApp').classList.remove('hidden');
                     initApp();
@@ -2383,6 +2467,7 @@
     </script>
 </body>
 </html>
+
 
 
 

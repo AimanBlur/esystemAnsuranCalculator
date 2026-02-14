@@ -485,6 +485,14 @@
         .staff-card { background: #f8f9fa; border: 1px solid #eee; border-radius: 8px; padding: 15px; text-align: center; cursor: pointer; transition: 0.2s; }
         .staff-card:hover { border-color: var(--primary); background: #e3f2fd; }
         .staff-avatar { width: 50px; height: 50px; background: #ddd; border-radius: 50%; margin: 0 auto 10px; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; color: #fff; }
+
+        /* Toggle Switch Style */
+        .switch { position: relative; display: inline-block; width: 34px; height: 20px; vertical-align: middle; margin-left: 10px; }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ccc; transition: .4s; border-radius: 34px; }
+        .slider:before { position: absolute; content: ""; height: 14px; width: 14px; left: 3px; bottom: 3px; background-color: white; transition: .4s; border-radius: 50%; }
+        input:checked + .slider { background-color: #28a745; }
+        input:checked + .slider:before { transform: translateX(14px); }
     </style>
 </head>
 <body>
@@ -780,6 +788,8 @@
                     <p id="realTimeDate" style="color:#666; margin-top:5px; font-weight:600;">Loading Date...</p>
                     
                     <div id="shiftControls" style="margin-top:25px;">
+                        <input type="text" id="shiftRemark" placeholder="Optional remark" style="margin-bottom:10px; font-size:0.9rem;">
+                        
                         <button class="btn-primary" disabled>Loading...</button>
                     </div>
                 </div>
@@ -1881,65 +1891,48 @@
 
         async function handleShiftAction(action) {
             if(!confirm(`Confirm Clock ${action.toUpperCase()}?`)) return;
+            
+            // NEW: Get optional note
+            // Ensure you added <input id="shiftRemark"> in your HTML Shift Tab!
+            const noteInput = document.getElementById('shiftRemark'); 
+            const note = noteInput ? noteInput.value : "";
 
-            // 1. Check for Geolocation Support
-            if (!navigator.geolocation) {
-                return alert("Geolocation is not supported by your browser.");
-            }
+            if (!navigator.geolocation) return alert("GPS Required");
 
-            // 2. Show Loading State
             const container = document.getElementById('shiftControls');
-            const originalContent = container.innerHTML;
-            container.innerHTML = `<button class="btn-primary" disabled><i class="fas fa-satellite-dish fa-spin"></i> Locating...</button>`;
+            container.innerHTML = `<button class="btn-primary" disabled>Locating...</button>`;
 
-            // 3. Get Position
-            navigator.geolocation.getCurrentPosition(
-                async (position) => {
-                    const lat = position.coords.latitude;
-                    const lng = position.coords.longitude;
+            navigator.geolocation.getCurrentPosition(async (pos) => {
+                try {
+                    const res = await fetch(`${API_URL}/shift/clock-${action}`, {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({ 
+                            user_id: parseInt(currentUser.id),
+                            lat: pos.coords.latitude,
+                            lng: pos.coords.longitude,
+                            note: note // Send note to backend
+                        })
+                    });
                     
-                    // 4. Send to Backend
-                    const endpoint = action === 'in' ? '/shift/clock-in' : '/shift/clock-out';
-                    
-                    try {
-                        const res = await fetch(`${API_URL}${endpoint}`, {
-                            method: 'POST',
-                            headers: {'Content-Type': 'application/json'},
-                            body: JSON.stringify({ 
-                                user_id: parseInt(currentUser.id),
-                                lat: lat,
-                                lng: lng
-                            })
-                        });
-                        const data = await res.json();
-                        
-                        if(data.success) {
-                            // Play success sound (optional)
-                            // new Audio('https://www.soundjay.com/buttons/beep-01a.mp3').play().catch(e=>{});
-                            alert(`✅ Success! Location Verified.`);
-                            loadShiftStatus();
-                            loadShiftLogs();
-                        } else {
-                            alert("❌ " + (data.message || "Failed"));
-                            container.innerHTML = originalContent; // Restore button on fail
-                        }
-                    } catch(e) { 
-                        alert("Network Error"); 
-                        container.innerHTML = originalContent;
+                    const data = await res.json();
+                    if(data.success) {
+                        alert(data.message || "Success");
+                        if(noteInput) noteInput.value = ""; // Clear input
+                        loadShiftStatus();
+                        loadShiftLogs();
+                    } else {
+                        alert("❌ " + data.message);
+                        loadShiftStatus(); // Reset button
                     }
-                },
-                (error) => {
-                    // Handle GPS Errors
-                    let msg = "Unknown GPS Error";
-                    if(error.code === 1) msg = "Please allow location access to Clock In.";
-                    else if(error.code === 2) msg = "Position unavailable. Check GPS.";
-                    else if(error.code === 3) msg = "GPS Timeout.";
-                    
-                    alert("❌ " + msg);
-                    container.innerHTML = originalContent;
-                },
-                { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
-            );
+                } catch(e) { 
+                    alert("Network Error"); 
+                    loadShiftStatus();
+                }
+            }, () => {
+                alert("❌ GPS Access Denied");
+                loadShiftStatus();
+            });
         }
 
         async function loadShiftLogs() {
@@ -2146,89 +2139,188 @@
 
         // 3. Staff History Viewer (Also updated date formats here)
         async function viewStaffHistory(id, name) {
-            console.log(`Viewing history for: ${name} (ID: ${id})`);
+            // 1. Setup Modal Basics
+            document.getElementById('staffModalTitle').innerText = `${name}`;
+            document.getElementById('staffModal').classList.remove('hidden');
             
-            // 1. Open Modal Immediately
-            const modal = document.getElementById('staffModal');
-            if(modal) modal.classList.remove('hidden');
+            // 2. Clear previous content & show loader
+            const sList = document.getElementById('modalShiftList');
+            sList.innerHTML = '<div style="padding:20px; text-align:center;"><i class="fas fa-spinner fa-spin"></i> Loading data...</div>';
             
-            // 2. Set Title and Reset Content
-            document.getElementById('staffModalTitle').innerText = `${name}'s History`;
-            document.getElementById('modalShiftList').innerHTML = '<div style="text-align:center; padding:20px; color:#666;"><i class="fas fa-spinner fa-spin"></i> Loading attendance...</div>';
-            document.getElementById('modalLeaveList').innerHTML = '<div style="text-align:center; padding:20px; color:#666;"><i class="fas fa-spinner fa-spin"></i> Loading leaves...</div>';
+            // 3. Prepare the "Controls Area" inside the modal (Injecting HTML dynamically)
+            // We use a custom container ID 'modalControls' to avoid duplicating buttons on multiple clicks
+            let controlsDiv = document.getElementById('modalControls');
+            if(!controlsDiv) {
+                controlsDiv = document.createElement('div');
+                controlsDiv.id = 'modalControls';
+                controlsDiv.style.cssText = "background:#f8fbff; padding:15px; border-radius:8px; margin-bottom:15px; border:1px solid #eef;";
+                const header = document.getElementById('staffModalTitle').parentNode;
+                header.parentNode.insertBefore(controlsDiv, header.nextSibling);
+            }
+            controlsDiv.innerHTML = 'Loading controls...';
 
             try {
-                // 3. Fetch Data
+                // 4. Fetch Data (History + Permissions)
                 const res = await fetch(`${API_URL}/admin/staff-history/${id}`);
                 const data = await res.json();
                 
-                // 4. Render Shifts (Attendance)
-                const sList = document.getElementById('modalShiftList');
+                // 5. Render Controls (Roaming + Print)
+                const isRoaming = data.user ? data.user.bypass_geofence : false;
+                controlsDiv.innerHTML = `
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; border-bottom:1px solid #ddd; padding-bottom:10px;">
+                        <span style="font-size:0.9rem; color:#333;">
+                            <i class="fas fa-globe-asia" style="color:${isRoaming ? '#28a745':'#999'}"></i> Roaming Mode
+                        </span>
+                        <label class="switch">
+                            <input type="checkbox" ${isRoaming ? 'checked' : ''} onchange="toggleRoaming(${id}, this.checked)">
+                            <span class="slider round"></span>
+                        </label>
+                    </div>
+                    <div style="display:flex; gap:8px; align-items:center;">
+                        <select id="printMonthRange" style="margin:0; padding:8px; font-size:0.85rem; flex:1;">
+                            <option value="1">Last 1 Month</option>
+                            <option value="2">Last 2 Months</option>
+                            <option value="3">Last 3 Months</option>
+                            <option value="6">Last 6 Months</option>
+                        </select>
+                        <button onclick="printStaffAttendance(${id}, '${name}')" class="btn-secondary" style="width:auto; padding:8px 12px;">
+                            <i class="fas fa-print"></i> Print
+                        </button>
+                    </div>
+                `;
+
+                // 6. Render Shift List (With Remarks & Notes)
                 if (!data.shifts || data.shifts.length === 0) {
-                    sList.innerHTML = '<p style="text-align:center; color:#999; padding:20px;">No attendance records found.</p>';
+                    sList.innerHTML = '<p style="text-align:center; color:#999; padding:20px;">No records found.</p>';
                 } else {
-                    sList.innerHTML = data.shifts.length ? data.shifts.map(s => {
-                        const d = new Date(s.clock_in).toLocaleDateString('en-MY', { day: 'numeric', month: 'short' });
-                        const i = new Date(s.clock_in).toLocaleTimeString('en-US', {hour:'2-digit', minute:'2-digit'});
-                        const o = s.clock_out ? new Date(s.clock_out).toLocaleTimeString('en-US', {hour:'2-digit', minute:'2-digit'}) : '<span style="color:green; font-weight:bold;">Active</span>';
+                    sList.innerHTML = data.shifts.map(s => {
+                        const d = new Date(s.clock_in).toLocaleDateString('en-MY');
+                        const i = new Date(s.clock_in).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+                        const o = s.clock_out ? new Date(s.clock_out).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) : 'Active';
                         
-                        // Duration logic
-                        let duration = "";
-                        if(s.clock_out) {
-                            const diff = (new Date(s.clock_out) - new Date(s.clock_in)) / 1000 / 60 / 60;
-                            duration = `<small style="color:#888;">(${diff.toFixed(1)}h)</small>`;
-                        }
-    
-                        // --- NEW: Remark Logic ---
-                        let remarkHtml = "";
-                        if (s.remarks) {
-                            remarkHtml = `<div style="font-size:0.75rem; color:#dc3545; background:#ffe6e6; padding:2px 6px; border-radius:4px; margin-top:4px; display:inline-block;">${s.remarks}</div>`;
-                        }
-    
+                        // Combine all notes
+                        let alerts = "";
+                        if(s.remarks) alerts += `<div style="color:#c0392b; font-size:0.75rem;">${s.remarks}</div>`;
+                        if(s.in_note) alerts += `<div style="color:#2980b9; font-size:0.75rem;">In: ${s.in_note}</div>`;
+                        if(s.out_note) alerts += `<div style="color:#2980b9; font-size:0.75rem;">Out: ${s.out_note}</div>`;
+
                         return `
-                            <div class="result-item" style="padding:12px; border-bottom:1px solid #eee; display:block;">
+                            <div class="result-item" style="display:block; padding:10px;">
                                 <div style="display:flex; justify-content:space-between;">
-                                    <span style="font-weight:500;"><i class="fas fa-calendar-alt" style="color:#999; margin-right:5px;"></i> ${d}</span> 
-                                    <span>${i} <i class="fas fa-long-arrow-alt-right" style="color:#ccc; margin:0 5px;"></i> ${o} ${duration}</span>
+                                    <b>${d}</b>
+                                    <span>${i} - ${o}</span>
                                 </div>
-                                ${remarkHtml}
-                            </div>`;
-                    }).join('') : '<p style="text-align:center; color:#999; padding:20px;">No attendance records found.</p>';
-                }
-
-                // 5. Render Leaves
-                const lList = document.getElementById('modalLeaveList');
-                if (!data.leaves || data.leaves.length === 0) {
-                    lList.innerHTML = '<p style="text-align:center; color:#999; padding:20px;">No leave records found.</p>';
-                } else {
-                    lList.innerHTML = data.leaves.map(l => {
-                        const sDate = new Date(l.start_date).toLocaleDateString('en-MY', { day: 'numeric', month: 'short' });
-                        const eDate = new Date(l.end_date).toLocaleDateString('en-MY', { day: 'numeric', month: 'short' });
-                        
-                        const colorMap = { 'Approved':'#28a745', 'Rejected':'#dc3545', 'Pending':'#ffc107' };
-                        const stColor = colorMap[l.status] || '#666';
-
-                        return `
-                            <div class="result-item" style="display:block; padding:12px; border-bottom:1px solid #eee;">
-                                <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
-                                    <strong>${escapeHtml(l.leave_type)}</strong> 
-                                    <span style="font-size:0.75rem; font-weight:bold; color:white; background:${stColor}; padding:2px 8px; border-radius:10px;">${l.status}</span>
-                                </div>
-                                <div style="font-size:0.85rem; color:#666; margin-bottom:4px;">
-                                    <i class="fas fa-clock"></i> ${sDate} - ${eDate}
-                                </div>
-                                <div style="font-size:0.85rem; color:#444; background:#f9f9f9; padding:6px; border-radius:4px; font-style:italic;">
-                                    "${escapeHtml(l.reason)}"
-                                </div>
+                                ${alerts}
                             </div>`;
                     }).join('');
                 }
+                
+                // Render Leaves (Simple view)
+                document.getElementById('modalLeaveList').innerHTML = data.leaves.map(l => 
+                    `<div class="result-item">
+                        <span>${l.leave_type} (${l.status})</span> 
+                        <small>${new Date(l.start_date).toLocaleDateString()}</small>
+                    </div>`
+                ).join('');
 
-            } catch(e) { 
-                console.error("History Error:", e);
-                document.getElementById('modalShiftList').innerHTML = '<p style="color:red; text-align:center;">Failed to load history.</p>';
-                document.getElementById('modalLeaveList').innerHTML = '<p style="color:red; text-align:center;">Failed to load history.</p>';
+            } catch(e) { console.error(e); }
+        }
+
+        async function toggleRoaming(userId, isEnabled) {
+            if(!confirm(`Confirm ${isEnabled ? 'GRANT' : 'REVOKE'} roaming permission?`)) {
+                // If user cancels, reload modal to reset switch state
+                viewStaffHistory(userId, document.getElementById('staffModalTitle').innerText);
+                return;
             }
+            
+            try {
+                await fetch(`${API_URL}/admin/users/${userId}/roam`, {
+                    method: 'PUT',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ bypass: isEnabled })
+                });
+                // No alert needed, visual toggle is enough feedback
+            } catch(e) { alert("Error updating permission"); }
+        }
+
+        // --- NEW: Print Individual Attendance ---
+        async function printStaffAttendance(userId, name) {
+            const months = document.getElementById('printMonthRange').value;
+            const btn = document.querySelector('button[onclick*="printStaffAttendance"]');
+            
+            // UI Loading State
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+            btn.disabled = true;
+
+            try {
+                // Fetch specific range for printing
+                const res = await fetch(`${API_URL}/admin/staff-history/${userId}?months=${months}`);
+                const data = await res.json();
+                
+                if(!data.shifts || data.shifts.length === 0) {
+                    alert("No attendance data for this period.");
+                    btn.innerHTML = originalText;
+                    btn.disabled = false;
+                    return;
+                }
+
+                // Generate Print Window
+                const win = window.open('', '', 'width=900,height=600');
+                let rows = data.shifts.map(s => {
+                    const date = new Date(s.clock_in).toLocaleDateString('en-MY');
+                    const tIn = new Date(s.clock_in).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+                    const tOut = s.clock_out ? new Date(s.clock_out).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) : '-';
+                    
+                    // Combine notes
+                    const notesArr = [];
+                    if(s.remarks) notesArr.push(`<span style="color:red">${s.remarks}</span>`);
+                    if(s.in_note) notesArr.push(`In: ${s.in_note}`);
+                    if(s.out_note) notesArr.push(`Out: ${s.out_note}`);
+                    
+                    return `
+                        <tr>
+                            <td>${date}</td>
+                            <td>${tIn}</td>
+                            <td>${tOut}</td>
+                            <td>${notesArr.join('<br>')}</td>
+                        </tr>
+                    `;
+                }).join('');
+
+                win.document.write(`
+                    <html>
+                    <head>
+                        <title>Attendance: ${name}</title>
+                        <style>
+                            body { font-family: sans-serif; padding: 30px; }
+                            h2 { margin-bottom: 5px; }
+                            table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+                            th, td { border: 1px solid #ccc; padding: 10px; text-align: left; font-size: 13px; }
+                            th { background: #f0f0f0; }
+                        </style>
+                    </head>
+                    <body>
+                        <h2>Attendance Record: ${name}</h2>
+                        <p>Period: Last ${months} Month(s) | Generated: ${new Date().toLocaleDateString()}</p>
+                        <table>
+                            <thead><tr><th>Date</th><th>Clock In</th><th>Clock Out</th><th>Notes</th></tr></thead>
+                            <tbody>${rows}</tbody>
+                        </table>
+                        <script>window.print();window.close();<\/script>
+                    </body>
+                    </html>
+                `);
+                win.document.close();
+
+            } catch(e) {
+                alert("Error generating report");
+                console.error(e);
+            }
+
+            // Reset Button
+            btn.innerHTML = originalText;
+            btn.disabled = false;
         }
 
         async function loadAdminShifts() {
@@ -2281,6 +2373,7 @@
     </script>
 </body>
 </html>
+
 
 
 

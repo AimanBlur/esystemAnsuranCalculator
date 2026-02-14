@@ -787,10 +787,12 @@
                     <h2 id="realTimeClock" style="font-size: 2.5rem; margin:0; color:var(--primary);">00:00:00</h2>
                     <p id="realTimeDate" style="color:#666; margin-top:5px; font-weight:600;">Loading Date...</p>
                     
-                    <div id="shiftControls" style="margin-top:25px;">
-                        <input type="text" id="shiftRemark" placeholder="Optional remark" style="margin-bottom:10px; font-size:0.9rem;">
+                    <div style="margin-top:25px;">
+                        <input type="text" id="shiftRemark" placeholder="Optional remark (e.g. 'Site Visit')" style="margin-bottom:10px; font-size:0.9rem;">
                         
-                        <button class="btn-primary" disabled>Loading...</button>
+                        <div id="shiftControls">
+                            <button class="btn-primary" disabled>Loading...</button>
+                        </div>
                     </div>
                 </div>
 
@@ -2047,16 +2049,21 @@
                 if (!res.ok) throw new Error(`Server returned ${res.status}`);
                 
                 const users = await res.json();
-                console.log("Staff API Response:", users); // DEBUG LOG
+                console.log("Staff API Response:", users); 
 
-                // Use a fallback empty array if response is null/undefined
+                // 1. Safe Array Check
                 const safeUsers = Array.isArray(users) ? users : [];
-                
+
+                // 2. Define staffList explicitly
+                const staffList = safeUsers.filter(u => u.role !== 'admin');
+
+                // 3. Check length
                 if (staffList.length === 0) {
-                    grid.innerHTML = '<p style="grid-column:1/-1; text-align:center; color:#666;">No staff accounts found (Admins are hidden).</p>';
+                    grid.innerHTML = '<p style="grid-column:1/-1; text-align:center; color:#666;">No staff accounts found.</p>';
                     return;
                 }
 
+                // 4. Render
                 grid.innerHTML = staffList.map(u => `
                     <div class="staff-card" 
                          onclick="viewStaffHistory(${u.id}, this.getAttribute('data-name'))" 
@@ -2376,6 +2383,7 @@
     </script>
 </body>
 </html>
+
 
 
 

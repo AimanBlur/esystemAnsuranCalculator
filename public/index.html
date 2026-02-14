@@ -2047,23 +2047,26 @@
                 if (!res.ok) throw new Error(`Server returned ${res.status}`);
                 
                 const users = await res.json();
-                
-                // Filter out admins
-                const staffList = users.filter(u => u.role !== 'admin');
+                console.log("Staff API Response:", users); // DEBUG LOG
 
+                // Use a fallback empty array if response is null/undefined
+                const safeUsers = Array.isArray(users) ? users : [];
+                
                 if (staffList.length === 0) {
-                    grid.innerHTML = '<p style="grid-column:1/-1; text-align:center; color:#666;">No staff found.</p>';
+                    grid.innerHTML = '<p style="grid-column:1/-1; text-align:center; color:#666;">No staff accounts found (Admins are hidden).</p>';
                     return;
                 }
 
-                // --- CHANGE: Removed Avatar & Fixed Click Handler ---
-                // We now store the name in 'data-name' to prevent quotes breaking the script
                 grid.innerHTML = staffList.map(u => `
                     <div class="staff-card" 
                          onclick="viewStaffHistory(${u.id}, this.getAttribute('data-name'))" 
                          data-name="${escapeHtml(u.name || 'User')}"
                          style="padding: 20px 15px; text-align: center;">
                         
+                        <div class="staff-avatar" style="background:${stringToColor(u.name || 'U')}; color:white; width:50px; height:50px; border-radius:50%; display:flex; align-items:center; justify-content:center; margin:0 auto 10px; font-weight:bold; font-size:1.2rem;">
+                            ${(u.name || 'U').charAt(0).toUpperCase()}
+                        </div>
+
                         <div style="font-weight:bold; font-size:1.1rem; margin-bottom:5px; color:var(--primary);">
                             ${escapeHtml(u.name || 'Unknown')}
                         </div>
@@ -2075,7 +2078,7 @@
                 
             } catch(e) { 
                 console.error("Staff Load Error:", e);
-                grid.innerHTML = `<p style="grid-column:1/-1; text-align:center; color:red;">Error loading staff.</p>`;
+                grid.innerHTML = `<p style="grid-column:1/-1; text-align:center; color:red;">Error: ${e.message}</p>`;
             }
         }
 
@@ -2373,6 +2376,7 @@
     </script>
 </body>
 </html>
+
 
 
 

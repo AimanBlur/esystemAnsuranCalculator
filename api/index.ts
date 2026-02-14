@@ -150,8 +150,19 @@ const app = new Elysia()
         .get('/admin/users', async ({ set }) => {
             const sql = getDb();
             if (!sql) { set.status = 500; return []; }
-            try { return await sql`SELECT id, name, branch, role, bypass_geofence FROM users ORDER BY name ASC`; } 
-            catch (e) { return []; }
+            try { 
+                // Explicitly select columns to avoid any ambiguity
+                const users = await sql`
+                    SELECT id, name, branch, role, bypass_geofence 
+                    FROM users 
+                    ORDER BY name ASC
+                `;
+                return [...users]; // Spread into array to ensure clean JSON serialization
+            } 
+            catch (e) { 
+                console.error("Admin Users Error:", e);
+                return []; 
+            }
         })
 
         // TOGGLE ROAMING PERMISSION

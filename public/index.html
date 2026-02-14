@@ -784,6 +784,10 @@
 
             <div id="shift" class="tab-content">
                 <div class="card" style="text-align:center; padding:30px 20px;">
+                    
+                    <h2 id="realTimeClock" style="font-size: 2.5rem; margin:0; color:var(--primary);">00:00:00</h2>
+                    <p id="realTimeDate" style="color:#666; margin-top:5px; font-weight:600;">Loading Date...</p>
+                    
                     <div style="margin-top:25px;">
                         
                         <div id="branchSelectorContainer" style="margin-bottom:15px; display:none;">
@@ -791,9 +795,12 @@
                             <select id="shiftBranchSelect" style="margin:0; padding:8px; border:1px solid #0056b3; color:#0056b3; font-weight:bold;">
                                 </select>
                         </div>
-                
-                        <input type="text" id="shiftRemark" ... >
-                        <div id="shiftControls">...</div>
+
+                        <input type="text" id="shiftRemark" placeholder="Optional remark (e.g. 'Site Visit')" style="margin-bottom:10px; font-size:0.9rem;">
+                        
+                        <div id="shiftControls">
+                            <button class="btn-primary" disabled>Loading...</button>
+                        </div>
                     </div>
                 </div>
 
@@ -2467,6 +2474,7 @@
     </script>
 </body>
 </html>
+
 
 
 

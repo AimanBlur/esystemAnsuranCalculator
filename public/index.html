@@ -2055,7 +2055,7 @@
                 const safeUsers = Array.isArray(users) ? users : [];
 
                 // 2. Define staffList explicitly
-                const staffList = safeUsers.filter(u => u.role !== 'admin');
+                const staffList = safeUsers;
 
                 // 3. Check length
                 if (staffList.length === 0) {
@@ -2383,6 +2383,7 @@
     </script>
 </body>
 </html>
+
 
 
 

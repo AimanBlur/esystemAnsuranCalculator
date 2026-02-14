@@ -62,21 +62,6 @@ const app = new Elysia()
     .use(cors())
     .group('/api', app => app
 
-        // 1. Get All Staff for Directory
-        .get('/admin/users', async ({ set }) => {
-            const sql = getDb();
-            if (!sql) { set.status = 500; return []; }
-            try {
-                const users = await sql`SELECT id, name, branch, role FROM users ORDER BY name ASC`;
-                await sql.end();
-                return [...users];
-            } catch (e) { 
-                console.error("Admin Users Error:", e);
-                try { await sql.end(); } catch(err) {}
-                return []; 
-            }
-        })
-
         // 2. Get All Leaves
         .get('/admin/leaves', async ({ set }) => {
             const sql = getDb();
@@ -162,162 +147,120 @@ const app = new Elysia()
             }
         })
 
-        // 6. Get Staff History
+        .get('/admin/users', async ({ set }) => {
+            const sql = getDb();
+            if (!sql) { set.status = 500; return []; }
+            try { return await sql`SELECT id, name, branch, role, bypass_geofence FROM users ORDER BY name ASC`; } 
+            catch (e) { return []; }
+        })
+
+        // TOGGLE ROAMING PERMISSION
+        .put('/admin/users/:id/roam', async ({ params, body, set }) => {
+            const sql = getDb();
+            if (!sql) { set.status = 500; return { success: false }; }
+            try {
+                await sql`UPDATE users SET bypass_geofence = ${body.bypass} WHERE id = ${params.id}`;
+                return { success: true };
+            } catch (e) { return { success: false }; }
+        }, { body: t.Object({ bypass: t.Boolean() }) })
+
+        // --- ADMIN: ATTENDANCE PRINTING ---
+        .get('/admin/shifts/export', async ({ query, set }) => {
+            const sql = getDb();
+            if (!sql) { set.status = 500; return []; }
+            try {
+                const months = parseInt(query.months as string) || 1;
+                // Fetch shifts from X months ago until now
+                return await sql`
+                    SELECT s.*, u.name as staff_name, u.branch 
+                    FROM shifts s 
+                    JOIN users u ON s.user_id = u.id 
+                    WHERE s.date >= (CURRENT_DATE - (${months} || ' month')::INTERVAL)
+                    ORDER BY s.date DESC, s.clock_in ASC
+                `;
+            } catch (e) { return []; }
+        })
+
+        // --- ADMIN: HISTORY & LEAVES ---
         .get('/admin/staff-history/:userId', async ({ params, set }) => {
             const sql = getDb();
             if (!sql) { set.status = 500; return { shifts: [], leaves: [] }; }
             try {
                 const shifts = await sql`SELECT * FROM shifts WHERE user_id = ${params.userId} ORDER BY clock_in DESC LIMIT 50`;
                 const leaves = await sql`SELECT * FROM leaves WHERE user_id = ${params.userId} ORDER BY created_at DESC`;
-                await sql.end();
-                return { shifts: [...shifts], leaves: [...leaves] };
-            } catch (e) { 
-                console.error("Staff History Error:", e);
-                try { await sql.end(); } catch(err) {}
-                return { shifts: [], leaves: [] }; 
-            }
+                return { shifts, leaves };
+            } catch (e) { return { shifts: [], leaves: [] }; }
         })
 
+        // --- SHIFT LOGIC (UPDATED) ---
         .get('/shift/status/:userId', async ({ params, set }) => {
             const sql = getDb();
-            if (!sql) { 
-                console.error("DB Connection Failed"); 
-                set.status = 500; 
-                return { active: false, error: "DB Error" }; 
-            }
-            try {
-                // Check for a shift that hasn't ended yet
-                const active = await sql`SELECT * FROM shifts WHERE user_id = ${params.userId} AND clock_out IS NULL ORDER BY id DESC LIMIT 1`;
-                await sql.end();
-                return { active: active.length > 0, shift: active[0] || null };
-            } catch (err) {
-                console.error("Shift Status Error:", err);
-                try { await sql.end(); } catch(e) {}
-                return { active: false };
-            }
+            if (!sql) { set.status = 500; return { active: false }; }
+            const [s] = await sql`SELECT * FROM shifts WHERE user_id = ${params.userId} AND clock_out IS NULL ORDER BY id DESC LIMIT 1`;
+            return { active: !!s, shift: s || null };
         })
 
         .post('/shift/clock-in', async ({ body, set }) => {
             const sql = getDb();
             if (!sql) { set.status = 500; return { success: false, message: "DB Error" }; }
             
-            const b = body as { user_id: number, lat: number, lng: number };
-            
             try {
-                // 1. Get User's Assigned Branch
-                const [user] = await sql`SELECT branch FROM users WHERE id = ${b.user_id}`;
-                if (!user) {
-                    await sql.end();
-                    return { success: false, message: "User not found" };
-                }
+                // 1. Check User & Permissions
+                const [user] = await sql`SELECT branch, bypass_geofence FROM users WHERE id = ${body.user_id}`;
+                if (!user) return { success: false, message: "User not found" };
 
-                // 2. Check Geofence
-                const branchLoc = BRANCH_LOCATIONS[user.branch];
-                
-                // Only enforce if branch is in our list (Skip check if branch not configured)
-                if (branchLoc) {
-                    const distance = getDistance(b.lat, b.lng, branchLoc.lat, branchLoc.lng);
-                    if (distance > ALLOWED_RADIUS_METERS) {
-                        await sql.end();
-                        return { 
-                            success: false, 
-                            message: `You are too far from ${user.branch}! (${Math.round(distance)}m away)` 
-                        };
+                // 2. Geofence Check (Only if NOT bypassed)
+                if (!user.bypass_geofence) {
+                    const branchLoc = BRANCH_LOCATIONS[user.branch];
+                    if (branchLoc) {
+                        const dist = getDistance(body.lat, body.lng, branchLoc.lat, branchLoc.lng);
+                        if (dist > ALLOWED_RADIUS_METERS) {
+                            return { success: false, message: `Too far from ${user.branch} (${Math.round(dist)}m)` };
+                        }
                     }
                 }
 
-                // 3. Check if already clocked in
-                const active = await sql`SELECT * FROM shifts WHERE user_id = ${b.user_id} AND clock_out IS NULL`;
-                if (active.length > 0) {
-                    await sql.end();
-                    return { success: false, message: "Already clocked in!" };
-                }
+                // 3. Clock In
+                const [active] = await sql`SELECT id FROM shifts WHERE user_id = ${body.user_id} AND clock_out IS NULL`;
+                if (active) return { success: false, message: "Already clocked in!" };
 
-                // 4. Insert with Location Data
                 await sql`
-                    INSERT INTO shifts (user_id, clock_in, date, lat, lng) 
-                    VALUES (${b.user_id}, NOW(), CURRENT_DATE, ${String(b.lat)}, ${String(b.lng)})
+                    INSERT INTO shifts (user_id, clock_in, date, lat, lng, in_note) 
+                    VALUES (${body.user_id}, NOW(), CURRENT_DATE, ${String(body.lat)}, ${String(body.lng)}, ${body.note || ''})
                 `;
-                await sql.end();
                 return { success: true };
-            } catch (err) {
-                console.error("Clock-in Error:", err);
-                try { await sql.end(); } catch(e) {}
-                return { success: false, message: String(err) };
-            }
-        }, { body: t.Object({ user_id: t.Number(), lat: t.Number(), lng: t.Number() }) })
+            } catch (e: any) { return { success: false, message: e.message }; }
+        }, { body: t.Object({ user_id: t.Number(), lat: t.Number(), lng: t.Number(), note: t.Optional(t.String()) }) })
 
         .post('/shift/clock-out', async ({ body, set }) => {
             const sql = getDb();
-            if (!sql) { 
-                set.status = 500; 
-                return { success: false, message: "DB Error" }; 
-            }
-            
-            const b = body as { user_id: number, lat: number, lng: number };
+            if (!sql) { set.status = 500; return { success: false }; }
 
             try {
-                // 1. Get User's Branch
-                const [user] = await sql`SELECT branch FROM users WHERE id = ${b.user_id}`;
-                if (!user) {
-                    await sql.end();
-                    return { success: false, message: "User not found" };
-                }
+                // 1. Get Branch info for "Off-site" warning logic
+                const [user] = await sql`SELECT branch FROM users WHERE id = ${body.user_id}`;
+                let remark = null;
                 
-                const userBranch = user.branch;
-                const branchLoc = BRANCH_LOCATIONS[userBranch];
-                
-                let specialRemark = null;
-
-                // 2. Calculate Distance if branch location is configured
-                if (branchLoc) {
-                    const dist = getDistance(b.lat, b.lng, branchLoc.lat, branchLoc.lng);
-                    
-                    // 3. If far away, add a remark
-                    if (dist > ALLOWED_RADIUS_METERS) {
-                        specialRemark = `⚠️ Off-site: ${Math.round(dist)}m from ${userBranch}`;
-                    }
+                if (user && BRANCH_LOCATIONS[user.branch]) {
+                    const bloc = BRANCH_LOCATIONS[user.branch];
+                    const dist = getDistance(body.lat, body.lng, bloc.lat, bloc.lng);
+                    if (dist > ALLOWED_RADIUS_METERS) remark = `⚠️ Off-site: ${Math.round(dist)}m`;
                 }
 
-                // 4. Update Shift (Save location AND remark)
                 await sql`
                     UPDATE shifts 
-                    SET clock_out = NOW(), 
-                        out_lat = ${String(b.lat)}, 
-                        out_lng = ${String(b.lng)}, 
-                        remarks = ${specialRemark}
-                    WHERE user_id = ${b.user_id} AND clock_out IS NULL
+                    SET clock_out = NOW(), out_lat = ${String(body.lat)}, out_lng = ${String(body.lng)}, 
+                        remarks = ${remark}, out_note = ${body.note || ''}
+                    WHERE user_id = ${body.user_id} AND clock_out IS NULL
                 `;
+                return { success: true, message: remark ? "Warning: Clocked out off-site" : "Clocked Out" };
+            } catch (e: any) { return { success: false, message: e.message }; }
+        }, { body: t.Object({ user_id: t.Number(), lat: t.Number(), lng: t.Number(), note: t.Optional(t.String()) }) })
 
-                await sql.end();
-
-                // 5. Send success message (warn user if off-site)
-                if (specialRemark) {
-                    return { success: true, message: "Clocked out (Location Warning Recorded)" };
-                }
-                return { success: true };
-            } catch (err) {
-                console.error("Clock-out error:", err);
-                try { await sql.end(); } catch(e) {}
-                set.status = 500;
-                return { success: false, message: String(err) };
-            }
-        }, { body: t.Object({ user_id: t.Number(), lat: t.Number(), lng: t.Number() }) })
-        
-        // Get Shift Logs
         .get('/shift/logs/:userId', async ({ params, set }) => {
             const sql = getDb();
-            if (!sql) { set.status = 500; return []; }
-
-            try {
-                const logs = await sql`SELECT * FROM shifts WHERE user_id = ${params.userId} ORDER BY clock_in DESC LIMIT 30`;
-                await sql.end();
-                return [...logs];
-            } catch (err) {
-                console.error("Logs Error:", err);
-                try { await sql.end(); } catch(e) {}
-                return [];
-            }
+            if (!sql) return [];
+            return await sql`SELECT * FROM shifts WHERE user_id = ${params.userId} ORDER BY clock_in DESC LIMIT 30`;
         })
 
         // --- LEAVE SYSTEM ---

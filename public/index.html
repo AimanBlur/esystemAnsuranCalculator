@@ -2239,12 +2239,7 @@
             document.getElementById('staffModalTitle').innerText = `${name}`;
             document.getElementById('staffModal').classList.remove('hidden');
             
-            // 2. Clear previous content & show loader
-            const sList = document.getElementById('modalShiftList');
-            sList.innerHTML = '<div style="padding:20px; text-align:center;"><i class="fas fa-spinner fa-spin"></i> Loading data...</div>';
-            
-            // 3. Prepare the "Controls Area" inside the modal (Injecting HTML dynamically)
-            // We use a custom container ID 'modalControls' to avoid duplicating buttons on multiple clicks
+            // 2. Setup Controls Container
             let controlsDiv = document.getElementById('modalControls');
             if(!controlsDiv) {
                 controlsDiv = document.createElement('div');
@@ -2253,22 +2248,32 @@
                 const header = document.getElementById('staffModalTitle').parentNode;
                 header.parentNode.insertBefore(controlsDiv, header.nextSibling);
             }
-            controlsDiv.innerHTML = 'Loading controls...';
+            controlsDiv.innerHTML = '<div style="text-align:center; color:#666;">Loading permissions...</div>';
+
+            // 3. Clear List
+            const sList = document.getElementById('modalShiftList');
+            sList.innerHTML = '<div style="padding:20px; text-align:center;"><i class="fas fa-spinner fa-spin"></i> Loading data...</div>';
 
             try {
-                // 4. Fetch Data (History + Permissions)
+                // 4. Fetch Data (Single Source of Truth)
+                // We trust 'admin/staff-history' to return the FRESH 'user' object
                 const res = await fetch(`${API_URL}/admin/staff-history/${id}`);
                 const data = await res.json();
                 
-                // 5. Render Controls (Roaming + Print)
-                const isRoaming = data.user ? data.user.bypass_geofence : false;
+                // 5. Get Permission State safely
+                // Force boolean true/false to avoid null issues
+                const isRoaming = (data.user && data.user.bypass_geofence === true);
+
+                console.log(`Staff ${name}: Roaming=${isRoaming}`); // Debug Log
+
+                // 6. Render Controls
                 controlsDiv.innerHTML = `
                     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; border-bottom:1px solid #ddd; padding-bottom:10px;">
                         <span style="font-size:0.9rem; color:#333;">
                             <i class="fas fa-globe-asia" style="color:${isRoaming ? '#28a745':'#999'}"></i> Roaming Mode
                         </span>
                         <label class="switch">
-                            <input type="checkbox" ${isRoaming ? 'checked' : ''} onchange="toggleRoaming(${id}, this.checked)">
+                            <input type="checkbox" id="roamToggle_${id}" ${isRoaming ? 'checked' : ''} onchange="toggleRoaming(${id}, this.checked)">
                             <span class="slider round"></span>
                         </label>
                     </div>
@@ -2285,7 +2290,7 @@
                     </div>
                 `;
 
-                // 6. Render Shift List (With Remarks & Notes)
+                // 7. Render Shifts
                 if (!data.shifts || data.shifts.length === 0) {
                     sList.innerHTML = '<p style="text-align:center; color:#999; padding:20px;">No records found.</p>';
                 } else {
@@ -2294,7 +2299,6 @@
                         const i = new Date(s.clock_in).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
                         const o = s.clock_out ? new Date(s.clock_out).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) : 'Active';
                         
-                        // Combine all notes
                         let alerts = "";
                         if(s.remarks) alerts += `<div style="color:#c0392b; font-size:0.75rem;">${s.remarks}</div>`;
                         if(s.in_note) alerts += `<div style="color:#2980b9; font-size:0.75rem;">In: ${s.in_note}</div>`;
@@ -2311,12 +2315,8 @@
                     }).join('');
                 }
                 
-                // Render Leaves (Simple view)
                 document.getElementById('modalLeaveList').innerHTML = data.leaves.map(l => 
-                    `<div class="result-item">
-                        <span>${l.leave_type} (${l.status})</span> 
-                        <small>${new Date(l.start_date).toLocaleDateString()}</small>
-                    </div>`
+                    `<div class="result-item"><span>${l.leave_type} (${l.status})</span> <small>${new Date(l.start_date).toLocaleDateString()}</small></div>`
                 ).join('');
 
             } catch(e) { console.error(e); }
@@ -2477,6 +2477,7 @@
     </script>
 </body>
 </html>
+
 
 
 

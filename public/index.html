@@ -917,53 +917,60 @@
             }
         }
 
-        function initApp() {
-            // Set current user - with better validation
+        async function initApp() {
+            // 1. Load User from LocalStorage
             const userId = localStorage.getItem("staffId");
-            const userName = localStorage.getItem("staffName");
-            const userBranch = localStorage.getItem("staffBranch");
-            
             if (!userId) {
-                console.error("Staff ID missing from localStorage");
-                alert("Session error. Please login again.");
-                doLogout();
+                console.error("No Staff ID found");
+                // Optional: Force logout if data is corrupted
+                // doLogout(); 
                 return;
             }
             
+            // 2. Initial Object Setup
             currentUser = {
-                id: localStorage.getItem("staffId"),
+                id: userId,
                 name: localStorage.getItem("staffName"),
                 branch: localStorage.getItem("staffBranch"),
                 role: localStorage.getItem("staffRole"),
-                canRoam: localStorage.getItem("canRoam") === "true" // <--- ADD THIS
+                canRoam: localStorage.getItem("canRoam") === "true" 
             };
             
-            console.log("Current user initialized:", currentUser);
+            console.log("Initial User State:", currentUser);
             
-            // Update UI
+            // 3. --- FIX: Fetch LATEST Status from DB ---
+            try {
+                const res = await fetch(`${API_URL}/users/${userId}/status`);
+                const data = await res.json();
+                
+                if (data.success) {
+                    console.log("Refreshed Permissions:", data);
+                    // Update variables
+                    currentUser.canRoam = data.can_roam;
+                    currentUser.branch = data.branch;
+                    
+                    // Update LocalStorage so it persists
+                    localStorage.setItem("canRoam", data.can_roam);
+                    localStorage.setItem("staffBranch", data.branch);
+                }
+            } catch (e) {
+                console.error("Failed to refresh status:", e);
+            }
+
+            // 4. Update UI
             updateHeader();
+            document.querySelector('input[name="date_received"]').value = new Date().toISOString().split('T')[0];
             
-            // Populate Audit Header
-            document.getElementById('auditStaffName').innerText = currentUser.name;
-            document.getElementById('auditStaffBranch').innerText = currentUser.branch;
-            
-            // Set Today's Date
-            const today = new Date().toISOString().split('T')[0];
-            const dateInput = document.querySelector('input[name="date_received"]');
-            if (dateInput) dateInput.value = today;
-            
-            // Set initial mobile dropdown value to 'calc'
-            const mobileSelect = document.getElementById('mobileTabSelect');
-            if (mobileSelect) mobileSelect.value = 'calc';
+            // 5. Load Branch Selector if allowed (Now using fresh data)
+            if(currentUser.canRoam) {
+                loadBranchOptions();
+            }
 
-            const userRole = localStorage.getItem("staffRole") || 'staff';
-            currentUser.role = userRole;
-
-            if (userRole === 'admin') {
+            // 6. Admin Button Check
+            if (currentUser.role === 'admin') {
                 const adminBtn = document.getElementById('adminTabBtn');
                 if(adminBtn) adminBtn.classList.remove('hidden');
                 
-                // Add Admin option to mobile dropdown if it exists
                 const mobileSelect = document.getElementById('mobileTabSelect');
                 if (mobileSelect && !mobileSelect.querySelector('option[value="admin"]')) {
                     const opt = document.createElement('option');
@@ -973,23 +980,13 @@
                 }
             }
             
-            // Load data
+            // 7. Load Data & Notifications
             loadData();
             loadRequests();
-
-            if(currentUser.canRoam) loadBranchOptions();
-            
-            if ("Notification" in window) {
-                Notification.requestPermission().then(permission => {
-                    console.log("Notification permission:", permission);
-                });
-            }
-
-            // Start checking
             checkPendingRequests();
-            setInterval(checkPendingRequests, 30000);
-
             checkAutoShiftRedirect();
+            
+            setInterval(checkPendingRequests, 30000);
         }
 
         async function loadBranchOptions() {
@@ -1005,10 +1002,8 @@
                         `<option value="${b}" ${b === currentUser.branch ? 'selected' : ''}>${b}</option>`
                     ).join('');
                     
-                    // Show the dropdown ONLY if user has permission
-                    if (currentUser.canRoam) {
-                        container.style.display = 'block';
-                    }
+                    // Force display block
+                    if (container) container.style.display = 'block';
                 }
             } catch (e) { console.error("Branch load error", e); }
         }
@@ -2328,20 +2323,28 @@
         }
 
         async function toggleRoaming(userId, isEnabled) {
-            if(!confirm(`Confirm ${isEnabled ? 'GRANT' : 'REVOKE'} roaming permission?`)) {
-                // If user cancels, reload modal to reset switch state
-                viewStaffHistory(userId, document.getElementById('staffModalTitle').innerText);
-                return;
-            }
-            
+            // 1. Optimistic UI update (it already changed visually), just confirm logic
+            console.log(`Toggling roaming for ${userId} to ${isEnabled}`);
+
             try {
-                await fetch(`${API_URL}/admin/users/${userId}/roam`, {
+                const res = await fetch(`${API_URL}/admin/users/${userId}/roam`, {
                     method: 'PUT',
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({ bypass: isEnabled })
                 });
-                // No alert needed, visual toggle is enough feedback
-            } catch(e) { alert("Error updating permission"); }
+                
+                const data = await res.json();
+                
+                if (!data.success) {
+                    throw new Error(data.message || "Update failed");
+                }
+                // Success - Do nothing, switch is already in correct position
+            } catch(e) { 
+                alert("❌ Error updating permission: " + e.message);
+                // Revert the switch visual if it failed
+                const checkbox = document.querySelector(`input[onchange*="toggleRoaming(${userId}"]`);
+                if(checkbox) checkbox.checked = !isEnabled;
+            }
         }
 
         // --- NEW: Print Individual Attendance ---
@@ -2474,6 +2477,7 @@
     </script>
 </body>
 </html>
+
 
 
 

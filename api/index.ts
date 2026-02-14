@@ -165,14 +165,28 @@ const app = new Elysia()
             }
         })
 
-        // TOGGLE ROAMING PERMISSION
-        .put('/admin/users/:id/roam', async ({ params, body, set }) => {
+        .get('/users/:id/status', async ({ params, set }) => {
             const sql = getDb();
             if (!sql) { set.status = 500; return { success: false }; }
             try {
-                await sql`UPDATE users SET bypass_geofence = ${body.bypass} WHERE id = ${params.id}`;
-                return { success: true };
+                const [u] = await sql`SELECT bypass_geofence, branch FROM users WHERE id = ${params.id}`;
+                return { success: true, can_roam: u.bypass_geofence, branch: u.branch };
             } catch (e) { return { success: false }; }
+        })
+
+        // TOGGLE ROAMING PERMISSION
+        .put('/admin/users/:id/roam', async ({ params, body, set }) => {
+            const sql = getDb();
+            if (!sql) { set.status = 500; return { success: false, message: "DB Error" }; }
+            try {
+                // Force boolean conversion to be safe
+                const val = Boolean(body.bypass);
+                await sql`UPDATE users SET bypass_geofence = ${val} WHERE id = ${params.id}`;
+                return { success: true };
+            } catch (e: any) { 
+                console.error("Toggle Error:", e);
+                return { success: false, message: e.message }; 
+            }
         }, { body: t.Object({ bypass: t.Boolean() }) })
 
         // --- ADMIN: ATTENDANCE PRINTING ---

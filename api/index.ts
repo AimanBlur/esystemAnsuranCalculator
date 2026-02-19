@@ -219,6 +219,7 @@ const app = new Elysia()
             const sql = getDb();
             if (!sql) { set.status = 500; return { shifts: [], leaves: [], user: null }; }
             try {
+                // ✅ NOW FETCHES USER DATA
                 const [user] = await sql`SELECT id, name, branch, bypass_geofence FROM users WHERE id = ${params.userId}`;
                 const shifts = await sql`SELECT * FROM shifts WHERE user_id = ${params.userId} ORDER BY clock_in DESC LIMIT 50`;
                 const leaves = await sql`SELECT * FROM leaves WHERE user_id = ${params.userId} ORDER BY created_at DESC`;
@@ -226,7 +227,7 @@ const app = new Elysia()
                 return { 
                     shifts: [...shifts], 
                     leaves: [...leaves],
-                    user: user || null  // Include user data with bypass_geofence
+                    user: user || null  // ✅ ADDED THIS
                 };
             } catch (e) { 
                 console.error("Staff History Error:", e);

@@ -255,9 +255,11 @@ const app = new Elysia()
             const sql = getDb();
             if (!sql) { set.status = 500; return { success: false, message: "DB Error" }; }
             
+            const b = body as { user_id: number, lat: number, lng: number, note?: string, target_branch?: string };
+            
             try {
                 // 1. Get User
-                const [user] = await sql`SELECT branch, bypass_geofence FROM users WHERE id = ${body.user_id}`;
+                const [user] = await sql`SELECT branch, bypass_geofence FROM users WHERE id = ${b.user_id}`;
                 if (!user) {
                     await sql.end();
                     return { success: false, message: "User not found" };
@@ -265,18 +267,18 @@ const app = new Elysia()
 
                 // 2. Determine Target Branch
                 const hasPermission = user.bypass_geofence;
-                const requestedBranch = body.target_branch;
+                const requestedBranch = b.target_branch;
                 const targetBranch = (hasPermission && requestedBranch) ? requestedBranch : user.branch;
                 const branchLoc = BRANCH_LOCATIONS[targetBranch];
 
                 // --- DEBUG LOGGING ---
                 console.log(`=== CLOCK IN DEBUG ===`);
-                console.log(`User ID: ${body.user_id}`);
+                console.log(`User ID: ${b.user_id}`);
                 console.log(`User Home Branch: ${user.branch}`);
                 console.log(`Has Roaming Permission: ${hasPermission}`);
                 console.log(`Requested Branch (from frontend): ${requestedBranch}`);
                 console.log(`Final Target Branch: ${targetBranch}`);
-                console.log(`User Location: lat=${body.lat}, lng=${body.lng}`);
+                console.log(`User Location: lat=${b.lat}, lng=${b.lng}`);
                 console.log(`Target Branch Coordinates:`, branchLoc);
 
                 // 3. Check Branch Validity
@@ -286,7 +288,7 @@ const app = new Elysia()
                 }
 
                 // 4. Geofence Check
-                const dist = getDistance(body.lat, body.lng, branchLoc.lat, branchLoc.lng);
+                const dist = getDistance(b.lat, b.lng, branchLoc.lat, branchLoc.lng);
                 console.log(`Distance to ${targetBranch}: ${dist}m (Allowed: ${ALLOWED_RADIUS_METERS}m)`);
                 console.log(`===================`);
 
@@ -296,17 +298,17 @@ const app = new Elysia()
                 }
 
                 // 5. Check if already clocked in
-                const active = await sql`SELECT * FROM shifts WHERE user_id = ${body.user_id} AND clock_out IS NULL`;
+                const active = await sql`SELECT * FROM shifts WHERE user_id = ${b.user_id} AND clock_out IS NULL`;
                 if (active.length > 0) {
                     await sql.end();
                     return { success: false, message: "Already clocked in!" };
                 }
 
                 // 6. Insert with Location Data and note
-                const note = body.note ? `${body.note} (at ${targetBranch})` : `(at ${targetBranch})`;
+                const note = b.note ? `${b.note} (at ${targetBranch})` : `(at ${targetBranch})`;
                 await sql`
                     INSERT INTO shifts (user_id, clock_in, date, lat, lng, in_note) 
-                    VALUES (${body.user_id}, NOW(), CURRENT_DATE, ${String(body.lat)}, ${String(body.lng)}, ${note})
+                    VALUES (${b.user_id}, NOW(), CURRENT_DATE, ${String(b.lat)}, ${String(b.lng)}, ${note})
                 `;
                 await sql.end();
                 return { success: true };
@@ -324,23 +326,25 @@ const app = new Elysia()
                 return { success: false, message: "DB Error" }; 
             }
 
+            const b = body as { user_id: number, lat: number, lng: number, note?: string, target_branch?: string };
+
             try {
                 // 1. Get User's Branch and Permission
-                const [user] = await sql`SELECT branch, bypass_geofence FROM users WHERE id = ${body.user_id}`;
+                const [user] = await sql`SELECT branch, bypass_geofence FROM users WHERE id = ${b.user_id}`;
                 if (!user) {
                     await sql.end();
                     return { success: false, message: "User not found" };
                 }
                 
                 // 2. Determine Target Branch (same logic as clock-in)
-                const targetBranch = (user.bypass_geofence && body.target_branch) ? body.target_branch : user.branch;
+                const targetBranch = (user.bypass_geofence && b.target_branch) ? b.target_branch : user.branch;
                 const branchLoc = BRANCH_LOCATIONS[targetBranch];
                 
                 let specialRemark = null;
 
                 // 3. Calculate Distance if branch location is configured
                 if (branchLoc) {
-                    const dist = getDistance(body.lat, body.lng, branchLoc.lat, branchLoc.lng);
+                    const dist = getDistance(b.lat, b.lng, branchLoc.lat, branchLoc.lng);
                     
                     // 4. If far away, add a remark
                     if (dist > ALLOWED_RADIUS_METERS) {
@@ -352,11 +356,11 @@ const app = new Elysia()
                 await sql`
                     UPDATE shifts 
                     SET clock_out = NOW(), 
-                        out_lat = ${String(body.lat)}, 
-                        out_lng = ${String(body.lng)}, 
+                        out_lat = ${String(b.lat)}, 
+                        out_lng = ${String(b.lng)}, 
                         remarks = ${specialRemark},
-                        out_note = ${body.note || ''}
-                    WHERE user_id = ${body.user_id} AND clock_out IS NULL
+                        out_note = ${b.note || ''}
+                    WHERE user_id = ${b.user_id} AND clock_out IS NULL
                 `;
 
                 await sql.end();
@@ -373,22 +377,6 @@ const app = new Elysia()
                 return { success: false, message: String(err) };
             }
         }, { body: t.Object({ user_id: t.Number(), lat: t.Number(), lng: t.Number(), note: t.Optional(t.String()), target_branch: t.Optional(t.String()) }) })
-                ;
-
-                await sql.end();
-
-                // 5. Send success message (warn user if off-site)
-                if (specialRemark) {
-                    return { success: true, message: "Clocked out (Location Warning Recorded)" };
-                }
-                return { success: true };
-            } catch (err) {
-                console.error("Clock-out error:", err);
-                try { await sql.end(); } catch(e) {}
-                set.status = 500;
-                return { success: false, message: String(err) };
-            }
-        }, { body: t.Object({ user_id: t.Number(), lat: t.Number(), lng: t.Number() }) })
         
         // Get Shift Logs
         .get('/shift/logs/:userId', async ({ params, set }) => {

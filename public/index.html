@@ -1993,52 +1993,6 @@
             } catch(e) { console.error(e); }
         }
 
-        async function handleShiftAction(action) {
-            if(!confirm(`Confirm Clock ${action.toUpperCase()}?`)) return;
-            
-            // NEW: Get optional note
-            // Ensure you added <input id="shiftRemark"> in your HTML Shift Tab!
-            const noteInput = document.getElementById('shiftRemark'); 
-            const note = noteInput ? noteInput.value : "";
-
-            if (!navigator.geolocation) return alert("GPS Required");
-
-            const container = document.getElementById('shiftControls');
-            container.innerHTML = `<button class="btn-primary" disabled>Locating...</button>`;
-
-            navigator.geolocation.getCurrentPosition(async (pos) => {
-                try {
-                    const res = await fetch(`${API_URL}/shift/clock-${action}`, {
-                        method: 'POST',
-                        headers: {'Content-Type': 'application/json'},
-                        body: JSON.stringify({ 
-                            user_id: parseInt(currentUser.id),
-                            lat: pos.coords.latitude,
-                            lng: pos.coords.longitude,
-                            note: note // Send note to backend
-                        })
-                    });
-                    
-                    const data = await res.json();
-                    if(data.success) {
-                        alert(data.message || "Success");
-                        if(noteInput) noteInput.value = ""; // Clear input
-                        loadShiftStatus();
-                        loadShiftLogs();
-                    } else {
-                        alert("❌ " + data.message);
-                        loadShiftStatus(); // Reset button
-                    }
-                } catch(e) { 
-                    alert("Network Error"); 
-                    loadShiftStatus();
-                }
-            }, () => {
-                alert("❌ GPS Access Denied");
-                loadShiftStatus();
-            });
-        }
-
         async function loadShiftLogs() {
             try {
                 const res = await fetch(`${API_URL}/shift/logs/${currentUser.id}`);
@@ -2493,5 +2447,6 @@
     </script>
 </body>
 </html>
+
 
 

@@ -1028,23 +1028,20 @@
             } catch (e) { console.error("Branch load error", e); }
         }
 
-        // --- UPDATED: Handle Shift Action (Send Selected Branch) ---
+        // --- UPDATED: Handle Shift Action (Safe Logs) ---
         async function handleShiftAction(action) {
             if(!confirm(`Confirm Clock ${action.toUpperCase()}?`)) return;
             
             const note = document.getElementById('shiftRemark').value.trim();
             
-            // Get selected branch IF visible, otherwise default to null (backend uses assigned)
+            // Get selected branch IF visible AND permitted
             const branchSelect = document.getElementById('shiftBranchSelect');
-            const targetBranch = branchSelect ? branchSelect.value : null; 
+            const targetBranch = (currentUser.canRoam && branchSelect && branchSelect.value) ? branchSelect.value : null;
 
-            // DEBUG LOGGING
+            // DEBUG LOGGING (Fixed to not crash on empty dropdowns)
             console.log("=== FRONTEND CLOCK-IN DEBUG ===");
             console.log("Action:", action);
             console.log("User can roam:", currentUser.canRoam);
-            console.log("Branch selector exists:", !!branchSelect);
-            console.log("Branch selector value:", branchSelect ? branchSelect.value : "N/A");
-            console.log("Selected branch text:", branchSelect ? branchSelect.options[branchSelect.selectedIndex].text : "N/A");
             console.log("Will send target_branch:", targetBranch);
             console.log("User default branch:", currentUser.branch);
             console.log("==============================");
@@ -1064,8 +1061,6 @@
                         target_branch: targetBranch
                     };
                     
-                    console.log("Sending request body:", JSON.stringify(requestBody, null, 2));
-                    
                     const res = await fetch(`${API_URL}/shift/clock-${action}`, {
                         method: 'POST',
                         headers: {'Content-Type': 'application/json'},
@@ -1083,7 +1078,7 @@
                         loadShiftStatus(); 
                     }
                 } catch(e) { 
-                    console.error("Clock-in error:", e);
+                    console.error("Clock action error:", e);
                     alert("Network Error"); 
                     loadShiftStatus();
                 }
@@ -2448,6 +2443,7 @@
     </script>
 </body>
 </html>
+
 
 
 

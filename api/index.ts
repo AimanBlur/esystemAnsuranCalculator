@@ -653,17 +653,44 @@ const app = new Elysia()
 
         .post('/requests', async ({ body, set }) => {
             const sql = getDb();
-            if (!sql) {
-                set.status = 500;
-                return { success: false };
-            }
+            if (!sql) { set.status = 500; return { success: false }; }
+            
             try {
                 const b = body as { sender_id: number; sender_name: string; receiver_id: number; content: string };
+                
+                // 1. Save to Database
                 await sql`
                     INSERT INTO requests (sender_id, sender_name, receiver_id, content) 
                     VALUES (${b.sender_id}, ${b.sender_name}, ${b.receiver_id}, ${b.content})
                 `;
                 await sql.end();
+
+                // 2. Trigger OneSignal Push Notification
+                if (process.env.ONESIGNAL_APP_ID && process.env.ONESIGNAL_REST_KEY) {
+                    try {
+                        await fetch('https://onesignal.com/api/v1/notifications', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Authorization': `Basic ${process.env.ONESIGNAL_REST_KEY}`
+                            },
+                            body: JSON.stringify({
+                                app_id: process.env.ONESIGNAL_APP_ID,
+                                // Target the specific user ID (OneSignal "External ID")
+                                include_aliases: { external_id: [String(b.receiver_id)] },
+                                target_channel: "push",
+                                headings: { en: `New Request from ${b.sender_name}` },
+                                contents: { en: b.content },
+                                url: "/?tab=requests" // Clicking the notification opens this URL
+                            })
+                        });
+                        console.log("OneSignal push sent to user:", b.receiver_id);
+                    } catch (pushErr) {
+                        console.error("OneSignal push failed:", pushErr);
+                        // We don't fail the whole request if push fails
+                    }
+                }
+
                 return { success: true };
             } catch (e: any) {
                 console.error("Request POST error:", e);

@@ -62,6 +62,21 @@ const app = new Elysia()
     .use(cors())
     .group('/api', app => app
 
+        // 1. Get All Staff for Directory
+        .get('/admin/users', async ({ set }) => {
+            const sql = getDb();
+            if (!sql) { set.status = 500; return []; }
+            try {
+                const users = await sql`SELECT id, name, branch, role FROM users ORDER BY name ASC`;
+                await sql.end();
+                return [...users];
+            } catch (e) { 
+                console.error("Admin Users Error:", e);
+                try { await sql.end(); } catch(err) {}
+                return []; 
+            }
+        })
+
         // 2. Get All Leaves
         .get('/admin/leaves', async ({ set }) => {
             const sql = getDb();
@@ -147,18 +162,59 @@ const app = new Elysia()
             }
         })
 
+        // 6. Get Staff History
+        .get('/admin/staff-history/:userId', async ({ params, set }) => {
+            const sql = getDb();
+            if (!sql) { set.status = 500; return { shifts: [], leaves: [], user: null }; }
+            try {
+                const [user] = await sql`SELECT id, name, branch, bypass_geofence FROM users WHERE id = ${params.userId}`;
+                const shifts = await sql`SELECT * FROM shifts WHERE user_id = ${params.userId} ORDER BY clock_in DESC LIMIT 50`;
+                const leaves = await sql`SELECT * FROM leaves WHERE user_id = ${params.userId} ORDER BY created_at DESC`;
+                await sql.end();
+                return { 
+                    shifts: [...shifts], 
+                    leaves: [...leaves],
+                    user: user || null
+                };
+            } catch (e) { 
+                console.error("Staff History Error:", e);
+                try { await sql.end(); } catch(err) {}
+                return { shifts: [], leaves: [], user: null }; 
+            }
+        })
+
+        .get('/shift/status/:userId', async ({ params, set }) => {
+            const sql = getDb();
+            if (!sql) { 
+                console.error("DB Connection Failed"); 
+                set.status = 500; 
+                return { active: false, error: "DB Error" }; 
+            }
+            try {
+                // Check for a shift that hasn't ended yet
+                const active = await sql`SELECT * FROM shifts WHERE user_id = ${params.userId} AND clock_out IS NULL ORDER BY id DESC LIMIT 1`;
+                await sql.end();
+                return { active: active.length > 0, shift: active[0] || null };
+            } catch (err) {
+                console.error("Shift Status Error:", err);
+                try { await sql.end(); } catch(e) {}
+                return { active: false };
+            }
+        })
+
+        .get('/branches', () => Object.keys(BRANCH_LOCATIONS))
+
         .get('/admin/users', async ({ set }) => {
             const sql = getDb();
             if (!sql) { set.status = 500; return []; }
             try { 
-                // Explicitly select columns to avoid any ambiguity
                 const users = await sql`
                     SELECT id, name, branch, role, bypass_geofence 
                     FROM users 
                     ORDER BY name ASC
                 `;
                 await sql.end();
-                return [...users]; // Spread into array to ensure clean JSON serialization
+                return [...users];
             } 
             catch (e) { 
                 console.error("Admin Users Error:", e);
@@ -180,90 +236,21 @@ const app = new Elysia()
             }
         })
 
-        // TOGGLE ROAMING PERMISSION
         .put('/admin/users/:id/roam', async ({ params, body, set }) => {
             const sql = getDb();
             if (!sql) { set.status = 500; return { success: false }; }
             try {
-                // Ensure ID is a number and bypass is a boolean
                 const userId = parseInt(params.id);
-                const isBypass = Boolean(body.bypass);
-                
+                const isBypass = (body as { bypass: boolean }).bypass;
                 await sql`UPDATE users SET bypass_geofence = ${isBypass} WHERE id = ${userId}`;
+                await sql.end();
                 return { success: true };
             } catch (e: any) { 
-                console.error("Toggle Error:", e);
+                try { await sql.end(); } catch(err) {}
                 return { success: false, message: e.message }; 
             }
         }, { body: t.Object({ bypass: t.Boolean() }) })
 
-        // --- ADMIN: ATTENDANCE PRINTING ---
-        .get('/admin/shifts/export', async ({ query, set }) => {
-            const sql = getDb();
-            if (!sql) { set.status = 500; return []; }
-            try {
-                const months = parseInt(query.months as string) || 1;
-                // Fetch shifts from X months ago until now
-                return await sql`
-                    SELECT s.*, u.name as staff_name, u.branch 
-                    FROM shifts s 
-                    JOIN users u ON s.user_id = u.id 
-                    WHERE s.date >= (CURRENT_DATE - (${months} || ' month')::INTERVAL)
-                    ORDER BY s.date DESC, s.clock_in ASC
-                `;
-            } catch (e) { return []; }
-        })
-
-        // --- ADMIN: HISTORY & LEAVES ---
-        .get('/admin/staff-history/:userId', async ({ params, set }) => {
-            const sql = getDb();
-            if (!sql) { set.status = 500; return { shifts: [], leaves: [], user: null }; }
-            try {
-                const [user] = await sql`SELECT id, name, branch, bypass_geofence FROM users WHERE id = ${params.userId}`;
-                const shifts = await sql`SELECT * FROM shifts WHERE user_id = ${params.userId} ORDER BY clock_in DESC LIMIT 50`;
-                const leaves = await sql`SELECT * FROM leaves WHERE user_id = ${params.userId} ORDER BY created_at DESC`;
-                await sql.end();
-                return { 
-                    shifts: [...shifts], 
-                    leaves: [...leaves],
-                    user: user || null  // Include user data with bypass_geofence
-                };
-            } catch (e) { 
-                console.error("Staff History Error:", e);
-                try { await sql.end(); } catch(err) {}
-                return { shifts: [], leaves: [], user: null }; 
-            }
-        })
-
-        // --- SHIFT LOGIC (UPDATED) ---
-        .get('/shift/status/:userId', async ({ params, set }) => {
-            const sql = getDb();
-            if (!sql) { set.status = 500; return { active: false }; }
-            const [s] = await sql`SELECT * FROM shifts WHERE user_id = ${params.userId} AND clock_out IS NULL ORDER BY id DESC LIMIT 1`;
-            return { active: !!s, shift: s || null };
-        })
-
-        .get('/branches', () => Object.keys(BRANCH_LOCATIONS))
-
-        // --- AUTH (Updated to return permission) ---
-        .post('/login', async ({ body, set }) => {
-            const sql = getDb();
-            if (!sql) { set.status = 500; return { success: false }; }
-            try {
-                const [u] = await sql`SELECT * FROM users WHERE username = ${body.username} AND password = ${body.password}`;
-                if (u) return { 
-                    success: true, 
-                    id: u.id, 
-                    role: u.role, 
-                    name: u.name, 
-                    branch: u.branch, 
-                    can_roam: u.bypass_geofence // Send permission to frontend
-                };
-                set.status = 401; return { success: false, message: "Invalid Login" };
-            } catch (e) { return { success: false }; }
-        }, { body: t.Object({ username: t.String(), password: t.String() }) })
-
-        // --- CLOCK IN (Updated for Branch Selection) ---
         .post('/shift/clock-in', async ({ body, set }) => {
             const sql = getDb();
             if (!sql) { set.status = 500; return { success: false, message: "DB Error" }; }
@@ -271,18 +258,18 @@ const app = new Elysia()
             try {
                 // 1. Get User
                 const [user] = await sql`SELECT branch, bypass_geofence FROM users WHERE id = ${body.user_id}`;
-                if (!user) return { success: false, message: "User not found" };
+                if (!user) {
+                    await sql.end();
+                    return { success: false, message: "User not found" };
+                }
 
                 // 2. Determine Target Branch
-                // Logic: If user HAS permission AND SENT a target, use target. Else use Home.
                 const hasPermission = user.bypass_geofence;
                 const requestedBranch = body.target_branch;
-                
-                // CRITICAL FIX: Check if target_branch is actually different or explicitly provided
                 const targetBranch = (hasPermission && requestedBranch) ? requestedBranch : user.branch;
                 const branchLoc = BRANCH_LOCATIONS[targetBranch];
 
-                // --- ENHANCED DEBUG LOGGING ---
+                // --- DEBUG LOGGING ---
                 console.log(`=== CLOCK IN DEBUG ===`);
                 console.log(`User ID: ${body.user_id}`);
                 console.log(`User Home Branch: ${user.branch}`);
@@ -291,69 +278,132 @@ const app = new Elysia()
                 console.log(`Final Target Branch: ${targetBranch}`);
                 console.log(`User Location: lat=${body.lat}, lng=${body.lng}`);
                 console.log(`Target Branch Coordinates:`, branchLoc);
-                console.log(`===================`);
 
                 // 3. Check Branch Validity
                 if (!branchLoc) {
+                    await sql.end();
                     return { success: false, message: `Invalid Branch: ${targetBranch}` };
                 }
 
                 // 4. Geofence Check
                 const dist = getDistance(body.lat, body.lng, branchLoc.lat, branchLoc.lng);
                 console.log(`Distance to ${targetBranch}: ${dist}m (Allowed: ${ALLOWED_RADIUS_METERS}m)`);
+                console.log(`===================`);
 
                 if (dist > ALLOWED_RADIUS_METERS) {
-                    return { success: false, message: `Too far from ${targetBranch}! (${Math.round(dist)}m away)` };
-                }
+                    await sql.end();
                     return { success: false, message: `Too far from ${targetBranch}! (${Math.round(dist)}m away)` };
                 }
 
-                // 5. Check Active Shift
-                const [active] = await sql`SELECT id FROM shifts WHERE user_id = ${body.user_id} AND clock_out IS NULL`;
-                if (active) return { success: false, message: "Already clocked in!" };
+                // 5. Check if already clocked in
+                const active = await sql`SELECT * FROM shifts WHERE user_id = ${body.user_id} AND clock_out IS NULL`;
+                if (active.length > 0) {
+                    await sql.end();
+                    return { success: false, message: "Already clocked in!" };
+                }
 
-                // 6. Save
+                // 6. Insert with Location Data and note
                 const note = body.note ? `${body.note} (at ${targetBranch})` : `(at ${targetBranch})`;
                 await sql`
                     INSERT INTO shifts (user_id, clock_in, date, lat, lng, in_note) 
                     VALUES (${body.user_id}, NOW(), CURRENT_DATE, ${String(body.lat)}, ${String(body.lng)}, ${note})
                 `;
+                await sql.end();
                 return { success: true };
-            } catch (e: any) { return { success: false, message: e.message }; }
+            } catch (err) {
+                console.error("Clock-in Error:", err);
+                try { await sql.end(); } catch(e) {}
+                return { success: false, message: String(err) };
+            }
         }, { body: t.Object({ user_id: t.Number(), lat: t.Number(), lng: t.Number(), note: t.Optional(t.String()), target_branch: t.Optional(t.String()) }) })
-        // --- CLOCK OUT (Same Logic) ---
+
         .post('/shift/clock-out', async ({ body, set }) => {
             const sql = getDb();
-            if (!sql) { set.status = 500; return { success: false }; }
+            if (!sql) { 
+                set.status = 500; 
+                return { success: false, message: "DB Error" }; 
+            }
 
             try {
+                // 1. Get User's Branch and Permission
                 const [user] = await sql`SELECT branch, bypass_geofence FROM users WHERE id = ${body.user_id}`;
+                if (!user) {
+                    await sql.end();
+                    return { success: false, message: "User not found" };
+                }
                 
-                // Determine Target (same logic as clock in)
+                // 2. Determine Target Branch (same logic as clock-in)
                 const targetBranch = (user.bypass_geofence && body.target_branch) ? body.target_branch : user.branch;
                 const branchLoc = BRANCH_LOCATIONS[targetBranch];
                 
-                let remark = null;
-                
+                let specialRemark = null;
+
+                // 3. Calculate Distance if branch location is configured
                 if (branchLoc) {
                     const dist = getDistance(body.lat, body.lng, branchLoc.lat, branchLoc.lng);
-                    if (dist > ALLOWED_RADIUS_METERS) remark = `⚠️ Off-site: ${Math.round(dist)}m from ${targetBranch}`;
+                    
+                    // 4. If far away, add a remark
+                    if (dist > ALLOWED_RADIUS_METERS) {
+                        specialRemark = `⚠️ Off-site: ${Math.round(dist)}m from ${targetBranch}`;
+                    }
                 }
 
+                // 5. Update Shift (Save location AND remark)
                 await sql`
                     UPDATE shifts 
-                    SET clock_out = NOW(), out_lat = ${String(body.lat)}, out_lng = ${String(body.lng)}, 
-                        remarks = ${remark}, out_note = ${body.note || ''}
+                    SET clock_out = NOW(), 
+                        out_lat = ${String(body.lat)}, 
+                        out_lng = ${String(body.lng)}, 
+                        remarks = ${specialRemark},
+                        out_note = ${body.note || ''}
                     WHERE user_id = ${body.user_id} AND clock_out IS NULL
                 `;
-                return { success: true, message: remark ? "Warning: Clocked out off-site" : "Clocked Out" };
-            } catch (e: any) { return { success: false, message: e.message }; }
+
+                await sql.end();
+
+                // 6. Send success message (warn user if off-site)
+                if (specialRemark) {
+                    return { success: true, message: "Clocked out (Location Warning Recorded)" };
+                }
+                return { success: true };
+            } catch (err) {
+                console.error("Clock-out error:", err);
+                try { await sql.end(); } catch(e) {}
+                set.status = 500;
+                return { success: false, message: String(err) };
+            }
         }, { body: t.Object({ user_id: t.Number(), lat: t.Number(), lng: t.Number(), note: t.Optional(t.String()), target_branch: t.Optional(t.String()) }) })
+                ;
+
+                await sql.end();
+
+                // 5. Send success message (warn user if off-site)
+                if (specialRemark) {
+                    return { success: true, message: "Clocked out (Location Warning Recorded)" };
+                }
+                return { success: true };
+            } catch (err) {
+                console.error("Clock-out error:", err);
+                try { await sql.end(); } catch(e) {}
+                set.status = 500;
+                return { success: false, message: String(err) };
+            }
+        }, { body: t.Object({ user_id: t.Number(), lat: t.Number(), lng: t.Number() }) })
         
+        // Get Shift Logs
         .get('/shift/logs/:userId', async ({ params, set }) => {
             const sql = getDb();
-            if (!sql) return [];
-            return await sql`SELECT * FROM shifts WHERE user_id = ${params.userId} ORDER BY clock_in DESC LIMIT 30`;
+            if (!sql) { set.status = 500; return []; }
+
+            try {
+                const logs = await sql`SELECT * FROM shifts WHERE user_id = ${params.userId} ORDER BY clock_in DESC LIMIT 30`;
+                await sql.end();
+                return [...logs];
+            } catch (err) {
+                console.error("Logs Error:", err);
+                try { await sql.end(); } catch(e) {}
+                return [];
+            }
         })
 
         // --- LEAVE SYSTEM ---
@@ -474,7 +524,8 @@ const app = new Elysia()
                         role: users[0].role, 
                         username: users[0].username, 
                         name: users[0].name, 
-                        branch: users[0].branch 
+                        branch: users[0].branch,
+                        can_roam: users[0].bypass_geofence
                     }; 
                 }
                 set.status = 401; 

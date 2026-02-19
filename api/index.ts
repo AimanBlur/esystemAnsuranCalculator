@@ -677,7 +677,7 @@ const app = new Elysia()
                             body: JSON.stringify({
                                 app_id: process.env.ONESIGNAL_APP_ID,
                                 // Target the specific user ID (OneSignal "External ID")
-                                include_aliases: { external_id: [String(b.receiver_id)] },
+                                include_aliases: { external_id: ["staff_" + String(b.receiver_id)] },
                                 target_channel: "push",
                                 headings: { en: `New Request from ${b.sender_name}` },
                                 contents: { en: b.content },

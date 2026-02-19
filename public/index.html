@@ -1018,6 +1018,17 @@
             const branchSelect = document.getElementById('shiftBranchSelect');
             const targetBranch = (currentUser.canRoam && branchSelect) ? branchSelect.value : null;
 
+            // DEBUG LOGGING
+            console.log("=== FRONTEND CLOCK-IN DEBUG ===");
+            console.log("Action:", action);
+            console.log("User can roam:", currentUser.canRoam);
+            console.log("Branch selector exists:", !!branchSelect);
+            console.log("Branch selector value:", branchSelect ? branchSelect.value : "N/A");
+            console.log("Selected branch text:", branchSelect ? branchSelect.options[branchSelect.selectedIndex].text : "N/A");
+            console.log("Will send target_branch:", targetBranch);
+            console.log("User default branch:", currentUser.branch);
+            console.log("==============================");
+
             if (!navigator.geolocation) return alert("GPS Required");
 
             const container = document.getElementById('shiftControls');
@@ -1025,16 +1036,20 @@
 
             navigator.geolocation.getCurrentPosition(async (pos) => {
                 try {
+                    const requestBody = { 
+                        user_id: parseInt(currentUser.id),
+                        lat: pos.coords.latitude,
+                        lng: pos.coords.longitude,
+                        note: note,
+                        target_branch: targetBranch
+                    };
+                    
+                    console.log("Sending request body:", JSON.stringify(requestBody, null, 2));
+                    
                     const res = await fetch(`${API_URL}/shift/clock-${action}`, {
                         method: 'POST',
                         headers: {'Content-Type': 'application/json'},
-                        body: JSON.stringify({ 
-                            user_id: parseInt(currentUser.id),
-                            lat: pos.coords.latitude,
-                            lng: pos.coords.longitude,
-                            note: note,
-                            target_branch: targetBranch // <--- Send this
-                        })
+                        body: JSON.stringify(requestBody)
                     });
                     
                     const data = await res.json();
@@ -1048,6 +1063,7 @@
                         loadShiftStatus(); 
                     }
                 } catch(e) { 
+                    console.error("Clock-in error:", e);
                     alert("Network Error"); 
                     loadShiftStatus();
                 }
@@ -2477,20 +2493,3 @@
     </script>
 </body>
 </html>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

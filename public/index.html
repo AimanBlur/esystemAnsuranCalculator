@@ -1153,18 +1153,22 @@
                     if (window.OneSignalDeferred) {
                         window.OneSignalDeferred.push(async function(OneSignal) {
                             try {
-                                // 1. Ask for permission FIRST
+                                // 1. Prompt for push
                                 await OneSignal.Slidedown.promptPush();
-                                
-                                // 2. Wait a moment to ensure the subscription is created
-                                setTimeout(async () => {
-                                    // 3. NOW link the device to the Staff ID
+                            } catch (promptErr) {
+                                console.warn("Push prompt skipped/failed:", promptErr);
+                            }
+
+                            // 2. Wait a second, then try to link the ID safely
+                            setTimeout(async () => {
+                                try {
                                     await OneSignal.login(String(data.id));
                                     console.log("✅ OneSignal Login Success for ID:", data.id);
-                                }, 1000);
-                            } catch (err) {
-                                console.error("❌ OneSignal Error:", err);
-                            }
+                                } catch (loginErr) {
+                                    // IF THIS FAILS, IT WON'T CRASH THE APP ANYMORE
+                                    console.error("❌ OneSignal Login Blocked (Alias Conflict):", loginErr);
+                                }
+                            }, 1000);
                         });
                     }
                     
@@ -2449,6 +2453,7 @@
     </script>
 </body>
 </html>
+
 
 
 

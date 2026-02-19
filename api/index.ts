@@ -219,7 +219,6 @@ const app = new Elysia()
             const sql = getDb();
             if (!sql) { set.status = 500; return { shifts: [], leaves: [], user: null }; }
             try {
-                // ✅ NOW FETCHES USER DATA
                 const [user] = await sql`SELECT id, name, branch, bypass_geofence FROM users WHERE id = ${params.userId}`;
                 const shifts = await sql`SELECT * FROM shifts WHERE user_id = ${params.userId} ORDER BY clock_in DESC LIMIT 50`;
                 const leaves = await sql`SELECT * FROM leaves WHERE user_id = ${params.userId} ORDER BY created_at DESC`;
@@ -227,7 +226,7 @@ const app = new Elysia()
                 return { 
                     shifts: [...shifts], 
                     leaves: [...leaves],
-                    user: user || null  // ✅ ADDED THIS
+                    user: user || null  // Include user data with bypass_geofence
                 };
             } catch (e) { 
                 console.error("Staff History Error:", e);
@@ -279,11 +278,20 @@ const app = new Elysia()
                 const hasPermission = user.bypass_geofence;
                 const requestedBranch = body.target_branch;
                 
+                // CRITICAL FIX: Check if target_branch is actually different or explicitly provided
                 const targetBranch = (hasPermission && requestedBranch) ? requestedBranch : user.branch;
                 const branchLoc = BRANCH_LOCATIONS[targetBranch];
 
-                // --- DEBUG LOGGING (Check Vercel Function Logs if this fails) ---
-                console.log(`ClockIn: User=${body.user_id}, Perm=${hasPermission}, ReqBranch=${requestedBranch}, FinalTarget=${targetBranch}`);
+                // --- ENHANCED DEBUG LOGGING ---
+                console.log(`=== CLOCK IN DEBUG ===`);
+                console.log(`User ID: ${body.user_id}`);
+                console.log(`User Home Branch: ${user.branch}`);
+                console.log(`Has Roaming Permission: ${hasPermission}`);
+                console.log(`Requested Branch (from frontend): ${requestedBranch}`);
+                console.log(`Final Target Branch: ${targetBranch}`);
+                console.log(`User Location: lat=${body.lat}, lng=${body.lng}`);
+                console.log(`Target Branch Coordinates:`, branchLoc);
+                console.log(`===================`);
 
                 // 3. Check Branch Validity
                 if (!branchLoc) {
@@ -292,9 +300,11 @@ const app = new Elysia()
 
                 // 4. Geofence Check
                 const dist = getDistance(body.lat, body.lng, branchLoc.lat, branchLoc.lng);
-                console.log(`Distance to ${targetBranch}: ${dist}m`); // Debug Log
+                console.log(`Distance to ${targetBranch}: ${dist}m (Allowed: ${ALLOWED_RADIUS_METERS}m)`);
 
                 if (dist > ALLOWED_RADIUS_METERS) {
+                    return { success: false, message: `Too far from ${targetBranch}! (${Math.round(dist)}m away)` };
+                }
                     return { success: false, message: `Too far from ${targetBranch}! (${Math.round(dist)}m away)` };
                 }
 

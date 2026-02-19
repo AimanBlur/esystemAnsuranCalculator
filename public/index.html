@@ -5,7 +5,21 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Esystem Ansuran Portal</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-
+    
+    <script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
+    <script>
+      window.OneSignalDeferred = window.OneSignalDeferred || [];
+      OneSignalDeferred.push(async function(OneSignal) {
+        await OneSignal.init({
+          appId: "eab62720-6f56-426c-a1e4-384a00633979", // <-- REPLACE THIS!
+          notifyButton: {
+            enable: false,
+          },
+          allowLocalhostAsSecureOrigin: true
+        });
+      });
+    </script>
+    
     <style>
         :root { 
             --primary: #0056b3; 
@@ -912,6 +926,12 @@
 
         function doLogout() {
             if(confirm("Logout from system?")) {
+                // Untag the device from OneSignal
+                if (window.OneSignalDeferred) {
+                    window.OneSignalDeferred.push(async function(OneSignal) {
+                        await OneSignal.logout();
+                    });
+                }
                 localStorage.clear();
                 location.reload();
             }
@@ -1130,6 +1150,13 @@
                         canRoam: data.can_roam // <--- AND THIS
                     };
                             
+                    if (window.OneSignalDeferred) {
+                        window.OneSignalDeferred.push(async function(OneSignal) {
+                            await OneSignal.login(String(data.id)); // Links device to Staff ID
+                            await OneSignal.Slidedown.promptPush(); // Asks for notification permission
+                        });
+                    }
+                    
                     document.getElementById('loginOverlay').classList.add('hidden');
                     document.getElementById('mainApp').classList.remove('hidden');
                     initApp();
@@ -2447,6 +2474,7 @@
     </script>
 </body>
 </html>
+
 
 
 

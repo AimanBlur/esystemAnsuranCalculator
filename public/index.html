@@ -1153,22 +1153,17 @@
                     if (window.OneSignalDeferred) {
                         window.OneSignalDeferred.push(async function(OneSignal) {
                             try {
-                                // 1. Prompt for push
+                                // 1. Use a unique prefix to bypass server conflicts
+                                const safeOneSignalId = "staff_" + data.id;
+                                
+                                await OneSignal.login(safeOneSignalId);
+                                console.log("✅ OneSignal Login Success for ID:", safeOneSignalId);
+                                
+                                // 2. Ask for permission AFTER successful login
                                 await OneSignal.Slidedown.promptPush();
-                            } catch (promptErr) {
-                                console.warn("Push prompt skipped/failed:", promptErr);
+                            } catch (err) {
+                                console.error("❌ OneSignal Error:", err);
                             }
-
-                            // 2. Wait a second, then try to link the ID safely
-                            setTimeout(async () => {
-                                try {
-                                    await OneSignal.login(String(data.id));
-                                    console.log("✅ OneSignal Login Success for ID:", data.id);
-                                } catch (loginErr) {
-                                    // IF THIS FAILS, IT WON'T CRASH THE APP ANYMORE
-                                    console.error("❌ OneSignal Login Blocked (Alias Conflict):", loginErr);
-                                }
-                            }, 1000);
                         });
                     }
                     
@@ -2453,6 +2448,7 @@
     </script>
 </body>
 </html>
+
 
 
 

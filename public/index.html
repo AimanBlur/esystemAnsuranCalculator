@@ -1036,8 +1036,8 @@
             
             // Get selected branch IF visible AND permitted
             const branchSelect = document.getElementById('shiftBranchSelect');
-            const targetBranch = (currentUser.canRoam && branchSelect && branchSelect.value) ? branchSelect.value : null;
-
+            const targetBranch = (currentUser.canRoam && branchSelect && branchSelect.value) ? branchSelect.value : undefined;
+            
             // DEBUG LOGGING (Fixed to not crash on empty dropdowns)
             console.log("=== FRONTEND CLOCK-IN DEBUG ===");
             console.log("Action:", action);
@@ -2443,6 +2443,7 @@
     </script>
 </body>
 </html>
+
 
 
 

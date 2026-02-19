@@ -1016,7 +1016,7 @@
             
             // Get selected branch IF visible, otherwise default to null (backend uses assigned)
             const branchSelect = document.getElementById('shiftBranchSelect');
-            const targetBranch = (currentUser.canRoam && branchSelect) ? branchSelect.value : null;
+            const targetBranch = branchSelect ? branchSelect.value : null; 
 
             // DEBUG LOGGING
             console.log("=== FRONTEND CLOCK-IN DEBUG ===");
@@ -2493,4 +2493,5 @@
     </script>
 </body>
 </html>
+
 

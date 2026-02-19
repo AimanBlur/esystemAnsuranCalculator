@@ -157,10 +157,12 @@ const app = new Elysia()
                     FROM users 
                     ORDER BY name ASC
                 `;
+                await sql.end();
                 return [...users]; // Spread into array to ensure clean JSON serialization
             } 
             catch (e) { 
                 console.error("Admin Users Error:", e);
+                try { await sql.end(); } catch(err) {}
                 return []; 
             }
         })
@@ -170,8 +172,12 @@ const app = new Elysia()
             if (!sql) { set.status = 500; return { success: false }; }
             try {
                 const [u] = await sql`SELECT bypass_geofence, branch FROM users WHERE id = ${params.id}`;
+                await sql.end();
                 return { success: true, can_roam: u.bypass_geofence, branch: u.branch };
-            } catch (e) { return { success: false }; }
+            } catch (e) { 
+                try { await sql.end(); } catch(err) {}
+                return { success: false }; 
+            }
         })
 
         // TOGGLE ROAMING PERMISSION
@@ -211,12 +217,22 @@ const app = new Elysia()
         // --- ADMIN: HISTORY & LEAVES ---
         .get('/admin/staff-history/:userId', async ({ params, set }) => {
             const sql = getDb();
-            if (!sql) { set.status = 500; return { shifts: [], leaves: [] }; }
+            if (!sql) { set.status = 500; return { shifts: [], leaves: [], user: null }; }
             try {
+                const [user] = await sql`SELECT id, name, branch, bypass_geofence FROM users WHERE id = ${params.userId}`;
                 const shifts = await sql`SELECT * FROM shifts WHERE user_id = ${params.userId} ORDER BY clock_in DESC LIMIT 50`;
                 const leaves = await sql`SELECT * FROM leaves WHERE user_id = ${params.userId} ORDER BY created_at DESC`;
-                return { shifts, leaves };
-            } catch (e) { return { shifts: [], leaves: [] }; }
+                await sql.end();
+                return { 
+                    shifts: [...shifts], 
+                    leaves: [...leaves],
+                    user: user || null  // Include user data with bypass_geofence
+                };
+            } catch (e) { 
+                console.error("Staff History Error:", e);
+                try { await sql.end(); } catch(err) {}
+                return { shifts: [], leaves: [], user: null }; 
+            }
         })
 
         // --- SHIFT LOGIC (UPDATED) ---

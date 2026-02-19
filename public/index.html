@@ -1152,8 +1152,19 @@
                             
                     if (window.OneSignalDeferred) {
                         window.OneSignalDeferred.push(async function(OneSignal) {
-                            await OneSignal.login(String(data.id)); // Links device to Staff ID
-                            await OneSignal.Slidedown.promptPush(); // Asks for notification permission
+                            try {
+                                // 1. Ask for permission FIRST
+                                await OneSignal.Slidedown.promptPush();
+                                
+                                // 2. Wait a moment to ensure the subscription is created
+                                setTimeout(async () => {
+                                    // 3. NOW link the device to the Staff ID
+                                    await OneSignal.login(String(data.id));
+                                    console.log("✅ OneSignal Login Success for ID:", data.id);
+                                }, 1000);
+                            } catch (err) {
+                                console.error("❌ OneSignal Error:", err);
+                            }
                         });
                     }
                     
@@ -1180,14 +1191,14 @@
         let lastRequestCount = 0; 
 
         async function checkPendingRequests() {
-            if (!currentUser || !currentUser.id) return;
+            if (!currentUser || !currentUser.id) return;    
             
             try {
                 const res = await fetch(`${API_URL}/requests/${currentUser.id}/pending-count`);
                 const data = await res.json();
                 const count = parseInt(data.count) || 0;
                 
-                // 1. Update Badge
+                // Just update the red badge UI quietly
                 const badge = document.getElementById('requestBadge');
                 if (badge) {
                     if (count > 0) {
@@ -1197,42 +1208,6 @@
                         badge.classList.add('hidden');
                     }
                 }
-
-                // 2. Notification Logic
-                // If count increased AND we have permission
-                if (count > lastRequestCount && count > 0) {
-                    if ("Notification" in window && Notification.permission === "granted") {
-                        
-                        // Get details from the latest request (or fallback)
-                        const sender = data.latest ? data.latest.sender_name : "System";
-                        const remarks = data.latest ? data.latest.content : "You have a new request.";
-
-                        // Create the Notification
-                        const notif = new Notification(`New Request from ${sender}`, {
-                            body: remarks, // Shows the request content
-                            icon: "https://cdn-icons-png.flaticon.com/512/10309/10309344.png",
-                            tag: `req-${Date.now()}`, // UNIQUE TAG = STACKING (Like WhatsApp)
-                            requireInteraction: true // Keeps it on screen longer
-                        });
-
-                        // 3. Click Handler - Go to Requests Tab
-                        notif.onclick = function(event) {
-                            event.preventDefault(); // Prevent browser default
-                            window.focus(); // Bring window to front
-                            this.close(); // Close the notification
-                            
-                            // Programmatically click the 'Requests' tab button
-                            // Ensure your requests tab button has id="requestsTabBtn"
-                            const btn = document.getElementById('requestsTabBtn');
-                            if (btn) btn.click(); 
-                            else openTab('requests'); // Fallback if button ID missing
-                        };
-                    }
-                }
-
-                // Update memory so we don't notify again for the same request
-                lastRequestCount = count; 
-
             } catch (e) {
                 console.error('Error checking requests:', e);
             }
@@ -2474,6 +2449,7 @@
     </script>
 </body>
 </html>
+
 
 
 

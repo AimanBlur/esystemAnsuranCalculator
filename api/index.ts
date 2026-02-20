@@ -41,7 +41,7 @@ const BRANCH_LOCATIONS: Record<string, { lat: number, lng: number }> = {
     "AEON PERMAS": { lat: 1.495621, lng: 103.817432 }
 };
 
-const ALLOWED_RADIUS_METERS = 30;
+const ALLOWED_RADIUS_METERS = 100;
 
 // Helper: Calculate distance in meters
 function getDistance(lat1: number, lon1: number, lat2: number, lon2: number) {

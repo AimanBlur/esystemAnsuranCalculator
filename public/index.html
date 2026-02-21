@@ -953,7 +953,8 @@
                 name: localStorage.getItem("staffName"),
                 branch: localStorage.getItem("staffBranch"),
                 role: localStorage.getItem("staffRole"),
-                canRoam: localStorage.getItem("canRoam") === "true" 
+                canRoam: localStorage.getItem("canRoam") === "true",
+                isGlobal: localStorage.getItem("isGlobal") === "true"
             };
             
             console.log("Initial User State:", currentUser);
@@ -967,11 +968,16 @@
                     console.log("Refreshed Permissions:", data);
                     // Update variables
                     currentUser.canRoam = data.can_roam;
+                    currentUser.isGlobal = data.is_global;
                     currentUser.branch = data.branch;
                     
                     // Update LocalStorage so it persists
-                    localStorage.setItem("canRoam", data.can_roam);
+                    localStorage.setItem("canRoam", data.can_roam ? "true" : "false");
+                    localStorage.setItem("isGlobal", data.is_global ? "true" : "false");
                     localStorage.setItem("staffBranch", data.branch);
+                } else {
+                    currentUser.canRoam = false; 
+                    currentUser.isGlobal = false;
                 }
             } catch (e) {
                 console.error("Failed to refresh status:", e);
@@ -982,8 +988,11 @@
             document.querySelector('input[name="date_received"]').value = new Date().toISOString().split('T')[0];
             
             // 5. Load Branch Selector if allowed (Now using fresh data)
-            if(currentUser.canRoam) {
+            const selectorContainer = document.getElementById('branchSelectorContainer');
+            if(currentUser.canRoam && !currentUser.isGlobal) {
                 loadBranchOptions();
+            } else {
+                if(selectorContainer) selectorContainer.style.display = 'none';
             }
 
             // 6. Admin Button Check
@@ -1130,6 +1139,7 @@
                     localStorage.setItem("staffId", String(data.id)); // Convert to string explicitly
                     localStorage.setItem("staffRole", data.role || 'staff');
                     localStorage.setItem("canRoam", data.can_roam ? "true" : "false");
+                    localStorage.setItem("isGlobal", data.is_global ? "true" : "false");
                     
                     console.log("Saved to localStorage:", {
                         staffId: localStorage.getItem("staffId"),
@@ -2443,6 +2453,7 @@
     </script>
 </body>
 </html>
+
 
 
 

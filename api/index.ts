@@ -227,9 +227,9 @@ const app = new Elysia()
             const sql = getDb();
             if (!sql) { set.status = 500; return { success: false }; }
             try {
-                const [u] = await sql`SELECT bypass_geofence, branch FROM users WHERE id = ${params.id}`;
+                const [u] = await sql`SELECT bypass_geofence, is_global, branch FROM users WHERE id = ${params.id}`;
                 await sql.end();
-                return { success: true, can_roam: u.bypass_geofence, branch: u.branch };
+                return { success: true, can_roam: u.bypass_geofence, is_global: u.is_global, branch: u.branch };
             } catch (e) { 
                 try { await sql.end(); } catch(err) {}
                 return { success: false }; 
@@ -258,58 +258,69 @@ const app = new Elysia()
             const b = body as { user_id: number, lat: number, lng: number, note?: string, target_branch?: string };
             
             try {
-                // 1. Get User
-                const [user] = await sql`SELECT branch, bypass_geofence FROM users WHERE id = ${b.user_id}`;
+                // 1. Get User (NOW INCLUDES is_global)
+                const [user] = await sql`SELECT branch, bypass_geofence, is_global FROM users WHERE id = ${b.user_id}`;
                 if (!user) {
                     await sql.end();
                     return { success: false, message: "User not found" };
                 }
 
-                // 2. Determine Target Branch
-                const hasPermission = user.bypass_geofence;
+                const isGlobal = !!user.is_global;
+                const hasPermission = !!user.bypass_geofence;
                 const requestedBranch = b.target_branch;
                 const targetBranch = (hasPermission && requestedBranch) ? requestedBranch : user.branch;
                 const branchLoc = BRANCH_LOCATIONS[targetBranch];
+
+                let finalNote = b.note || "";
 
                 // --- DEBUG LOGGING ---
                 console.log(`=== CLOCK IN DEBUG ===`);
                 console.log(`User ID: ${b.user_id}`);
                 console.log(`User Home Branch: ${user.branch}`);
+                console.log(`Is Global User: ${isGlobal}`);
                 console.log(`Has Roaming Permission: ${hasPermission}`);
                 console.log(`Requested Branch (from frontend): ${requestedBranch}`);
                 console.log(`Final Target Branch: ${targetBranch}`);
                 console.log(`User Location: lat=${b.lat}, lng=${b.lng}`);
-                console.log(`Target Branch Coordinates:`, branchLoc);
-
-                // 3. Check Branch Validity
-                if (!branchLoc) {
-                    await sql.end();
-                    return { success: false, message: `Invalid Branch: ${targetBranch}` };
-                }
-
-                // 4. Geofence Check
-                const dist = getDistance(b.lat, b.lng, branchLoc.lat, branchLoc.lng);
-                console.log(`Distance to ${targetBranch}: ${dist}m (Allowed: ${ALLOWED_RADIUS_METERS}m)`);
                 console.log(`===================`);
 
-                if (dist > ALLOWED_RADIUS_METERS) {
-                    await sql.end();
-                    return { success: false, message: `Too far from ${targetBranch}! (${Math.round(dist)}m away)` };
+                // 2. Strict Geofence Check (ONLY IF NOT GLOBAL)
+                if (!isGlobal) {
+                    // Check Branch Validity
+                    if (!branchLoc) {
+                        await sql.end();
+                        return { success: false, message: `Invalid Branch: ${targetBranch}` };
+                    }
+
+                    // Geofence Check
+                    const dist = getDistance(b.lat, b.lng, branchLoc.lat, branchLoc.lng);
+                    console.log(`Distance to ${targetBranch}: ${dist}m (Allowed: ${ALLOWED_RADIUS_METERS}m)`);
+
+                    if (dist > ALLOWED_RADIUS_METERS) {
+                        await sql.end();
+                        return { success: false, message: `Too far from ${targetBranch}! (${Math.round(dist)}m away)` };
+                    }
+                    
+                    // Format note for standard/roaming users
+                    finalNote = finalNote ? `${finalNote} (at ${targetBranch})` : `(at ${targetBranch})`;
+                } else {
+                    // Format note for global users
+                    finalNote = finalNote ? `${finalNote} (Global)` : `(Global)`;
                 }
 
-                // 5. Check if already clocked in
+                // 3. Check if already clocked in
                 const active = await sql`SELECT * FROM shifts WHERE user_id = ${b.user_id} AND clock_out IS NULL`;
                 if (active.length > 0) {
                     await sql.end();
                     return { success: false, message: "Already clocked in!" };
                 }
 
-                // 6. Insert with Location Data and note
-                const note = b.note ? `${b.note} (at ${targetBranch})` : `(at ${targetBranch})`;
+                // 4. Insert with Location Data and note
                 await sql`
                     INSERT INTO shifts (user_id, clock_in, date, lat, lng, in_note) 
-                    VALUES (${b.user_id}, NOW(), CURRENT_DATE, ${String(b.lat)}, ${String(b.lng)}, ${note})
+                    VALUES (${b.user_id}, NOW(), CURRENT_DATE, ${String(b.lat)}, ${String(b.lng)}, ${finalNote})
                 `;
+                
                 await sql.end();
                 return { success: true };
             } catch (err) {
@@ -329,30 +340,32 @@ const app = new Elysia()
             const b = body as { user_id: number, lat: number, lng: number, note?: string, target_branch?: string };
 
             try {
-                // 1. Get User's Branch and Permission
-                const [user] = await sql`SELECT branch, bypass_geofence FROM users WHERE id = ${b.user_id}`;
+                // 1. Get User's Branch and Permissions
+                const [user] = await sql`SELECT branch, bypass_geofence, is_global FROM users WHERE id = ${b.user_id}`;
                 if (!user) {
                     await sql.end();
                     return { success: false, message: "User not found" };
                 }
                 
-                // 2. Determine Target Branch (same logic as clock-in)
-                const targetBranch = (user.bypass_geofence && b.target_branch) ? b.target_branch : user.branch;
-                const branchLoc = BRANCH_LOCATIONS[targetBranch];
-                
+                const isGlobal = !!user.is_global;
                 let specialRemark = null;
 
-                // 3. Calculate Distance if branch location is configured
-                if (branchLoc) {
-                    const dist = getDistance(b.lat, b.lng, branchLoc.lat, branchLoc.lng);
+                // 2. Calculate Distance Warning (ONLY IF NOT GLOBAL)
+                if (!isGlobal) {
+                    const targetBranch = (user.bypass_geofence && b.target_branch) ? b.target_branch : user.branch;
+                    const branchLoc = BRANCH_LOCATIONS[targetBranch];
                     
-                    // 4. If far away, add a remark
-                    if (dist > ALLOWED_RADIUS_METERS) {
-                        specialRemark = `⚠️ Off-site: ${Math.round(dist)}m from ${targetBranch}`;
+                    if (branchLoc) {
+                        const dist = getDistance(b.lat, b.lng, branchLoc.lat, branchLoc.lng);
+                        
+                        // If far away, add a remark
+                        if (dist > ALLOWED_RADIUS_METERS) {
+                            specialRemark = `⚠️ Off-site: ${Math.round(dist)}m from ${targetBranch}`;
+                        }
                     }
                 }
 
-                // 5. Update Shift (Save location AND remark)
+                // 3. Update Shift (Save location AND remark)
                 await sql`
                     UPDATE shifts 
                     SET clock_out = NOW(), 
@@ -365,7 +378,7 @@ const app = new Elysia()
 
                 await sql.end();
 
-                // 6. Send success message (warn user if off-site)
+                // 4. Send success message (warn user if off-site)
                 if (specialRemark) {
                     return { success: true, message: "Clocked out (Location Warning Recorded)" };
                 }
@@ -513,7 +526,8 @@ const app = new Elysia()
                         username: users[0].username, 
                         name: users[0].name, 
                         branch: users[0].branch,
-                        can_roam: users[0].bypass_geofence
+                        can_roam: users[0].bypass_geofence,
+                        is_global: users[0].is_global
                     }; 
                 }
                 set.status = 401; 

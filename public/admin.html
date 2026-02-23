@@ -119,11 +119,12 @@
                 <input type="hidden" id="editId">
                 <label>Category</label><select id="typeSelect" onchange="performAutoCalc()"></select>
                 <label>Model</label><input type="text" id="modelName" placeholder="iPhone 15">
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; margin-bottom: 10px;">
                     <div><label>Base Price (RM)</label><input type="number" id="basePrice" placeholder="0.00" oninput="performAutoCalc()"></div>
                     <div><label>LCD (RM)</label><input type="number" id="lcdAmt" placeholder="0.00" oninput="calcTotal()"></div>
                     <div><label>Admin (RM)</label><input type="number" id="aeonCharge" placeholder="50.00" oninput="calcTotal()"></div>
                     <div><label>Stamp (RM)</label><input type="number" id="stampFee" placeholder="0.00" oninput="calcTotal()"></div>
+                    <div><label style="color: #28a745;"><i class="fas fa-hand-holding-usd"></i> Commission (RM)</label><input type="number" id="commissionAmt" placeholder="0.00"></div>
                 </div>
                 <div class="total-box">Final RRP <span id="displayTotal">RM 0.00</span></div>
                 <div style="display:flex; gap:10px;">
@@ -535,10 +536,12 @@
                         <input type="checkbox" class="item-checkbox" value="${p.id}" onchange="toggleItem(${p.id})" ${checked}>
                         <div style="flex-grow:1;">
                             <b>${p.model}</b> <span style="background:#eee; padding:2px 6px; font-size:0.8rem;">${p.type_name || ''}</span>
-                            <div style="font-size:0.8rem; color:#666;">Base: ${p.base_price} | Total: RM ${p.rrp}</div>
+                            <div style="font-size:0.8rem; color:#666;">
+                                Base: ${p.base_price} | Total: RM ${p.rrp} | <span style="color:#28a745; font-weight:bold;">Comm: RM ${p.commission || 0}</span>
+                            </div>
                         </div>
                         <div style="display:flex; gap:5px;">
-                            <button class="btn-edit" onclick="startEdit(${p.id}, '${p.model}', ${p.type_id}, ${p.base_price}, ${p.lcd_amt}, ${p.aeon_rate}, ${p.stamping_rate})"><i class="fas fa-edit"></i></button>
+                            <button class="btn-edit" onclick="startEdit(${p.id}, '${p.model}', ${p.type_id}, ${p.base_price}, ${p.lcd_amt}, ${p.aeon_rate}, ${p.stamping_rate}, ${p.commission || 0})"><i class="fas fa-edit"></i></button>
                             <button class="btn-delete" onclick="deletePhone(${p.id})"><i class="fas fa-trash-alt"></i></button>
                         </div>`;
                     list.appendChild(div);
@@ -561,7 +564,8 @@
                     base_price: parseFloat(document.getElementById('basePrice').value)||0,
                     lcd_amt: parseFloat(document.getElementById('lcdAmt').value)||0,
                     aeon_rate: parseFloat(document.getElementById('aeonCharge').value)||0,
-                    stamping_rate: parseFloat(document.getElementById('stampFee').value)||0
+                    stamping_rate: parseFloat(document.getElementById('stampFee').value)||0,
+                    commission: parseFloat(document.getElementById('commissionAmt').value)||0
                 })
             });
             alert("Saved!"); resetForm(); loadPhones();
@@ -571,7 +575,7 @@
             if(confirm("Delete?")) { await fetch(`${API_URL}/phones/${id}`, { method: 'DELETE', headers: { 'admin-secret': secretKey } }); loadPhones(); }
         }
 
-        function startEdit(id, model, type, base, lcd, admin, stamp) {
+        function startEdit(id, model, type, base, lcd, admin, stamp, comm) {
             document.getElementById('editId').value = id;
             document.getElementById('modelName').value = model;
             document.getElementById('typeSelect').value = type;
@@ -579,6 +583,7 @@
             document.getElementById('lcdAmt').value = lcd;
             document.getElementById('aeonCharge').value = admin;
             document.getElementById('stampFee').value = stamp;
+            document.getElementById('commissionAmt').value = comm || 0;
             document.getElementById('saveBtn').innerText = "Update";
             document.getElementById('cancelBtn').classList.remove('hidden');
             calcTotal();
@@ -591,6 +596,7 @@
             document.getElementById('basePrice').value = "";
             document.getElementById('lcdAmt').value = "";
             document.getElementById('stampFee').value = "";
+            document.getElementById('commissionAmt').value = "";
             document.getElementById('saveBtn').innerText = "Add to Database";
             document.getElementById('cancelBtn').classList.add('hidden');
             document.getElementById('displayTotal').innerText = "RM 0.00";
@@ -672,5 +678,6 @@
     </script>
 </body>
 </html>
+
 
 

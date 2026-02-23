@@ -193,7 +193,7 @@
 
     <div id="bulkBar" class="bulk-bar inactive">
         <span id="selectedCount">0 Selected</span>
-        <button onclick="applyAutoChargesToSelected()" class="bulk-btn btn-purple">Auto-Apply Logic</button>
+        <button onclick="openBulkEditModal()" class="bulk-btn btn-edit" style="color:white; border:none;"><i class="fas fa-edit"></i> Bulk Edit</button>
         <button onclick="executeBulkDelete()" class="bulk-btn btn-delete">Delete</button>
     </div>
 
@@ -205,6 +205,39 @@
             </div>
             <div id="auditModalBody" style="display:grid; grid-template-columns: 1fr 1fr; gap:15px; font-size:0.9rem;"></div>
             <div style="margin-top:20px; text-align:right;"><button class="btn-success" onclick="closeAuditModal()">Close</button></div>
+        </div>
+    </div>
+
+    <div id="bulkEditModal" class="modal-overlay hidden">
+        <div class="modal-content" style="max-width:500px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; border-bottom:1px solid #eee; padding-bottom:10px;">
+                <h3 style="margin:0;"><i class="fas fa-edit"></i> Bulk Edit (<span id="bulkEditCount">0</span> items)</h3>
+                <button onclick="closeBulkEditModal()" style="background:none; border:none; color:#666; font-size:1.2rem; cursor:pointer;">&times;</button>
+            </div>
+            
+            <p style="font-size:0.85rem; color:#d32f2f; font-weight:bold; margin-bottom: 15px;">
+                Leave fields blank if you DO NOT want to change them.
+            </p>
+
+            <label>Category</label>
+            <select id="bulkTypeSelect"><option value="">-- No Change --</option></select>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                <div><label>Base Price</label><input type="number" id="bulkBasePrice" placeholder="No Change"></div>
+                <div><label>LCD (RM)</label><input type="number" id="bulkLcdAmt" placeholder="No Change"></div>
+                <div><label>Admin (RM)</label><input type="number" id="bulkAeonCharge" placeholder="No Change"></div>
+                <div><label>Stamp (RM)</label><input type="number" id="bulkStampFee" placeholder="No Change"></div>
+                
+                <div style="grid-column: 1 / -1;">
+                    <label style="color: #28a745;"><i class="fas fa-hand-holding-usd"></i> Commission (RM)</label>
+                    <input type="number" id="bulkCommissionAmt" placeholder="No Change">
+                </div>
+            </div>
+
+            <div style="display:flex; gap:10px; margin-top:15px;">
+                <button onclick="saveBulkEdit()" class="btn-primary" id="bulkSaveBtn">Save Changes</button>
+                <button onclick="closeBulkEditModal()" style="background:#888;">Cancel</button>
+            </div>
         </div>
     </div>
 
@@ -532,6 +565,8 @@
                     div.setAttribute('data-price', p.rrp);
                     div.setAttribute('data-type', p.type_id);
                     const checked = selectedIds.has(p.id) ? "checked" : "";
+                    
+                    // FIXED EDIT BUTTON: Only passes the ID now to prevent string escaping errors
                     div.innerHTML = `
                         <input type="checkbox" class="item-checkbox" value="${p.id}" onchange="toggleItem(${p.id})" ${checked}>
                         <div style="flex-grow:1;">
@@ -541,7 +576,7 @@
                             </div>
                         </div>
                         <div style="display:flex; gap:5px;">
-                            <button class="btn-edit" onclick="startEdit(${p.id}, '${p.model}', ${p.type_id}, ${p.base_price}, ${p.lcd_amt}, ${p.aeon_rate}, ${p.stamping_rate}, ${p.commission || 0})"><i class="fas fa-edit"></i></button>
+                            <button class="btn-edit" onclick="startEdit(${p.id})"><i class="fas fa-edit"></i></button>
                             <button class="btn-delete" onclick="deletePhone(${p.id})"><i class="fas fa-trash-alt"></i></button>
                         </div>`;
                     list.appendChild(div);
@@ -575,18 +610,22 @@
             if(confirm("Delete?")) { await fetch(`${API_URL}/phones/${id}`, { method: 'DELETE', headers: { 'admin-secret': secretKey } }); loadPhones(); }
         }
 
-        function startEdit(id, model, type, base, lcd, admin, stamp, comm) {
-            document.getElementById('editId').value = id;
-            document.getElementById('modelName').value = model;
-            document.getElementById('typeSelect').value = type;
-            document.getElementById('basePrice').value = base;
-            document.getElementById('lcdAmt').value = lcd;
-            document.getElementById('aeonCharge').value = admin;
-            document.getElementById('stampFee').value = stamp;
-            document.getElementById('commissionAmt').value = comm || 0;
+        function startEdit(id) {
+            const p = allInventory.find(item => item.id === id);
+            if (!p) return;
+            
+            document.getElementById('editId').value = p.id;
+            document.getElementById('modelName').value = p.model;
+            document.getElementById('typeSelect').value = p.type_id;
+            document.getElementById('basePrice').value = p.base_price;
+            document.getElementById('lcdAmt').value = p.lcd_amt;
+            document.getElementById('aeonCharge').value = p.aeon_rate;
+            document.getElementById('stampFee').value = p.stamping_rate;
+            document.getElementById('commissionAmt').value = p.commission || 0;
+            
             document.getElementById('saveBtn').innerText = "Update";
             document.getElementById('cancelBtn').classList.remove('hidden');
-            calcTotal();
+            calcTotal(); // Recalculates total (which inherently ignores commission)
             window.scrollTo(0,0);
         }
 
@@ -675,9 +714,91 @@
             selectedIds = new Set(allInventory.map(p => p.id));
             await applyAutoChargesToSelected();
         }
+
+        // --- BULK EDIT LOGIC ---
+        function openBulkEditModal() {
+            document.getElementById('bulkEditCount').innerText = selectedIds.size;
+            
+            // Populate the Category dropdown with existing categories
+            const sel = document.getElementById('bulkTypeSelect');
+            if (sel.options.length <= 1) {
+                document.querySelectorAll('#typeSelect option').forEach(opt => {
+                    sel.innerHTML += `<option value="${opt.value}">${opt.text}</option>`;
+                });
+            }
+            
+            // Clear all inputs
+            document.getElementById('bulkTypeSelect').value = "";
+            document.getElementById('bulkBasePrice').value = "";
+            document.getElementById('bulkLcdAmt').value = "";
+            document.getElementById('bulkAeonCharge').value = "";
+            document.getElementById('bulkStampFee').value = "";
+            document.getElementById('bulkCommissionAmt').value = "";
+            
+            document.getElementById('bulkEditModal').classList.remove('hidden');
+        }
+
+        function closeBulkEditModal() {
+            document.getElementById('bulkEditModal').classList.add('hidden');
+        }
+
+        async function saveBulkEdit() {
+            const btn = document.getElementById('bulkSaveBtn');
+            btn.innerText = "Saving..."; 
+            btn.disabled = true;
+
+            // Grab the raw inputs
+            const tType = document.getElementById('bulkTypeSelect').value;
+            const tBase = document.getElementById('bulkBasePrice').value;
+            const tLcd = document.getElementById('bulkLcdAmt').value;
+            const tAdmin = document.getElementById('bulkAeonCharge').value;
+            const tStamp = document.getElementById('bulkStampFee').value;
+            const tComm = document.getElementById('bulkCommissionAmt').value;
+
+            // Get the specific items we are editing
+            const items = allInventory.filter(p => selectedIds.has(p.id));
+
+            for (let item of items) {
+                // If input is not empty, use it. Otherwise, keep the item's original value.
+                const newType = tType !== "" ? tType : item.type_id;
+                const newBase = tBase !== "" ? parseFloat(tBase) : parseFloat(item.base_price);
+                const newLcd = tLcd !== "" ? parseFloat(tLcd) : parseFloat(item.lcd_amt);
+                const newAdmin = tAdmin !== "" ? parseFloat(tAdmin) : parseFloat(item.aeon_rate);
+                const newStamp = tStamp !== "" ? parseFloat(tStamp) : parseFloat(item.stamping_rate);
+                const newComm = tComm !== "" ? parseFloat(tComm) : parseFloat(item.commission || 0);
+
+                // Calculate the final RRP (strictly excludes commission)
+                const newRrp = newBase + newLcd + newAdmin + newStamp;
+
+                await fetch(`${API_URL}/phones/${item.id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json', 'admin-secret': secretKey },
+                    body: JSON.stringify({ 
+                        model: item.model, 
+                        rrp: newRrp.toFixed(2), 
+                        type_id: newType, 
+                        base_price: newBase, 
+                        lcd_amt: newLcd, 
+                        aeon_rate: newAdmin, 
+                        stamping_rate: newStamp,
+                        commission: newComm 
+                    })
+                });
+            }
+
+            alert("Bulk Edit Complete!");
+            closeBulkEditModal();
+            selectedIds.clear(); 
+            updateBulkBar(); 
+            loadPhones(); // Refresh the list
+            
+            btn.innerText = "Save Changes"; 
+            btn.disabled = false;
+        }
     </script>
 </body>
 </html>
+
 
 
 

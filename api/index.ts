@@ -932,7 +932,7 @@ const app = new Elysia()
             const b = body as any;
             try {
                 await sql`
-                    INSERT INTO phones (model, rrp, type_id, base_price, lcd_amt, aeon_rate, stamping_rate) 
+                    INSERT INTO phones (model, rrp, type_id, base_price, lcd_amt, aeon_rate, stamping_rate, commission) 
                     VALUES (
                         ${b.model}, 
                         ${b.rrp}, 
@@ -940,7 +940,8 @@ const app = new Elysia()
                         ${b.base_price || 0}, 
                         ${b.lcd_amt || 0}, 
                         ${b.aeon_rate || 0}, 
-                        ${b.stamping_rate || 0}
+                        ${b.stamping_rate || 0},
+                        ${b.commission || 0}
                     )
                 `;
                 await sql.end();
@@ -975,7 +976,8 @@ const app = new Elysia()
                         base_price = ${b.base_price || 0},
                         lcd_amt = ${b.lcd_amt || 0},
                         aeon_rate = ${b.aeon_rate || 0},
-                        stamping_rate = ${b.stamping_rate || 0}
+                        stamping_rate = ${b.stamping_rate || 0},
+                        commission = ${b.commission || 0}
                     WHERE id = ${params.id}
                 `;
                 await sql.end();

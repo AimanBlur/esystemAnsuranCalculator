@@ -1777,6 +1777,7 @@
                     <div>
                         <div style="font-weight:600; color:#333;">${escapeHtml(p.model)}</div>
                         <div style="font-size:0.8rem; color:#666;">${escapeHtml(p.type_name || 'Device')}</div>
+                        ${p.commission > 0 ? `<div style="font-size:0.85rem; color:#28a745; margin-top:4px; font-weight:bold;"><i class="fas fa-hand-holding-usd"></i> Comm: RM ${parseFloat(p.commission).toFixed(2)}</div>` : ''}
                     </div>
                     <div style="font-weight:bold; color:var(--primary); font-size:1rem;">RM ${parseFloat(p.base_price || p.rrp || 0).toFixed(2)}</div>
                 </div>
@@ -2453,6 +2454,7 @@
     </script>
 </body>
 </html>
+
 
 
 

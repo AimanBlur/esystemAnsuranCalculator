@@ -1,5 +1,5 @@
 import { Elysia, t } from 'elysia'; 
-import { cors } from '@elysiajs/cors'; 
+import { cors } from '@elysiajs/cors';  
 import nodemailer from 'nodemailer'; 
 import postgres from 'postgres';
 

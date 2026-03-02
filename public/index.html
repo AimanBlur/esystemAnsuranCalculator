@@ -611,6 +611,13 @@
                     </div>
                     <button id="addBtn" class="btn-secondary" onclick="toggleSecondPhone(true)">+ Add Second Item</button>
 
+                    <hr style="margin: 20px 0; border:0; border-top:1px solid #eee;">
+                    
+                    <label>Down Payment / Deposit (RM)</label>
+                    <input type="number" id="downPayment" placeholder="0.00" oninput="calculate()" min="0" style="margin-top: 5px;">
+
+                    <div class="results-box">
+
                     <div class="results-box">
                         <div class="result-item">
                             <span>12 Months: <b>RM <span id="m12">0</span></b></span>
@@ -1861,16 +1868,28 @@
         function calculate() {
             const id1 = document.getElementById('phone1').value;
             const id2 = document.getElementById('phone2').value;
+            
+            // Get Down Payment (default to 0 if empty)
+            const dpInput = document.getElementById('downPayment');
+            const downPayment = dpInput ? (parseFloat(dpInput.value) || 0) : 0;
 
             const p1 = getPrice(id1);
             const p2 = getPrice(id2);
             
-            const totalPrincipal = p1 + p2;
+            const totalRrp = p1 + p2;
+            
+            // Deduct down payment from the total RRP to get the actual Loan Amount
+            let loanAmount = totalRrp - downPayment;
+            if (loanAmount < 0) loanAmount = 0; // Prevent negative calculations
+
             const interestRate = 0.0125;
 
             const calc = (m) => {
-                if (totalPrincipal === 0) return "0";
-                return Math.floor((totalPrincipal + (totalPrincipal * interestRate * m)) / m).toString();
+                // If no items are selected or down payment covers everything, return 0
+                if (totalRrp === 0 || loanAmount <= 0) return "0";
+                
+                // Calculate installment based on the Loan Amount (Price - Deposit)
+                return Math.floor((loanAmount + (loanAmount * interestRate * m)) / m).toString();
             };
             
             document.getElementById('m12').innerText = calc(12);
@@ -1889,11 +1908,19 @@
         }
 
         function copyAll() {
+            const dpInput = document.getElementById('downPayment');
+            const dp = dpInput ? (parseFloat(dpInput.value) || 0) : 0;
+            
             const m12 = document.getElementById('m12').innerText;
             const m24 = document.getElementById('m24').innerText;
             const m36 = document.getElementById('m36').innerText;
             const m48 = document.getElementById('m48').innerText;
-            const text = `Ansuran Plan:\n12mth: RM ${m12}\n24mth: RM ${m24}\n36mth: RM ${m36}\n48mth: RM ${m48}`;
+            
+            let text = "Ansuran Plan:\n";
+            if (dp > 0) {
+                text += `Down Payment: RM ${dp.toFixed(2)}\n`;
+            }
+            text += `12mth: RM ${m12}\n24mth: RM ${m24}\n36mth: RM ${m36}\n48mth: RM ${m48}`;
             
             navigator.clipboard.writeText(text).then(() => {
                 alert("✓ Full plan copied!");
@@ -2454,6 +2481,7 @@
     </script>
 </body>
 </html>
+
 
 
 

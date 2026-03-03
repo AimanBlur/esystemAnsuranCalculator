@@ -804,6 +804,13 @@
                         <label style="font-size: 0.85rem; color:#666;">Package Details</label>
                         <input type="text" id="regPackage" placeholder="Package / Plan Name" style="margin-bottom:10px;">
                         
+                        <label style="font-size: 0.85rem; color:#666;">Code</label>
+                        <select id="regCode" style="margin-bottom:15px;">
+                            <option value="KP">KP</option>
+                            <option value="Permas">Permas</option>
+                            <option value="Tuta">Tuta</option>
+                        </select>
+                        
                         <button onclick="submitRegistration()" class="btn-primary" style="width:100%; margin:0;">Add Registration</button>
                     </div>
                     
@@ -2597,14 +2604,15 @@
         async function submitRegistration() {
             const staff = document.getElementById('regStaff').value;
             const pkg = document.getElementById('regPackage').value.trim();
+            const code = document.getElementById('regCode').value; // Grabs the KP/Permas/Tuta code
             
             if(!pkg || !staff) return alert("Please select a staff member and enter package details");
             
             try {
                 await fetch(`${API_URL}/registrations`, {
                     method: 'POST', headers: {'Content-Type':'application/json'},
-                    // We send the selected staff as 'staff_name', and put '-' in the old unused 'code' column
-                    body: JSON.stringify({ code: '-', package_reg: pkg, staff_name: staff })
+                    // Now sends the selected code to the database
+                    body: JSON.stringify({ code: code, package_reg: pkg, staff_name: staff })
                 });
                 document.getElementById('regPackage').value = '';
                 loadRegistrations();
@@ -2728,6 +2736,7 @@
     </script>
 </body>
 </html>
+
 
 
 

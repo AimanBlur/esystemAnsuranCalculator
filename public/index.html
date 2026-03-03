@@ -553,6 +553,7 @@
                 <option value="calc">Calculator</option>
                 <option value="apply">Application</option>
                 <option value="audit">Audit</option>
+                <option value="registration">Registration</option>
                 <option value="plist">Price List</option>
                 <option value="requests">Requests <span id="mobileBadgeText"></span></option>
                 <option value="shift">Shift</option>
@@ -568,6 +569,9 @@
             </button>
             <button class="tab-btn" onclick="openTab('audit', this)">
                 <i class="fas fa-clipboard-check"></i> Audit
+            </button>
+            <button class="tab-btn" data-tab="registration" onclick="openTab('registration', this)">
+                <i class="fas fa-sim-card"></i> Registration
             </button>
             <button class="tab-btn" onclick="openTab('plist', this)">
                 <i class="fas fa-tags"></i> Price List
@@ -704,58 +708,108 @@
             </div>
 
             <div id="apply" class="tab-content">
-                <form id="uploadForm" class="card">
-                    <h2 style="margin-top:0; color:var(--primary); font-size: 1.2rem;">New Application Form</h2>
+                <div class="card" style="background: transparent; box-shadow: none; padding: 0;">
                     
-                    <h3 class="section-title">Personal Info</h3>
-                    <input type="text" id="nama" placeholder="Full Name (Nama Penuh)" required>
-                    <input type="text" id="ic" placeholder="IC Number" required>
-                    <textarea id="alamat" placeholder="Current Address" rows="3"></textarea>
-                    <input type="number" id="tahun_tinggal" placeholder="Years Staying (Tahun Tinggal)" min="0">
-                    <select id="jenis_rumah">
-                        <option value="Sendiri">Own House (Rumah Sendiri)</option>
-                        <option value="Sewa">Rented (Rumah Sewa)</option>
-                    </select>
-                    <input type="text" id="status" placeholder="Marital Status">
-                    <input type="number" id="anak" placeholder="No. of Children" min="0">
-                    <input type="tel" id="hp" placeholder="Phone Number (H/P)" required>
-                    <input type="email" id="email_user" placeholder="Email Address">
-                    <input type="text" id="tarikh_gaji" placeholder="Salary Date (e.g., 28hb)">
+                    <div style="display:flex; gap:10px; margin-bottom:15px; flex-wrap:wrap;">
+                        <button id="btnFullForm" class="btn-primary" style="flex:1;" onclick="toggleApplyView('full')">Full Form (Email Boss)</button>
+                        <button id="btnAppList" class="btn-secondary" style="flex:1; margin-top:0;" onclick="toggleApplyView('list')">Quick App Status</button>
+                    </div>
 
-                    <h3 class="section-title">Employment</h3>
-                    <input type="text" id="syarikat" placeholder="Company Name">
-                    <textarea id="alamat_kerja" placeholder="Company Address" rows="3"></textarea>
-                    <input type="number" id="tahun_kerja" placeholder="Years Working" min="0">
-                    <input type="tel" id="no_pejabat" placeholder="Office Phone No.">
-                    <input type="text" id="jawatan" placeholder="Position (Jawatan)">
+                    <form id="uploadForm" class="card" style="margin-bottom:0;">
+                        <h2 style="margin-top:0; color:var(--primary); font-size: 1.2rem;">New Full Application Form</h2>
+                        <h3 class="section-title">Personal Info</h3>
+                        <input type="text" id="nama" placeholder="Full Name (Nama Penuh)" required>
+                        <input type="text" id="ic" placeholder="IC Number" required>
+                        <textarea id="alamat" placeholder="Current Address" rows="3"></textarea>
+                        <input type="number" id="tahun_tinggal" placeholder="Years Staying (Tahun Tinggal)" min="0">
+                        <select id="jenis_rumah">
+                            <option value="Sendiri">Own House (Rumah Sendiri)</option>
+                            <option value="Sewa">Rented (Rumah Sewa)</option>
+                        </select>
+                        <input type="text" id="status" placeholder="Marital Status">
+                        <input type="number" id="anak" placeholder="No. of Children" min="0">
+                        <input type="tel" id="hp" placeholder="Phone Number (H/P)" required>
+                        <input type="email" id="email_user" placeholder="Email Address">
+                        <input type="text" id="tarikh_gaji" placeholder="Salary Date (e.g., 28hb)">
 
-                    <h3 class="section-title">Reference 1 (Parent)</h3>
-                    <input type="text" id="ref1_nama" placeholder="Name">
-                    <input type="text" id="ref1_hub" placeholder="Relationship (Hubungan)">
-                    <textarea id="ref1_alamat" placeholder="Ref 1 Address" rows="3"></textarea>
-                    <input type="tel" id="ref1_hp" placeholder="Phone No.">
+                        <h3 class="section-title">Employment</h3>
+                        <input type="text" id="syarikat" placeholder="Company Name">
+                        <textarea id="alamat_kerja" placeholder="Company Address" rows="3"></textarea>
+                        <input type="number" id="tahun_kerja" placeholder="Years Working" min="0">
+                        <input type="tel" id="no_pejabat" placeholder="Office Phone No.">
+                        <input type="text" id="jawatan" placeholder="Position (Jawatan)">
 
-                    <h3 class="section-title">Reference 2 (Relative)</h3>
-                    <input type="text" id="ref2_nama" placeholder="Name">
-                    <input type="text" id="ref2_hub" placeholder="Relationship (Hubungan)">
-                    <textarea id="ref2_alamat" placeholder="Ref 2 Address" rows="3"></textarea>
-                    <input type="tel" id="ref2_hp" placeholder="Phone No.">
+                        <h3 class="section-title">Reference 1 (Parent)</h3>
+                        <input type="text" id="ref1_nama" placeholder="Name">
+                        <input type="text" id="ref1_hub" placeholder="Relationship (Hubungan)">
+                        <textarea id="ref1_alamat" placeholder="Ref 1 Address" rows="3"></textarea>
+                        <input type="tel" id="ref1_hp" placeholder="Phone No.">
 
-                    <h3 class="section-title">Bank Details</h3>
-                    <input type="text" id="bank_nama" placeholder="Bank Name">
-                    <input type="text" id="bank_acc" placeholder="Account Number">
+                        <h3 class="section-title">Reference 2 (Relative)</h3>
+                        <input type="text" id="ref2_nama" placeholder="Name">
+                        <input type="text" id="ref2_hub" placeholder="Relationship (Hubungan)">
+                        <textarea id="ref2_alamat" placeholder="Ref 2 Address" rows="3"></textarea>
+                        <input type="tel" id="ref2_hp" placeholder="Phone No.">
 
-                    <h3 class="section-title">Documents</h3>
-                    <label>IC Copy (Image/PDF):</label>
-                    <input type="file" id="icFile" accept="image/*,.pdf" required>
+                        <h3 class="section-title">Bank Details</h3>
+                        <input type="text" id="bank_nama" placeholder="Bank Name">
+                        <input type="text" id="bank_acc" placeholder="Account Number">
+
+                        <h3 class="section-title">Documents</h3>
+                        <label>IC Copy (Image/PDF):</label>
+                        <input type="file" id="icFile" accept="image/*,.pdf" required>
+                        
+                        <label style="margin-top:10px;">Salary Slip (Image/PDF):</label>
+                        <input type="file" id="salarySlip" accept="image/*,.pdf" required>
+
+                        <button type="submit" id="submitBtn" class="btn-primary" style="margin-top:25px;">Submit Application</button>
+                    </form>
+
+                    <div id="appListContainer" class="card hidden" style="margin-bottom:0;">
+                        <h2 style="margin-top:0; color:var(--primary); font-size: 1.2rem;">Quick Application Tracker</h2>
+                        
+                        <div style="background:#f0f8ff; padding:15px; border-radius:8px; margin-bottom:15px; border: 1px solid #cce5ff;">
+                            <h4 style="margin-top:0; margin-bottom:10px;">Add New Submission</h4>
+                            <select id="qaProvider" style="margin-bottom:10px;">
+                                <option value="JCL">JCL</option>
+                                <option value="Aeon">Aeon</option>
+                                <option value="Atome">Atome</option>
+                            </select>
+                            <input type="text" id="qaCustomer" placeholder="Customer Name" style="margin-bottom:10px;">
+                            <input type="text" id="qaModel" placeholder="Phone Model" style="margin-bottom:10px;">
+                            <button onclick="submitQuickApp()" class="btn-success" style="width:100%; margin:0;">Add to Log</button>
+                        </div>
+                        
+                        <h4 style="margin-bottom:10px;">Application Status</h4>
+                        <div id="quickAppList" class="scroll-pane" style="max-height: 400px; padding:0; border:none;">Loading...</div>
+                    </div>
                     
-                    <label style="margin-top:10px;">Salary Slip (Image/PDF):</label>
-                    <input type="file" id="salarySlip" accept="image/*,.pdf" required>
-
-                    <button type="submit" id="submitBtn" class="btn-primary" style="margin-top:25px;">Submit Application</button>
-                </form>
+                </div>
             </div>
 
+            <div id="registration" class="tab-content">
+                <div class="card">
+                    <h3 style="margin-top:0; color:var(--primary);"><i class="fas fa-sim-card"></i> Registration Dashboard</h3>
+                    
+                    <div style="background:#f9f9f9; padding:15px; border-radius:8px; margin-bottom:15px; border: 1px solid #eee;">
+                        <h4 style="margin-top:0; margin-bottom:10px;">New Registration</h4>
+                        <select id="regCode" style="margin-bottom:10px;">
+                            <option value="TUTA">TUTA</option>
+                            <option value="PERMAS">PERMAS</option>
+                            <option value="KP">KP</option>
+                        </select>
+                        <input type="text" id="regPackage" placeholder="Package / Plan Name" style="margin-bottom:10px;">
+                        <button onclick="submitRegistration()" class="btn-primary" style="width:100%; margin:0;">Add Registration</button>
+                    </div>
+                    
+                    <h4 style="margin-bottom:10px; display:flex; justify-content:space-between; align-items:center;">
+                        Team Tracking Log
+                        <button class="btn-refresh" onclick="loadRegistrations()" style="margin:0; padding:4px 8px;">Refresh</button>
+                    </h4>
+                    <div id="regList" class="scroll-pane" style="max-height: 400px; padding:0; border:none;">Loading...</div>
+                </div>
+            </div>
+            
             <div id="plist" class="tab-content">
                 <div class="card">
                     <h3 style="margin-top:0; color:var(--primary);"><i class="fas fa-tags"></i> Device Price List</h3>
@@ -2452,6 +2506,145 @@
         function closeStaffModal() { 
             document.getElementById('staffModal').classList.add('hidden'); 
         }
+
+        // --- SUB-NAVIGATION FOR APPLICATION TAB ---
+        function toggleApplyView(view) {
+            if (view === 'full') {
+                document.getElementById('uploadForm').classList.remove('hidden');
+                document.getElementById('appListContainer').classList.add('hidden');
+                document.getElementById('btnFullForm').className = 'btn-primary';
+                document.getElementById('btnAppList').className = 'btn-secondary';
+            } else {
+                document.getElementById('uploadForm').classList.add('hidden');
+                document.getElementById('appListContainer').classList.remove('hidden');
+                document.getElementById('btnFullForm').className = 'btn-secondary';
+                document.getElementById('btnAppList').className = 'btn-primary';
+                loadQuickApps();
+            }
+        }
+
+        // --- FEATURE 1: QUICK APPS ---
+        async function submitQuickApp() {
+            const provider = document.getElementById('qaProvider').value;
+            const cust = document.getElementById('qaCustomer').value.trim();
+            const model = document.getElementById('qaModel').value.trim();
+            
+            if(!cust || !model) return alert("Fill customer and model names");
+            
+            try {
+                await fetch(`${API_URL}/ansuran-apps`, {
+                    method: 'POST', headers: {'Content-Type':'application/json'},
+                    body: JSON.stringify({ provider, customer_name: cust, phone_model: model, staff_name: currentUser.name })
+                });
+                document.getElementById('qaCustomer').value = '';
+                document.getElementById('qaModel').value = '';
+                loadQuickApps();
+            } catch(e) { alert('Error submitting app'); }
+        }
+
+        async function loadQuickApps() {
+            try {
+                const res = await fetch(`${API_URL}/ansuran-apps`);
+                const apps = await res.json();
+                const list = document.getElementById('quickAppList');
+                if(!apps.length) { list.innerHTML = "<p style='text-align:center; color:#999;'>No apps logged.</p>"; return; }
+                
+                list.innerHTML = apps.map(a => {
+                    const date = new Date(a.created_at).toLocaleDateString('en-MY');
+                    const colors = { 'Pending':'#f39c12', 'Success':'#27ae60', 'Reject':'#c0392b' };
+                    return `
+                        <div style="background:white; border:1px solid #ddd; padding:12px; border-radius:8px; margin-bottom:10px;">
+                            <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
+                                <b>${escapeHtml(a.customer_name)}</b>
+                                <span style="background:${colors[a.status]}; color:white; padding:2px 8px; border-radius:12px; font-size:0.75rem; font-weight:bold;">${a.status}</span>
+                            </div>
+                            <div style="font-size:0.85rem; color:#555;">
+                                ${a.provider} - ${escapeHtml(a.phone_model)}<br>
+                                <small>By: ${escapeHtml(a.staff_name)} on ${date}</small>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            } catch(e) {}
+        }
+
+        // --- FEATURE 2: REGISTRATION LOGS ---
+        async function submitRegistration() {
+            const code = document.getElementById('regCode').value;
+            const pkg = document.getElementById('regPackage').value.trim();
+            
+            if(!pkg) return alert("Please enter package details");
+            
+            try {
+                await fetch(`${API_URL}/registrations`, {
+                    method: 'POST', headers: {'Content-Type':'application/json'},
+                    body: JSON.stringify({ code, package_reg: pkg, staff_name: currentUser.name })
+                });
+                document.getElementById('regPackage').value = '';
+                loadRegistrations();
+            } catch(e) { alert('Error adding registration'); }
+        }
+
+        async function loadRegistrations() {
+            try {
+                const res = await fetch(`${API_URL}/registrations`);
+                const regs = await res.json();
+                const list = document.getElementById('regList');
+                if(!regs.length) { list.innerHTML = "<p style='text-align:center; color:#999;'>No registrations logged.</p>"; return; }
+                
+                list.innerHTML = regs.map(r => {
+                    const date = new Date(r.created_at).toLocaleDateString('en-MY');
+                    const colors = { 'Pending':'#f39c12', 'Success':'#27ae60', 'Reject':'#c0392b' };
+                    
+                    let updateBtns = '';
+                    // The prompt asked for this to be updated by "teams" (meaning any staff member can update it)
+                    if(r.status === 'Pending') {
+                        updateBtns = `
+                            <div style="display:flex; gap:8px; margin-top:8px;">
+                                <button class="btn-success" style="padding:4px 8px; font-size:0.8rem; margin:0;" onclick="updateRegistration(${r.id}, 'Success')">✓ Success</button>
+                                <button class="btn-danger" style="padding:4px 8px; font-size:0.8rem; margin:0;" onclick="updateRegistration(${r.id}, 'Reject')">✕ Reject</button>
+                            </div>
+                        `;
+                    }
+                    
+                    return `
+                        <div style="background:white; border:1px solid #ddd; padding:12px; border-radius:8px; margin-bottom:10px;">
+                            <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
+                                <b><span style="background:#eee; padding:2px 6px; border-radius:4px; font-size:0.8rem;">${r.code}</span> ${escapeHtml(r.package_reg)}</b>
+                                <span style="color:${colors[r.status]}; font-size:0.85rem; font-weight:bold;">${r.status}</span>
+                            </div>
+                            <div style="font-size:0.8rem; color:#666;">
+                                Added by: ${escapeHtml(r.staff_name)} on ${date}
+                            </div>
+                            ${updateBtns}
+                        </div>
+                    `;
+                }).join('');
+            } catch(e) {}
+        }
+
+        async function updateRegistration(id, status) {
+            if(!confirm(`Mark as ${status}?`)) return;
+            try {
+                await fetch(`${API_URL}/registrations/${id}`, {
+                    method: 'PUT', headers: {'Content-Type':'application/json'},
+                    body: JSON.stringify({ status })
+                });
+                loadRegistrations();
+            } catch(e) { alert("Update failed"); }
+        }
+
+        // Lastly, hook the load function into the main switchTab function
+        const originalSwitchTabFunc = switchTabFromDropdown;
+        switchTabFromDropdown = function(tabId) {
+            originalSwitchTabFunc(tabId); // run existing logic
+            if(tabId === 'registration') loadRegistrations();
+        };
+        const originalOpenTabFunc = openTab;
+        openTab = function(tabId, btnElement) {
+            originalOpenTabFunc(tabId, btnElement); // run existing logic
+            if(tabId === 'registration') loadRegistrations();
+        };
     
         function switchModalTab(tabId, btn) {
             // Hide all modal tab contents
@@ -2479,6 +2672,7 @@
     </script>
 </body>
 </html>
+
 
 
 

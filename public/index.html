@@ -776,7 +776,9 @@
                                 <option value="Atome">Atome</option>
                             </select>
                             <input type="text" id="qaCustomer" placeholder="Customer Name" style="margin-bottom:10px;">
-                            <input type="text" id="qaModel" placeholder="Phone Model" style="margin-bottom:10px;">
+                            <select id="qaModel" style="margin-bottom:10px;">
+                                <option value="">-- Select Phone Model --</option>
+                            </select>
                             <button onclick="submitQuickApp()" class="btn-success" style="width:100%; margin:0;">Add to Log</button>
                         </div>
                         
@@ -1844,13 +1846,25 @@
         }
 
         function updateSelects() {
+            // 1. Populate Calculator Dropdowns
             const dropdowns = [document.getElementById('phone1'), document.getElementById('phone2')];
             dropdowns.forEach(select => {
+                if (!select) return;
                 select.innerHTML = '<option value="0">-- Select Item --</option>';
                 allPhones.forEach(p => {
                     select.innerHTML += `<option value="${p.id}">${escapeHtml(p.model)}</option>`;
                 });
             });
+
+            // 2. Populate Quick Application Dropdown
+            const qaModelSelect = document.getElementById('qaModel');
+            if (qaModelSelect) {
+                qaModelSelect.innerHTML = '<option value="">-- Select Phone Model --</option>';
+                allPhones.forEach(p => {
+                    // We set the value to the model name so it saves correctly in the database
+                    qaModelSelect.innerHTML += `<option value="${escapeHtml(p.model)}">${escapeHtml(p.model)}</option>`;
+                });
+            }
         }
 
         function handleSearch() {
@@ -2672,6 +2686,7 @@
     </script>
 </body>
 </html>
+
 
 
 

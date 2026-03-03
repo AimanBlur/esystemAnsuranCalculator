@@ -1102,6 +1102,57 @@ const app = new Elysia()
                 salarySlip: t.File()
             })
         })
+
+    // --- FEATURE 1: ANSURAN QUICK APPS ---
+        .post('/ansuran-apps', async ({ body, set }) => {
+            const sql = getDb(); if (!sql) { set.status = 500; return { success: false }; }
+            const b = body as any;
+            try {
+                await sql`INSERT INTO ansuran_applications (provider, customer_name, phone_model, staff_name) VALUES (${b.provider}, ${b.customer_name}, ${b.phone_model}, ${b.staff_name})`;
+                await sql.end(); return { success: true };
+            } catch(e) { try{await sql.end();}catch(err){} return {success: false, error: String(e)}; }
+        })
+        .get('/ansuran-apps', async ({ set }) => {
+            const sql = getDb(); if (!sql) return [];
+            try {
+                const res = await sql`SELECT * FROM ansuran_applications ORDER BY created_at DESC`;
+                await sql.end(); return [...res];
+            } catch(e) { try{await sql.end();}catch(err){} return []; }
+        })
+        .put('/ansuran-apps/:id', async ({ params, body, headers, set }) => {
+            const sql = getDb(); if (!sql) return { success: false };
+            if (headers['admin-secret'] !== process.env.ADMIN_PASSWORD) return { success: false };
+            const b = body as any;
+            try {
+                await sql`UPDATE ansuran_applications SET status = ${b.status} WHERE id = ${params.id}`;
+                await sql.end(); return { success: true };
+            } catch(e) { try{await sql.end();}catch(err){} return {success: false}; }
+        })
+
+        // --- FEATURE 2: REGISTRATIONS ---
+        .post('/registrations', async ({ body, set }) => {
+            const sql = getDb(); if (!sql) { set.status = 500; return { success: false }; }
+            const b = body as any;
+            try {
+                await sql`INSERT INTO registrations (code, package_reg, staff_name) VALUES (${b.code}, ${b.package_reg}, ${b.staff_name})`;
+                await sql.end(); return { success: true };
+            } catch(e) { try{await sql.end();}catch(err){} return {success: false, error: String(e)}; }
+        })
+        .get('/registrations', async ({ set }) => {
+            const sql = getDb(); if (!sql) return [];
+            try {
+                const res = await sql`SELECT * FROM registrations ORDER BY created_at DESC`;
+                await sql.end(); return [...res];
+            } catch(e) { try{await sql.end();}catch(err){} return []; }
+        })
+        .put('/registrations/:id', async ({ params, body, set }) => {
+            const sql = getDb(); if (!sql) return { success: false };
+            const b = body as any;
+            try {
+                await sql`UPDATE registrations SET status = ${b.status} WHERE id = ${params.id}`;
+                await sql.end(); return { success: true };
+            } catch(e) { try{await sql.end();}catch(err){} return {success: false}; }
+        })
     );
 
 export default app;

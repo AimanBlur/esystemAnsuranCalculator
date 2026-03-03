@@ -189,15 +189,14 @@
                 </table>
             </div>
         </div>
-
-    </div>
-
-    <div id="view-quickapps" class="hidden">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
-            <h3 style="margin:0;">Ansuran Applications (JCL/Aeon/Atome)</h3>
-            <button onclick="loadAdminQuickApps()" style="width:auto;"><i class="fas fa-sync"></i> Refresh</button>
+        
+        <div id="view-quickapps" class="hidden">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+                <h3 style="margin:0;">Ansuran Applications (JCL/Aeon/Atome)</h3>
+                <button onclick="loadAdminQuickApps()" style="width:auto;"><i class="fas fa-sync"></i> Refresh</button>
+            </div>
+            <div id="adminQuickAppList" style="display: grid; gap: 15px;">Loading...</div>
         </div>
-        <div id="adminQuickAppList" style="display: grid; gap: 15px;">Loading...</div>
     </div>
 
     <div id="bulkBar" class="bulk-bar inactive">
@@ -869,6 +868,7 @@
     </script>
 </body>
 </html>
+
 
 
 

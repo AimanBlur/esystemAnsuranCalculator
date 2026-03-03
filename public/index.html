@@ -795,18 +795,28 @@
                     
                     <div style="background:#f9f9f9; padding:15px; border-radius:8px; margin-bottom:15px; border: 1px solid #eee;">
                         <h4 style="margin-top:0; margin-bottom:10px;">New Registration</h4>
-                        <select id="regCode" style="margin-bottom:10px;">
-                            <option value="TUTA">TUTA</option>
-                            <option value="PERMAS">PERMAS</option>
+                        
+                        <label style="font-size: 0.85rem; color:#666;">Staff Name</label>
+                        <select id="regStaff" style="margin-bottom:10px;">
+                            <option value="">Loading staff...</option>
                         </select>
+                        
+                        <label style="font-size: 0.85rem; color:#666;">Package Details</label>
                         <input type="text" id="regPackage" placeholder="Package / Plan Name" style="margin-bottom:10px;">
+                        
                         <button onclick="submitRegistration()" class="btn-primary" style="width:100%; margin:0;">Add Registration</button>
                     </div>
                     
-                    <h4 style="margin-bottom:10px; display:flex; justify-content:space-between; align-items:center;">
-                        Team Tracking Log
-                        <button class="btn-refresh" onclick="loadRegistrations()" style="margin:0; padding:4px 8px;">Refresh</button>
-                    </h4>
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; flex-wrap:wrap; gap:10px;">
+                        <h4 style="margin:0;">Team Tracking Log</h4>
+                        <div style="display:flex; gap:10px; align-items:center;">
+                            <select id="regFilterStaff" onchange="loadRegistrations()" style="margin:0; padding:6px 10px; font-size:0.85rem; border-radius:4px;">
+                                <option value="all">All Staff</option>
+                            </select>
+                            <button class="btn-refresh" onclick="loadRegistrations()" style="margin:0; padding:6px 10px;"><i class="fas fa-sync"></i> Refresh</button>
+                        </div>
+                    </div>
+                    
                     <div id="regList" class="scroll-pane" style="max-height: 400px; padding:0; border:none;">Loading...</div>
                 </div>
             </div>
@@ -2582,16 +2592,19 @@
         }
 
         // --- FEATURE 2: REGISTRATION LOGS ---
+        let regStaffLoaded = false;
+
         async function submitRegistration() {
-            const code = document.getElementById('regCode').value;
+            const staff = document.getElementById('regStaff').value;
             const pkg = document.getElementById('regPackage').value.trim();
             
-            if(!pkg) return alert("Please enter package details");
+            if(!pkg || !staff) return alert("Please select a staff member and enter package details");
             
             try {
                 await fetch(`${API_URL}/registrations`, {
                     method: 'POST', headers: {'Content-Type':'application/json'},
-                    body: JSON.stringify({ code, package_reg: pkg, staff_name: currentUser.name })
+                    // We send the selected staff as 'staff_name', and put '-' in the old unused 'code' column
+                    body: JSON.stringify({ code: '-', package_reg: pkg, staff_name: staff })
                 });
                 document.getElementById('regPackage').value = '';
                 loadRegistrations();
@@ -2600,17 +2613,46 @@
 
         async function loadRegistrations() {
             try {
+                // 1. Fetch Staff List for Dropdowns (only do this once per session)
+                if (!regStaffLoaded) {
+                    const uRes = await fetch(`${API_URL}/users`);
+                    const users = await uRes.json();
+                    
+                    const sel = document.getElementById('regStaff');
+                    const fSel = document.getElementById('regFilterStaff');
+                    
+                    sel.innerHTML = '';
+                    fSel.innerHTML = '<option value="all">All Staff</option>';
+                    
+                    users.forEach(u => {
+                        // Automatically select the logged-in user
+                        const isMe = (u.name === currentUser.name) ? 'selected' : '';
+                        sel.innerHTML += `<option value="${escapeHtml(u.name)}" ${isMe}>${escapeHtml(u.name)}</option>`;
+                        fSel.innerHTML += `<option value="${escapeHtml(u.name)}">${escapeHtml(u.name)}</option>`;
+                    });
+                    regStaffLoaded = true;
+                }
+
+                // 2. Fetch the registration logs
                 const res = await fetch(`${API_URL}/registrations`);
                 const regs = await res.json();
-                const list = document.getElementById('regList');
-                if(!regs.length) { list.innerHTML = "<p style='text-align:center; color:#999;'>No registrations logged.</p>"; return; }
                 
-                list.innerHTML = regs.map(r => {
+                // 3. Apply the Filter
+                const filterVal = document.getElementById('regFilterStaff').value;
+                const filteredRegs = filterVal === 'all' ? regs : regs.filter(r => r.staff_name === filterVal);
+                
+                // 4. Render the list
+                const list = document.getElementById('regList');
+                if(!filteredRegs.length) { 
+                    list.innerHTML = "<p style='text-align:center; color:#999;'>No registrations found.</p>"; 
+                    return; 
+                }
+                
+                list.innerHTML = filteredRegs.map(r => {
                     const date = new Date(r.created_at).toLocaleDateString('en-MY');
                     const colors = { 'Pending':'#f39c12', 'Success':'#27ae60', 'Reject':'#c0392b' };
                     
                     let updateBtns = '';
-                    // The prompt asked for this to be updated by "teams" (meaning any staff member can update it)
                     if(r.status === 'Pending') {
                         updateBtns = `
                             <div style="display:flex; gap:8px; margin-top:8px;">
@@ -2623,19 +2665,20 @@
                     return `
                         <div style="background:white; border:1px solid #ddd; padding:12px; border-radius:8px; margin-bottom:10px;">
                             <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
-                                <b><span style="background:#eee; padding:2px 6px; border-radius:4px; font-size:0.8rem;">${r.code}</span> ${escapeHtml(r.package_reg)}</b>
+                                <b style="color:var(--primary); font-size:1.05rem;">${escapeHtml(r.package_reg)}</b>
                                 <span style="color:${colors[r.status]}; font-size:0.85rem; font-weight:bold;">${r.status}</span>
                             </div>
-                            <div style="font-size:0.8rem; color:#666;">
-                                Added by: ${escapeHtml(r.staff_name)} on ${date}
+                            <div style="font-size:0.85rem; color:#555;">
+                                Staff: <b>${escapeHtml(r.staff_name)}</b><br>
+                                <small><i class="fas fa-calendar-alt"></i> ${date}</small>
                             </div>
                             ${updateBtns}
                         </div>
                     `;
                 }).join('');
-            } catch(e) {}
+            } catch(e) { console.error('Registration load error:', e); }
         }
-
+        
         async function updateRegistration(id, status) {
             if(!confirm(`Mark as ${status}?`)) return;
             try {
@@ -2685,6 +2728,7 @@
     </script>
 </body>
 </html>
+
 
 
 

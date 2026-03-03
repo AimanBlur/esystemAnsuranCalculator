@@ -2673,7 +2673,12 @@
                     return `
                         <div style="background:white; border:1px solid #ddd; padding:12px; border-radius:8px; margin-bottom:10px;">
                             <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
-                                <b style="color:var(--primary); font-size:1.05rem;">${escapeHtml(r.package_reg)}</b>
+                                <b style="color:var(--primary); font-size:1.05rem;">
+                                    <span style="background:#e3f2fd; color:#0056b3; padding:2px 6px; border-radius:4px; font-size:0.85rem; margin-right:5px;">
+                                        ${escapeHtml(r.code || '-')}
+                                    </span>
+                                    ${escapeHtml(r.package_reg)}
+                                </b>
                                 <span style="color:${colors[r.status]}; font-size:0.85rem; font-weight:bold;">${r.status}</span>
                             </div>
                             <div style="font-size:0.85rem; color:#555;">
@@ -2736,6 +2741,7 @@
     </script>
 </body>
 </html>
+
 
 
 

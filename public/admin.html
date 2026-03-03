@@ -57,7 +57,7 @@
 
     <div id="loginScreen" class="container">
         <h2 style="justify-content:center;"><i class="fas fa-lock"></i> Admin Login</h2>
-        <input type="password" id="adminPassInput" placeholder="Enter Secret Password">
+        <input type="password" id="adminPassInput" placeholder="Enter Password">
         <button onclick="attemptLogin()"><i class="fas fa-sign-in-alt"></i> Login</button>
     </div>
 
@@ -71,6 +71,7 @@
             <button class="nav-btn active" onclick="switchTab('inventory')"><i class="fas fa-boxes"></i> Ansuran</button>
             <button class="nav-btn" onclick="switchTab('staff')"><i class="fas fa-users-cog"></i> Staff</button>
             <button class="nav-btn" onclick="switchTab('audits')"><i class="fas fa-clipboard-check"></i> Audits</button>
+            <button class="nav-btn" onclick="switchTab('quickapps')"><i class="fas fa-file-signature"></i> Ansuran Application</button>
         </div>
 
         <div id="view-inventory">
@@ -189,6 +190,14 @@
             </div>
         </div>
 
+    </div>
+
+    <div id="view-quickapps" class="hidden">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+            <h3 style="margin:0;">Ansuran Applications (JCL/Aeon/Atome)</h3>
+            <button onclick="loadAdminQuickApps()" style="width:auto;"><i class="fas fa-sync"></i> Refresh</button>
+        </div>
+        <div id="adminQuickAppList" style="display: grid; gap: 15px;">Loading...</div>
     </div>
 
     <div id="bulkBar" class="bulk-bar inactive">
@@ -742,6 +751,68 @@
             document.getElementById('bulkEditModal').classList.add('hidden');
         }
 
+        // --- QUICK APPS (ADMIN VIEW) ---
+        async function loadAdminQuickApps() {
+            try {
+                const res = await fetch(`${API_URL}/ansuran-apps`);
+                const apps = await res.json();
+                const list = document.getElementById('adminQuickAppList');
+                if(!apps.length) { list.innerHTML = "<p>No applications found.</p>"; return; }
+
+                list.innerHTML = apps.map(a => {
+                    const date = new Date(a.created_at).toLocaleDateString('en-MY');
+                    let buttons = '';
+                    if (a.status === 'Pending') {
+                        buttons = `
+                            <div style="display:flex; gap:10px; margin-top:10px;">
+                                <button class="btn-success" onclick="updateQuickAppStatus(${a.id}, 'Success')">Approve</button>
+                                <button class="btn-danger" onclick="updateQuickAppStatus(${a.id}, 'Reject')">Reject</button>
+                            </div>
+                        `;
+                    }
+                    
+                    const colors = { 'Pending':'#f39c12', 'Success':'#27ae60', 'Reject':'#c0392b' };
+                    
+                    return `
+                        <div style="background:white; border:1px solid #ddd; padding:15px; border-radius:8px;">
+                            <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
+                                <b>${a.provider} - ${a.customer_name}</b>
+                                <span style="background:${colors[a.status]}; color:white; padding:2px 8px; border-radius:12px; font-size:0.8rem;">${a.status}</span>
+                            </div>
+                            <div style="font-size:0.9rem; color:#666;">
+                                Model: <b>${a.phone_model}</b><br>
+                                Submitted by: ${a.staff_name} on ${date}
+                            </div>
+                            ${buttons}
+                        </div>
+                    `;
+                }).join('');
+            } catch(e) { console.error(e); }
+        }
+
+        async function updateQuickAppStatus(id, status) {
+            if(!confirm(`Mark this application as ${status}?`)) return;
+            try {
+                await fetch(`${API_URL}/ansuran-apps/${id}`, {
+                    method: 'PUT',
+                    headers: {'Content-Type': 'application/json', 'admin-secret': secretKey},
+                    body: JSON.stringify({ status })
+                });
+                loadAdminQuickApps();
+            } catch(e) { alert("Error updating"); }
+        }
+        
+        // Add loadAdminQuickApps() to the end of your switchTab() function logic if needed, or simply run it in init()
+        const oldInit = init;
+        init = async function() { await oldInit(); loadAdminQuickApps(); }
+        
+        const oldSwitchTab = switchTab;
+        switchTab = function(tabName) {
+            oldSwitchTab(tabName);
+            document.getElementById('view-quickapps').classList.add('hidden');
+            if(tabName === 'quickapps') document.getElementById('view-quickapps').classList.remove('hidden');
+        }
+
         async function saveBulkEdit() {
             const btn = document.getElementById('bulkSaveBtn');
             btn.innerText = "Saving..."; 
@@ -798,6 +869,7 @@
     </script>
 </body>
 </html>
+
 
 
 

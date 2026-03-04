@@ -554,6 +554,7 @@
                 <option value="apply">Application</option>
                 <option value="audit">Audit</option>
                 <option value="registration">Registration</option>
+                <option value="verification">Verification</option>
                 <option value="plist">Price List</option>
                 <option value="requests">Requests <span id="mobileBadgeText"></span></option>
                 <option value="shift">Shift</option>
@@ -572,6 +573,9 @@
             </button>
             <button class="tab-btn" data-tab="registration" onclick="openTab('registration', this)">
                 <i class="fas fa-sim-card"></i> Registration
+            </button>
+            <button class="tab-btn" data-tab="verification" onclick="openTab('verification', this)">
+                <i class="fas fa-check-circle"></i> Verification
             </button>
             <button class="tab-btn" onclick="openTab('plist', this)">
                 <i class="fas fa-tags"></i> Price List
@@ -825,6 +829,33 @@
                     </div>
                     
                     <div id="regList" class="scroll-pane" style="max-height: 400px; padding:0; border:none;">Loading...</div>
+                </div>
+            </div>
+
+            <div id="verification" class="tab-content">
+                <div class="card">
+                    <h3 style="margin-top:0; color:var(--primary);"><i class="fas fa-check-circle"></i> Payment Verification</h3>
+                    
+                    <div style="background:#f9f9f9; padding:15px; border-radius:8px; margin-bottom:15px; border: 1px solid #eee;">
+                        <h4 style="margin-top:0; margin-bottom:10px;">Submit Online Payment</h4>
+                        
+                        <label style="font-size: 0.85rem; color:#666;">Exact Date & Time of Payment</label>
+                        <input type="datetime-local" id="verifyDateTime" style="margin-bottom:10px;">
+                        
+                        <label style="font-size: 0.85rem; color:#666;">Last 4 Digits of Ref ID</label>
+                        <input type="text" id="verifyRef" placeholder="e.g. 1234" maxlength="4" style="margin-bottom:10px;">
+                        
+                        <label style="font-size: 0.85rem; color:#666;">Amount Paid (RM)</label>
+                        <input type="number" id="verifyAmount" placeholder="0.00" step="0.01" style="margin-bottom:15px;">
+                        
+                        <button onclick="submitVerification()" class="btn-primary" style="width:100%; margin:0;">Submit Verification</button>
+                    </div>
+                    
+                    <h4 style="margin-bottom:10px; display:flex; justify-content:space-between; align-items:center;">
+                        Verification Log
+                        <button class="btn-refresh" onclick="loadVerifications()" style="margin:0; padding:4px 8px;"><i class="fas fa-sync"></i> Refresh</button>
+                    </h4>
+                    <div id="verificationList" class="scroll-pane" style="max-height: 400px; padding:0; border:none;">Loading...</div>
                 </div>
             </div>
             
@@ -2708,11 +2739,13 @@
         switchTabFromDropdown = function(tabId) {
             originalSwitchTabFunc(tabId); // run existing logic
             if(tabId === 'registration') loadRegistrations();
+            if(tabId === 'verification') loadVerifications();
         };
         const originalOpenTabFunc = openTab;
         openTab = function(tabId, btnElement) {
             originalOpenTabFunc(tabId, btnElement); // run existing logic
             if(tabId === 'registration') loadRegistrations();
+            if(tabId === 'verification') loadVerifications();
         };
     
         function switchModalTab(tabId, btn) {
@@ -2738,9 +2771,77 @@
             btn.style.fontWeight = 'bold';
             btn.style.color = '#0056b3';
         }
+
+        // --- FEATURE 3: PAYMENT VERIFICATIONS ---
+        async function submitVerification() {
+            const dt = document.getElementById('verifyDateTime').value;
+            const ref = document.getElementById('verifyRef').value.trim();
+            const amt = document.getElementById('verifyAmount').value;
+            
+            if(!dt || !ref || !amt) return alert("Please fill all fields completely.");
+            if(ref.length < 4) return alert("Please provide exactly the last 4 digits of the Ref ID.");
+            
+            try {
+                await fetch(`${API_URL}/verifications`, {
+                    method: 'POST', headers: {'Content-Type':'application/json'},
+                    body: JSON.stringify({ payment_datetime: dt, ref_id: ref, amount: parseFloat(amt), staff_name: currentUser.name })
+                });
+                
+                // Clear form
+                document.getElementById('verifyDateTime').value = '';
+                document.getElementById('verifyRef').value = '';
+                document.getElementById('verifyAmount').value = '';
+                
+                alert("Verification submitted successfully!");
+                loadVerifications();
+            } catch(e) { alert('Error submitting verification'); }
+        }
+
+        async function loadVerifications() {
+            try {
+                const res = await fetch(`${API_URL}/verifications`);
+                const verifs = await res.json();
+                const list = document.getElementById('verificationList');
+                
+                if(!verifs.length) { 
+                    list.innerHTML = "<p style='text-align:center; color:#999;'>No verifications submitted.</p>"; 
+                    return; 
+                }
+                
+                list.innerHTML = verifs.map(v => {
+                    const submissionDate = new Date(v.created_at).toLocaleDateString('en-MY');
+                    
+                    // Format the payment datetime string properly
+                    const pDateObj = new Date(v.payment_datetime);
+                    const paymentDate = pDateObj.toLocaleDateString('en-MY', { day: 'numeric', month: 'short', year: 'numeric' });
+                    const paymentTime = pDateObj.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+                    
+                    const colors = { 'Pending':'#f39c12', 'Verified':'#27ae60', 'Rejected':'#c0392b' };
+                    
+                    return `
+                        <div style="background:white; border:1px solid #ddd; padding:12px; border-radius:8px; margin-bottom:10px;">
+                            <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
+                                <b style="color:var(--primary); font-size:1.1rem;">RM ${parseFloat(v.amount).toFixed(2)}</b>
+                                <span style="color:${colors[v.status]}; font-size:0.85rem; font-weight:bold; border:1px solid ${colors[v.status]}; padding:2px 8px; border-radius:12px;">${v.status}</span>
+                            </div>
+                            <div style="font-size:0.85rem; color:#444; margin-bottom:4px;">
+                                <i class="fas fa-hashtag" style="color:#888;"></i> Ref: <b>...${escapeHtml(v.ref_id)}</b>
+                            </div>
+                            <div style="font-size:0.85rem; color:#444; margin-bottom:8px;">
+                                <i class="fas fa-clock" style="color:#888;"></i> Paid: <b>${paymentDate} at ${paymentTime}</b>
+                            </div>
+                            <div style="font-size:0.75rem; color:#888; border-top: 1px solid #eee; padding-top: 6px;">
+                                Submitted by: ${escapeHtml(v.staff_name)} on ${submissionDate}
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            } catch(e) { console.error('Verification load error:', e); }
+        }
     </script>
 </body>
 </html>
+
 
 
 

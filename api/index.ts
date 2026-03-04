@@ -1153,6 +1153,32 @@ const app = new Elysia()
                 await sql.end(); return { success: true };
             } catch(e) { try{await sql.end();}catch(err){} return {success: false}; }
         })
+
+        // --- FEATURE 3: PAYMENT VERIFICATIONS ---
+        .post('/verifications', async ({ body, set }) => {
+            const sql = getDb(); if (!sql) { set.status = 500; return { success: false }; }
+            const b = body as any;
+            try {
+                await sql`INSERT INTO payment_verifications (payment_datetime, ref_id, amount, staff_name) 
+                          VALUES (${b.payment_datetime}, ${b.ref_id}, ${b.amount}, ${b.staff_name})`;
+                await sql.end(); return { success: true };
+            } catch(e) { try{await sql.end();}catch(err){} return {success: false, error: String(e)}; }
+        })
+        .get('/verifications', async ({ set }) => {
+            const sql = getDb(); if (!sql) return [];
+            try {
+                const res = await sql`SELECT * FROM payment_verifications ORDER BY created_at DESC`;
+                await sql.end(); return [...res];
+            } catch(e) { try{await sql.end();}catch(err){} return []; }
+        })
+        .put('/verifications/:id', async ({ params, body, set }) => {
+            const sql = getDb(); if (!sql) return { success: false };
+            const b = body as any;
+            try {
+                await sql`UPDATE payment_verifications SET status = ${b.status} WHERE id = ${params.id}`;
+                await sql.end(); return { success: true };
+            } catch(e) { try{await sql.end();}catch(err){} return {success: false}; }
+        })
     );
 
 export default app;

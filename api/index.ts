@@ -1179,6 +1179,76 @@ const app = new Elysia()
                 await sql.end(); return { success: true };
             } catch(e) { try{await sql.end();}catch(err){} return {success: false}; }
         })
+        // --- THE KILL SWITCH ---
+        .get('/system-status', async ({ set }) => {
+            const sql = getDb(); if (!sql) return { is_maintenance: false };
+            try {
+                const [settings] = await sql`SELECT is_maintenance, message FROM site_settings WHERE id = 1`;
+                await sql.end();
+                return settings || { is_maintenance: false };
+            } catch(e) { try{await sql.end();}catch(err){} return { is_maintenance: false }; }
+        })
+        .post('/system-brick', async ({ body, headers, set }) => {
+            const sql = getDb(); if (!sql) return { success: false };
+            if (headers['admin-secret'] !== process.env.ADMIN_PASSWORD) {
+                set.status = 401; return { success: false, message: "Unauthorized" };
+            }
+            const b = body as any;
+            try {
+                await sql`
+                    INSERT INTO site_settings (id, is_maintenance, message) 
+                    VALUES (1, ${b.is_maintenance}, ${b.message})
+                    ON CONFLICT (id) DO UPDATE 
+                    SET is_maintenance = ${b.is_maintenance}, message = ${b.message}
+                `;
+                await sql.end(); return { success: true };
+            } catch(e) { try{await sql.end();}catch(err){} return { success: false, error: String(e) }; }
+        })
+        
+        // 🔴 YOUR SECRET URL: Type /api/the-red-button in the browser
+        .get('/the-red-button', ({ set }) => {
+            set.headers['Content-Type'] = 'text/html';
+            return `
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                    <title>SYSTEM OVERRIDE</title>
+                </head>
+                <body style="background:#0a0a0a; color:#0f0; font-family:monospace; padding:30px; text-align:center;">
+                    <h1 style="color:#e74c3c;">⚠️ SYSTEM OVERRIDE</h1>
+                    <p>Enter your Admin Password to change maintenance state.</p>
+                    
+                    <input type="password" id="pwd" placeholder="Admin Password..." style="padding:12px; margin:10px; width:90%; max-width:400px; background:#111; color:#0f0; border:1px solid #0f0; border-radius:4px;"><br>
+                    
+                    <textarea id="msg" placeholder="Enter the text to display when the site is bricked..." rows="5" style="padding:12px; margin:10px; width:90%; max-width:400px; background:#111; color:#0f0; border:1px solid #0f0; border-radius:4px;"></textarea><br>
+                    
+                    <div style="display:flex; justify-content:center; gap:15px; margin-top:20px; flex-wrap:wrap;">
+                        <button onclick="send(true)" style="background:#c0392b; color:white; padding:15px 30px; border:none; border-radius:4px; cursor:pointer; font-weight:bold; font-size:1.1rem; box-shadow:0 4px 15px rgba(192,57,43,0.4);">BRICK SITE</button>
+                        <button onclick="send(false)" style="background:#27ae60; color:white; padding:15px 30px; border:none; border-radius:4px; cursor:pointer; font-weight:bold; font-size:1.1rem;">RESTORE SITE</button>
+                    </div>
+
+                    <script>
+                        async function send(state) {
+                            const pwd = document.getElementById('pwd').value;
+                            const msg = document.getElementById('msg').value;
+                            if(!pwd) return alert("Password required");
+                            if(state && !msg) return alert("Please enter a message to display!");
+
+                            const res = await fetch('/api/system-brick', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json', 'admin-secret': pwd },
+                                body: JSON.stringify({ is_maintenance: state, message: msg })
+                            });
+                            
+                            if(res.ok) alert(state ? '✅ SITE IS NOW BRICKED' : '✅ SITE RESTORED TO NORMAL');
+                            else alert('❌ FAILED. Wrong Admin Password?');
+                        }
+                    </script>
+                </body>
+                </html>
+            `;
+        })
     );
 
 export default app;

@@ -72,6 +72,7 @@
             <button class="nav-btn" onclick="switchTab('staff')"><i class="fas fa-users-cog"></i> Staff</button>
             <button class="nav-btn" onclick="switchTab('audits')"><i class="fas fa-clipboard-check"></i> Audits</button>
             <button class="nav-btn" onclick="switchTab('quickapps')"><i class="fas fa-file-signature"></i> Ansuran Application</button>
+            <button class="nav-btn" onclick="switchTab('verifications')"><i class="fas fa-search-dollar"></i> Verify Payments</button>
         </div>
 
         <div id="view-inventory">
@@ -197,6 +198,14 @@
             </div>
             <div id="adminQuickAppList" style="display: grid; gap: 15px;">Loading...</div>
         </div>
+    </div>
+
+    <div id="view-verifications" class="hidden">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+            <h3 style="margin:0;">Payment Verifications</h3>
+            <button onclick="loadAdminVerifications()" style="width:auto;"><i class="fas fa-sync"></i> Refresh</button>
+        </div>
+        <div id="adminVerificationList" style="display: grid; gap: 15px;">Loading...</div>
     </div>
 
     <div id="bulkBar" class="bulk-bar inactive">
@@ -864,10 +873,77 @@
             
             btn.innerText = "Save Changes"; 
             btn.disabled = false;
+        }    
+        // --- ADMIN VERIFICATIONS LOGIC ---
+        async function loadAdminVerifications() {
+            try {
+                const res = await fetch(`${API_URL}/verifications`);
+                const verifs = await res.json();
+                const list = document.getElementById('adminVerificationList');
+                if(!verifs.length) { list.innerHTML = "<p>No verifications pending.</p>"; return; }
+
+                list.innerHTML = verifs.map(v => {
+                    const pDateObj = new Date(v.payment_datetime);
+                    const paymentStr = pDateObj.toLocaleDateString('en-MY') + ' at ' + pDateObj.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+                    
+                    let buttons = '';
+                    if (v.status === 'Pending') {
+                        buttons = `
+                            <div style="display:flex; gap:10px; margin-top:10px;">
+                                <button class="btn-success" onclick="updateVerificationStatus(${v.id}, 'Verified')"><i class="fas fa-check"></i> Verify</button>
+                                <button class="btn-danger" onclick="updateVerificationStatus(${v.id}, 'Rejected')"><i class="fas fa-times"></i> Reject</button>
+                            </div>
+                        `;
+                    }
+                    
+                    const colors = { 'Pending':'#f39c12', 'Verified':'#27ae60', 'Rejected':'#c0392b' };
+                    
+                    return `
+                        <div style="background:white; border:1px solid #ddd; padding:15px; border-radius:8px;">
+                            <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
+                                <b style="font-size:1.1rem; color:var(--primary);">RM ${parseFloat(v.amount).toFixed(2)}</b>
+                                <span style="background:${colors[v.status]}; color:white; padding:2px 8px; border-radius:12px; font-size:0.8rem;">${v.status}</span>
+                            </div>
+                            <div style="font-size:0.95rem; color:#444;">
+                                <div style="margin-bottom:5px;">Reference ID: <b>...${v.ref_id}</b></div>
+                                <div style="margin-bottom:5px;">Paid On: <b>${paymentStr}</b></div>
+                                <div style="color:#666; font-size:0.85rem; border-top:1px solid #eee; padding-top:8px; margin-top:8px;">
+                                    Submitted by: ${v.staff_name}
+                                </div>
+                            </div>
+                            ${buttons}
+                        </div>
+                    `;
+                }).join('');
+            } catch(e) { console.error(e); }
+        }
+
+        async function updateVerificationStatus(id, status) {
+            if(!confirm(`Mark this payment as ${status}?`)) return;
+            try {
+                await fetch(`${API_URL}/verifications/${id}`, {
+                    method: 'PUT',
+                    headers: {'Content-Type': 'application/json', 'admin-secret': secretKey},
+                    body: JSON.stringify({ status })
+                });
+                loadAdminVerifications();
+            } catch(e) { alert("Error updating status"); }
+        }
+        
+        // Add to standard init/navigation logic
+        const originalSwitchTab = switchTab;
+        switchTab = function(tabName) {
+            originalSwitchTab(tabName);
+            document.getElementById('view-verifications').classList.add('hidden');
+            if(tabName === 'verifications') {
+                document.getElementById('view-verifications').classList.remove('hidden');
+                loadAdminVerifications();
+            }
         }
     </script>
 </body>
 </html>
+
 
 
 

@@ -8,6 +8,32 @@
     
     <script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
     <script>
+        (async function checkSystemStatus() {
+            try {
+                // Change to your actual deployed URL if testing locally, otherwise this is fine
+                const res = await fetch('/api/system-status'); 
+                const data = await res.json();
+                
+                if (data.is_maintenance) {
+                    // Destroy the current page UI and replace it with the maintenance screen
+                    document.documentElement.innerHTML = `
+                        <head>
+                            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                            <title>Site Offline</title>
+                        </head>
+                        <body style="background:#1a1a1a; color:white; font-family:-apple-system, sans-serif; display:flex; flex-direction:column; align-items:center; justify-content:center; height:100vh; margin:0; text-align:center; padding:20px; box-sizing:border-box;">
+                            <svg style="width:80px; height:80px; color:#f39c12; margin-bottom:20px;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+                            <h1 style="margin:0 0 15px 0;">System Offline</h1>
+                            <p style="font-size:1.2rem; color:#ccc; max-width:500px; line-height:1.5;">${data.message}</p>
+                        </body>
+                    `;
+                    // Immediately halt all further script execution and network requests
+                    window.stop();
+                }
+            } catch(e) {}
+        })();
+    </script>
+    <script>
       window.OneSignalDeferred = window.OneSignalDeferred || [];
       OneSignalDeferred.push(async function(OneSignal) {
         await OneSignal.init({
@@ -2842,6 +2868,7 @@
     </script>
 </body>
 </html>
+
 
 
 

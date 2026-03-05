@@ -848,12 +848,23 @@
                     </div>
                     
                     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; flex-wrap:wrap; gap:10px;">
-                        <h4 style="margin:0;">Team Tracking Log</h4>
-                        <div style="display:flex; gap:10px; align-items:center;">
-                            <select id="regFilterStaff" onchange="loadRegistrations()" style="margin:0; padding:6px 10px; font-size:0.85rem; border-radius:4px;">
+                        <h4 style="margin:0; display:flex; align-items:center;">
+                            Team Tracking Log 
+                            <span id="regTotalCount" style="background:var(--primary); color:white; padding:2px 8px; border-radius:12px; font-size:0.8rem; margin-left:10px;">0</span>
+                        </h4>
+                        <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+                            <select id="regFilterCode" onchange="loadRegistrations()" style="margin:0; padding:6px 10px; font-size:0.85rem; border-radius:4px; width:auto;">
+                                <option value="all">All Codes</option>
+                                <option value="KP">KP</option>
+                                <option value="Permas">Permas</option>
+                                <option value="Tuta">Tuta</option>
+                                <option value="RedOne">RedOne</option>
+                            </select>
+                            
+                            <select id="regFilterStaff" onchange="loadRegistrations()" style="margin:0; padding:6px 10px; font-size:0.85rem; border-radius:4px; width:auto;">
                                 <option value="all">All Staff</option>
                             </select>
-                            <button class="btn-refresh" onclick="loadRegistrations()" style="margin:0; padding:6px 10px;"><i class="fas fa-sync"></i> Refresh</button>
+                            <button class="btn-refresh" onclick="loadRegistrations()" style="margin:0; padding:6px 10px;"><i class="fas fa-sync"></i></button>
                         </div>
                     </div>
                     
@@ -2705,9 +2716,19 @@
                 const res = await fetch(`${API_URL}/registrations`);
                 const regs = await res.json();
                 
-                // 3. Apply the Filter
-                const filterVal = document.getElementById('regFilterStaff').value;
-                const filteredRegs = filterVal === 'all' ? regs : regs.filter(r => r.staff_name === filterVal);
+                // 3. Apply BOTH Filters (Staff AND Code)
+                const filterStaff = document.getElementById('regFilterStaff').value;
+                const filterCode = document.getElementById('regFilterCode').value;
+                
+                const filteredRegs = regs.filter(r => {
+                    const matchStaff = filterStaff === 'all' || r.staff_name === filterStaff;
+                    const matchCode = filterCode === 'all' || (r.code && r.code.toLowerCase() === filterCode.toLowerCase());
+                    return matchStaff && matchCode;
+                });
+                
+                // UPDATE THE TOTAL COUNT BADGE
+                const countBadge = document.getElementById('regTotalCount');
+                if (countBadge) countBadge.innerText = filteredRegs.length;
                 
                 // 4. Render the list
                 const list = document.getElementById('regList');
@@ -2870,31 +2891,3 @@
     </script>
 </body>
 </html>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

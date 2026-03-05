@@ -1205,13 +1205,12 @@ const app = new Elysia()
             } catch(e) { try{await sql.end();}catch(err){} return { success: false, error: String(e) }; }
         })
         
-        // 🔴 YOUR SECRET URL: Type /api/the-red-button in the browser
-        .get('/the-red-button', ({ set }) => {
-            set.headers['Content-Type'] = 'text/html';
-            return `
+        .get('/the-red-button', () => {
+            const htmlContent = `
                 <!DOCTYPE html>
                 <html>
                 <head>
+                    <meta charset="UTF-8">
                     <meta name="viewport" content="width=device-width, initial-scale=1.0">
                     <title>SYSTEM OVERRIDE</title>
                 </head>
@@ -1248,6 +1247,11 @@ const app = new Elysia()
                 </body>
                 </html>
             `;
+            
+            // This forces the server to return it as an actual webpage with correct emojis
+            return new Response(htmlContent, {
+                headers: { 'Content-Type': 'text/html; charset=utf-8' }
+            });
         })
     );
 

@@ -2068,13 +2068,36 @@
             const m24 = document.getElementById('m24').innerText;
             const m36 = document.getElementById('m36').innerText;
             const m48 = document.getElementById('m48').innerText;
+
+            // --- GET SELECTED MODEL NAMES ---
+            const p1 = document.getElementById('phone1');
+            const p2 = document.getElementById('phone2');
+            let models = [];
+
+            if (p1 && p1.value !== "0" && p1.selectedIndex > 0) {
+                models.push(p1.options[p1.selectedIndex].text);
+            }
             
-            let text = "Ansuran Plan:\n";
+            // Only add second phone if it is selected AND the second item box is visible
+            if (p2 && p2.value !== "0" && p2.selectedIndex > 0 && !document.getElementById('secondPhoneWrapper').classList.contains('hidden')) {
+                models.push(p2.options[p2.selectedIndex].text);
+            }
+            
+            // --- BUILD THE TEXT ---
+            let text = "";
+            
+            // Add the models separated by " + " if any are selected
+            if (models.length > 0) {
+                text += `Model: ${models.join(' + ')}\n`;
+            }
+            
+            text += "Ansuran Plan:\n";
             if (dp > 0) {
                 text += `Down Payment: RM ${dp.toFixed(2)}\n`;
             }
             text += `12mth: RM ${m12}\n24mth: RM ${m24}\n36mth: RM ${m36}\n48mth: RM ${m48}`;
             
+            // --- COPY TO CLIPBOARD ---
             navigator.clipboard.writeText(text).then(() => {
                 alert("✓ Full plan copied!");
             }).catch(() => {
@@ -2891,4 +2914,5 @@
     </script>
 </body>
 </html>
+
 
